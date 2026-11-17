@@ -1,26 +1,22 @@
 #import "TIMAntiRecallRuntime.h"
 #import "TIMAntiRecallBootstrap.h"
+#import "TIMAntiRecallImage.h"
 #import <mach-o/dyld.h>
+#import <crt_externs.h>
 #import <mach-o/loader.h>
 #include <stdio.h>
 
 #if !defined(TIMANTIRECALL_NATIVE_TEST) || defined(TIMANTIRECALL_CONSTRUCTOR_TEST)
 static NSString *timantirecall_mainUUID(void) {
-    const struct mach_header_64 *header = (const struct mach_header_64 *)_dyld_get_image_header(0);
-    if (!header || header->magic != MH_MAGIC_64) return nil;
-    const uint8_t *cursor = (const uint8_t *)(header + 1);
-    const uint8_t *end = cursor + header->sizeofcmds;
-    for (uint32_t index = 0; index < header->ncmds; index++) {
-        if (cursor + sizeof(struct load_command) > end) return nil;
-        const struct load_command *command = (const struct load_command *)cursor;
-        if (command->cmdsize < sizeof(*command) || command->cmdsize > (size_t)(end - cursor)) return nil;
-        if (command->cmd == LC_UUID && command->cmdsize == sizeof(struct uuid_command)) {
-            const struct uuid_command *uuid = (const struct uuid_command *)cursor;
-            return [[NSUUID alloc] initWithUUIDBytes:uuid->uuid].UUIDString;
-        }
-        cursor += command->cmdsize;
-    }
-    return nil;
+    const struct mach_header *header = (const struct mach_header *)_NSGetMachExecuteHeader();
+    if (!header) { timantirecall_bootstrapEvent("main-execute-header-missing"); return nil; }
+    char event[192];
+    snprintf(event,sizeof(event),"main-execute-header filetype=%u cpu=%u subtype=%u",
+             header->filetype,(unsigned)header->cputype,(unsigned)header->cpusubtype);
+    timantirecall_bootstrapEvent(event);
+    NSString *uuid=timantirecall_uuidForMainExecutableHeader(header);
+    timantirecall_bootstrapEvent(uuid?"main-execute-uuid-valid":"main-execute-uuid-invalid");
+    return uuid;
 }
 
 static void timantirecall_attemptInstall(unsigned attempt) {

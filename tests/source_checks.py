@@ -75,6 +75,11 @@ def check_sources(project, meta):
         active_body = mask_literals(body)
         if active_body.find('timantirecall_bootstrapEvent') < 0 or not (active_body.find('timantirecall_bootstrapEvent') < active_body.find('@autoreleasepool')):
             errors.append('bootstrap evidence must precede Foundation and identity checks')
+        main_uuid = mask_literals(function_body(main, 'timantirecall_mainUUID') or '')
+        if not re.search(r'\b_NSGetMachExecuteHeader\s*\(', main_uuid) or re.search(r'\b_dyld_get_image_header\s*\(', main_uuid):
+            errors.append('main UUID must come from executable-header API, never dyld image index zero')
+        if not re.search(r'\btimantirecall_uuidForMainExecutableHeader\s*\(', main_uuid):
+            errors.append('main executable header must be validated before reading UUID')
         startup = strip_comments((root/'Sources/TIMAntiRecallStartup.m').read_text())
         active_startup = mask_literals(startup)
         if not re.search(r'\btimantirecall_targetRejectionReason\s*\(', active_startup):

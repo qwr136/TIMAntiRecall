@@ -4,7 +4,7 @@
 
 为 **TIM 4.1.0 / build 4.1.0.81 / com.tencent.tim / iOS 16.5** 编写的独立 TrollFools 注入动态库。仅交付 `TIMAntiRecall.dylib`，不需要越狱库、PreferenceLoader、deb 或修改版 IPA。
 
-> 0.10、0.30 用户真机反馈未生效，0.30 的 Documents 与 tmp 两处均无日志，已确认，不再要求重复搜索旧日志。本轮是 arm64 单架构的受控兼容性对照版，保持 0.30 全部业务、目标校验和诊断源码，未确认根因、未宣称功能已修好。
+> 0.40 真机日志已证明：库初始化执行，但旧代码把 dyld 的第0个镜像（MH_DYLIB）当作主程序，读取了错误 UUID，因而拒绝安装 Hook。本轮改用系统主执行头接口，并保留预期 TIM UUID、版本与 ABI 保护；撤回逻辑不变，实际功能仍待真机验收。
 
 ## 实现
 
@@ -15,10 +15,11 @@
 - 其他命令、普通消息、其他群系统通知、未知/重复/截断/超限字段均调用原实现一次，原参数保持不变。
 - 不缓存聊天文本、图片或账号信息，不查询资料服务，不依赖 `TIMAutoRevoke31.dylib`。
 - 按 Bundle ID、版本、构建号、程序名和主程序 UUID 一起限制目标；版本不符时不安装 Hook。
+- 主程序头来自公开 `_NSGetMachExecuteHeader()`，要求 MH_EXECUTE/arm64 ALL、64位布局与唯一 LC_UUID；不再用 dyld image0 的 UUID。`image0` 只保留作诊断，不参与身份判断。新日志应出现 `main-execute-header filetype=2`、`main-execute-uuid-valid`，实际 UUID 仍须匹配原目标后才可 `identity-accepted`。
 
 ## 安装与停用
 
-1. 在 TrollFools 中仅移除之前启用的本插件 0.30，结束 TIM 进程；旧 `TIMAutoRevoke31.dylib` 已停用则保持停用，不点“全部启用”。
+1. 在 TrollFools 中仅移除之前启用的本插件旧版（如0.40），结束 TIM 进程；旧 `TIMAutoRevoke31.dylib` 已停用则保持停用，不点“全部启用”。
 2. 将 Release 或附件中的 **TIMAntiRecall.dylib** 保存到“文件”。
 3. TrollFools → TIM → 注入该动态库，然后完全退出并重开 TIM。
 4. 默认启用，没有额外设置面板。移除该动态库并重开 TIM 即停用。

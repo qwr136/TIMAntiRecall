@@ -3,7 +3,9 @@
 #import "TIMAntiRecallRuntime.h"
 #import "TIMAntiRecallWire.h"
 #import "TIMAntiRecallBootstrap.h"
+#import "TIMAntiRecallImage.h"
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 
 static unsigned timantirecall_checks = 0;
@@ -62,8 +64,37 @@ static NSData *timantirecall_groupPacket(uint64_t subtype, unsigned notifyType) 
 - (BOOL)onMsfPush:(id)command msgBuffer:(id)buffer pushExtraInfo:(id)extra { (void)command; (void)buffer; (void)extra; return YES; }
 @end
 
+static NSData *timantirecall_imageHeader(uint32_t filetype, cpu_type_t cpu, cpu_subtype_t subtype,
+                                           BOOL duplicateUUID, BOOL invalidCommand) {
+    uint32_t count=duplicateUUID?2:1;
+    size_t commandBytes=count*sizeof(struct uuid_command);
+    size_t total=sizeof(struct mach_header_64)+commandBytes;
+    NSMutableData *data=[NSMutableData dataWithLength:total];
+    struct mach_header_64 *header=data.mutableBytes;
+    header->magic=MH_MAGIC_64; header->cputype=cpu; header->cpusubtype=subtype;
+    header->filetype=filetype; header->ncmds=count; header->sizeofcmds=(uint32_t)commandBytes;
+    uint8_t bytes[16]; [[[NSUUID alloc] initWithUUIDString:@"3c237fa0-5985-3376-bf98-ef1698563247"] getUUIDBytes:bytes];
+    uint8_t *cursor=(uint8_t *)(header+1);
+    for(uint32_t i=0;i<count;i++) {
+        struct uuid_command command={0}; command.cmd=LC_UUID; command.cmdsize=(invalidCommand&&i==0)?sizeof(command)-1:sizeof(command);
+        memcpy(command.uuid,bytes,16); memcpy(cursor,&command,sizeof(command)); cursor+=sizeof(command);
+    }
+    return data;
+}
+
 int main(void) {
     @autoreleasepool {
+        NSData *mainImage=timantirecall_imageHeader(MH_EXECUTE,CPU_TYPE_ARM64,CPU_SUBTYPE_ARM64_ALL,NO,NO);
+        NSString *mainUUID=timantirecall_uuidForMainExecutableHeader((const struct mach_header *)mainImage.bytes);
+        CHECK([mainUUID isEqualToString:@"3C237FA0-5985-3376-BF98-EF1698563247"]);
+        NSData *image0Dylib=timantirecall_imageHeader(MH_DYLIB,CPU_TYPE_ARM64,CPU_SUBTYPE_ARM64_ALL,NO,NO);
+        CHECK(timantirecall_uuidForMainExecutableHeader((const struct mach_header *)image0Dylib.bytes)==nil);
+        NSData *wrongCPU=timantirecall_imageHeader(MH_EXECUTE,CPU_TYPE_ARM64,CPU_SUBTYPE_ARM64E,NO,NO);
+        CHECK(timantirecall_uuidForMainExecutableHeader((const struct mach_header *)wrongCPU.bytes)==nil);
+        NSData *duplicate=timantirecall_imageHeader(MH_EXECUTE,CPU_TYPE_ARM64,CPU_SUBTYPE_ARM64_ALL,YES,NO);
+        CHECK(timantirecall_uuidForMainExecutableHeader((const struct mach_header *)duplicate.bytes)==nil);
+        NSData *malformed=timantirecall_imageHeader(MH_EXECUTE,CPU_TYPE_ARM64,CPU_SUBTYPE_ARM64_ALL,NO,YES);
+        CHECK(timantirecall_uuidForMainExecutableHeader((const struct mach_header *)malformed.bytes)==nil);
         NSString *temporary=[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
         NSString *testHome=[temporary stringByAppendingPathComponent:@"home"];
         NSString *testTmp=[temporary stringByAppendingPathComponent:@"tmp"];
