@@ -1,0 +1,9 @@
+Package: com.minis.timantirecall
+Name: TIM防撤回
+Version: 0.10
+Architecture: arm64 arm64e
+Description: TIM 4.1.0 standalone TrollFools injection library; metadata only, NOT a Debian package
+Maintainer: Xiaofei
+Author: Xiaofei
+X-Artifact: dist/TIMAntiRecall.dylib
+X-Injection: trollfools

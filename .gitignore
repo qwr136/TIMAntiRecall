@@ -1,0 +1,11 @@
+.theos/
+dist/
+reports/
+packages/
+__pycache__/
+*.pyc
+tests/report.txt
+*.ipa
+*.p12
+*.key
+.DS_Store

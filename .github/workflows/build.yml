@@ -1,0 +1,180 @@
+name: Build TIMAntiRecall
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_INSTALL_FROM_API: 1
+  HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
+  PYTHONDONTWRITEBYTECODE: 1
+  TOOLCHAIN_ROOT: /tmp/xiaofei-toolchain
+  THEOS: /tmp/xiaofei-toolchain/theos
+  DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+  THEOS_COMMIT: cfba89a53a05b4a1b822121158acc3669c20602f
+  SDK_COMMIT: 0222fd5413cf4b9af096f37b4621afa2688572f7
+  SDK_VERSION: 16.5
+
+jobs:
+  # ① 源码测试：不通过则不编译
+  test:
+    name: Source Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - name: Set locked Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.13.14'
+          check-latest: false
+
+      - name: Check lock and run source tests
+        run: |
+          python3 scripts/toolchain.py static
+          python3 tests/run_tests.py -v
+
+      - name: Publish test summary
+        if: always()
+        run: |
+          if [ -f tests/report.txt ]; then
+            cat tests/report.txt >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: test-report
+          path: tests/report.txt
+          if-no-files-found: warn
+
+  # ② 编译 + deb 核验：依赖 test 全绿
+  build:
+    name: Build (${{ matrix.build_variant }})
+    needs: test
+    runs-on: macos-15
+    timeout-minutes: 35
+    outputs:
+      package_version: ${{ steps.bump.outputs.package_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - build_variant: trollfools
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - name: Set locked Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.13.14'
+          check-latest: false
+
+      - name: Restore locked source and download cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ env.TOOLCHAIN_ROOT }}
+          key: toolchain-v1-${{ runner.os }}-${{ runner.arch }}-${{ matrix.build_variant }}-${{ hashFiles('toolchain-lock.json') }}
+
+      - name: Set locked Xcode
+        run: sudo xcode-select -s "$DEVELOPER_DIR"
+
+      - name: Check selected Xcode
+        run: |
+          test -d "$DEVELOPER_DIR"
+          test "$(xcode-select -p)" = "$DEVELOPER_DIR"
+          xcodebuild -version
+          xcrun --sdk iphoneos clang --version
+
+      - name: Setup Environment
+        run: |
+          echo "$THEOS/bin" >> "$GITHUB_PATH"
+          echo "THEOS=$THEOS" >> "$GITHUB_ENV"
+          echo "THEOS_IGNORE_PARALLEL_BUILDING_NOTICE=yes" >> "$HOME/.theosrc"
+
+      - name: Calculate run version without changing tracked source
+        id: bump
+        run: |
+          VERSION=$(python3 scripts/build_contract.py --run-number "$GITHUB_RUN_NUMBER")
+          echo "TIMANTIRECALL_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "package_version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare release title from manifest
+        id: release_title
+        env:
+          PACKAGE_VERSION: ${{ steps.bump.outputs.package_version }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          display = json.loads(Path('tweak.json').read_text(encoding='utf-8'))['display_name']
+          if not isinstance(display, str) or not display or any(c in display for c in '\r\n\0'):
+              raise SystemExit('Invalid display_name in tweak.json')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write('release_name=' + display + ' v' + os.environ['PACKAGE_VERSION'] + '\n')
+          PY
+
+      - name: Prepare exact locked toolchain
+        run: python3 scripts/toolchain.py prepare
+
+      - name: Verify actual toolchain before build
+        run: python3 scripts/toolchain.py verify --output reports/toolchain-verification.json
+
+      - name: Real Foundation runtime-double regression
+        run: python3 scripts/run_native_tests.py --project . --version "$TIMANTIRECALL_VERSION"
+
+      - name: Build real arm64 and arm64e standalone library
+        run: sh build.sh "${{ matrix.build_variant }}"
+
+      - name: Verify actual dylib (blocks upload on failure)
+        run: python3 scripts/verify_dylib.py --project . --scheme '${{ matrix.build_variant }}' --expected-version "$TIMANTIRECALL_VERSION" --output reports/dylib-verification.json dist/TIMAntiRecall.dylib
+
+      - name: Save verified build receipt
+        run: python3 scripts/toolchain.py receipt --version "$TIMANTIRECALL_VERSION" --output dist/build-receipt.json
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dylib-${{ matrix.build_variant }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            dist/TIMAntiRecall.dylib
+            dist/build-receipt.json
+          if-no-files-found: error
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diagnostics-${{ matrix.build_variant }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/
+          if-no-files-found: warn
+
+      - name: Create Release
+        if: github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+        with:
+          token: ${{ github.token }}
+          tag_name: v${{ steps.bump.outputs.package_version }}
+          name: ${{ steps.release_title.outputs.release_name }}
+          target_commitish: ${{ github.sha }}
+          files: |
+            dist/TIMAntiRecall.dylib
+            dist/build-receipt.json
