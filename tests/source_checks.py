@@ -69,8 +69,16 @@ def check_sources(project, meta):
             errors.append('missing active runtime method replacement')
         if function_body(main, 'timantirecall_initialize') is None:
             errors.append('missing active constructor')
-        if not re.search(r'\btimantirecall_matchesTarget\s*\(', mask_literals(main)):
-            errors.append('missing active target guard')
+        if not re.search(r'\btimantirecall_startupWithIdentity\s*\(', mask_literals(main)):
+            errors.append('missing active diagnostic target guard')
+        body = function_body(main, 'timantirecall_initialize') or ''
+        active_body = mask_literals(body)
+        if active_body.find('timantirecall_bootstrapEvent') < 0 or not (active_body.find('timantirecall_bootstrapEvent') < active_body.find('@autoreleasepool')):
+            errors.append('bootstrap evidence must precede Foundation and identity checks')
+        startup = strip_comments((root/'Sources/TIMAntiRecallStartup.m').read_text())
+        active_startup = mask_literals(startup)
+        if not re.search(r'\btimantirecall_targetRejectionReason\s*\(', active_startup):
+            errors.append('missing strict identity guard in diagnostic startup')
         for path in [*root.glob('Sources/*.[mh]'), *root.glob('Headers/*.[mh]'), *root.glob('Hooks/*.[mh]')]:
             active_source = strip_comments(path.read_text())
             if re.search(r'#\s*(?:import|include)\s*[<\"](?:substrate|roothide|rootless)', active_source):

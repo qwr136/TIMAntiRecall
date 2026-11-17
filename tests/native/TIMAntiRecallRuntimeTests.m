@@ -2,6 +2,9 @@
 #import <objc/message.h>
 #import "TIMAntiRecallRuntime.h"
 #import "TIMAntiRecallWire.h"
+#import "TIMAntiRecallBootstrap.h"
+#include <stdlib.h>
+#include <sys/stat.h>
 
 static unsigned timantirecall_checks = 0;
 static unsigned timantirecall_calls = 0;
@@ -61,7 +64,37 @@ static NSData *timantirecall_groupPacket(uint64_t subtype, unsigned notifyType) 
 
 int main(void) {
     @autoreleasepool {
+        NSString *temporary=[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
+        NSString *testHome=[temporary stringByAppendingPathComponent:@"home"];
+        NSString *testTmp=[temporary stringByAppendingPathComponent:@"tmp"];
+        CHECK([NSFileManager.defaultManager createDirectoryAtPath:testHome withIntermediateDirectories:YES attributes:nil error:NULL]);
+        CHECK([NSFileManager.defaultManager createDirectoryAtPath:testTmp withIntermediateDirectories:YES attributes:nil error:NULL]);
+        CHECK(setenv("HOME",testHome.fileSystemRepresentation,1)==0);
+        CHECK(setenv("TMPDIR",testTmp.fileSystemRepresentation,1)==0);
+        CHECK(timantirecall_bootstrapEvent("constructor-test-enter"));
+        NSString *bootstrap=[testHome stringByAppendingPathComponent:@"Documents/TIMAntiRecall/TIMAntiRecall-bootstrap.log"];
+        CHECK([[NSString stringWithContentsOfFile:bootstrap encoding:NSUTF8StringEncoding error:NULL] containsString:@"constructor-test-enter"]);
         NSString *uuid = @"3c237fa0-5985-3376-bf98-ef1698563247";
+        NSDictionary *identity=@{@"CFBundleIdentifier":@"com.tencent.tim",@"CFBundleShortVersionString":@"4.1.0",
+            @"CFBundleVersion":@"4.1.0.81",@"CFBundleExecutable":@"QQ"};
+        __block unsigned installCalls=0;
+        void (^install)(void)=^{installCalls++;};
+        for (NSArray *failure in @[@[@"CFBundleIdentifier",@"com.other",@"bundle-mismatch"],
+                                 @[@"CFBundleShortVersionString",@"4.1.1",@"version-mismatch"],
+                                 @[@"CFBundleVersion",@"4.1.0.82",@"build-mismatch"],
+                                 @[@"CFBundleExecutable",@"Other",@"executable-mismatch"]]) {
+            NSMutableDictionary *invalid=identity.mutableCopy; invalid[failure[0]]=failure[1];
+            CHECK(!timantirecall_startupWithIdentity(invalid,uuid,install));
+            CHECK(installCalls==0);
+            NSString *log=[NSString stringWithContentsOfFile:bootstrap encoding:NSUTF8StringEncoding error:NULL];
+            CHECK([log containsString:failure[2]]);
+        }
+        CHECK(!timantirecall_startupWithIdentity(identity,nil,install));
+        CHECK(installCalls==0);
+        CHECK([[NSString stringWithContentsOfFile:bootstrap encoding:NSUTF8StringEncoding error:NULL] containsString:@"uuid-mismatch"]);
+        CHECK(timantirecall_startupWithIdentity(identity,uuid,install));
+        CHECK(installCalls==1);
+        CHECK([[NSString stringWithContentsOfFile:bootstrap encoding:NSUTF8StringEncoding error:NULL] containsString:@"identity-accepted"]);
         CHECK(timantirecall_matchesTarget(@"com.tencent.tim", @"4.1.0", @"4.1.0.81", @"QQ", uuid));
         CHECK(!timantirecall_matchesTarget(@"com.tencent.tim", @"4.1.0", @"4.1.0.81", @"QQ", nil));
         CHECK(!timantirecall_matchesTarget(@"com.tencent.mqq", @"4.1.0", @"4.1.0.81", @"QQ", uuid));
@@ -115,7 +148,14 @@ int main(void) {
                 CHECK(timantirecall_classifyPush(truncated.bytes,truncated.length)==TIMAntiRecallPass);
             }
         }
-        NSLog(@"PASS %u native runtime/forwarding/ABI checks; device untested",timantirecall_checks);
+        NSString *startupLog=[NSString stringWithContentsOfFile:bootstrap encoding:NSUTF8StringEncoding error:NULL];
+        CHECK([startupLog containsString:@"push-entered"]);
+        CHECK([startupLog containsString:@"olpush-entered-data"]);
+        CHECK([startupLog containsString:@"blocked-private-recall"]);
+        CHECK([startupLog containsString:@"blocked-group-recall"]);
+        CHECK(![startupLog containsString:@"u_one"] && ![startupLog containsString:@"u_two"]);
+        CHECK([NSFileManager.defaultManager removeItemAtPath:temporary error:NULL]);
+        NSLog(@"PASS %u native runtime/forwarding/ABI/startup checks; device untested",timantirecall_checks);
     }
     return 0;
 }

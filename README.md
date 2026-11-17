@@ -4,7 +4,7 @@
 
 为 **TIM 4.1.0 / build 4.1.0.81 / com.tencent.tim / iOS 16.5** 编写的独立 TrollFools 注入动态库。仅交付 `TIMAntiRecall.dylib`，不需要越狱库、PreferenceLoader、deb 或修改版 IPA。
 
-> 当前为待设备验收的测试版本。源码门禁、macOS Foundation 测试、iOS 编译与真机效果是不同验证层；以对应 Actions 和设备反馈为准。
+> 0.10 用户真机反馈未生效且没有日志。本轮仅补启动诊断，未确认防撤回根因、未宣称功能已修好。源码门禁、macOS Foundation 测试、iOS 编译与真机效果是不同验证层。
 
 ## 实现
 
@@ -35,7 +35,11 @@
 
 ## 反馈
 
-TIM 沙盒 `Documents/TIMAntiRecall/TIMAntiRecall.log` 记录加载、安装状态以及有限次数的私聊/群聊拦截事件，不记录聊天内容、UID 或消息序号。请提供该文件、TIM/iOS 版本、私聊还是群聊、在线还是离线、注入器中旧插件是否已移除；闪退另附对应 `.ips`。
+本轮优先提供 TIM **数据沙盒**（不是 App 安装目录）的 `Documents/TIMAntiRecall/TIMAntiRecall-bootstrap.log`。它在身份校验之前同步记录 constructor-enter、实际 App 版本/构建/UUID、identity-accepted 或 identity-rejected 的原因、Hook 安装与有限收包状态。若 Documents 写入失败或日志超限，后备写入该进程 `TMPDIR`，通常是数据沙盒 `tmp/TIMAntiRecall-bootstrap.log`。每次进程最多 96 条、文件约 128KiB 上限，超限保留旧内容，诊断后可手动备份再清理。
+
+原 `Documents/TIMAntiRecall/TIMAntiRecall.log` 仍只记录通过身份校验后的异步加载/拦截状态。两份日志不记录聊天内容、UID、消息序号或沙盒绝对路径。`constructor-enter` 只说明库的初始化函数执行，`hook-installed` 不等于撤回已拦截；没有任何文件也不能单独证明未加载，目录访问/注入器路径仍需核对。两处文件写入都失败时还会向系统日志发送 `TIMAntiRecall ... file-write=failed` 标记；是否可从设备系统日志读取须实测。
+
+请在移除本插件旧版后注入本轮诊断库，结束并重开 TIM，分别做一次普通收包与撤回复现，发 bootstrap 日志。若主/后备路径都没有，发 TrollFools 的 TIM 已注入列表截图及 TIM 数据沙盒目录截图，不要卸载 TIM 或手动改 App 二进制。闪退附对应 `.ips`。
 
 ## 源码 → Actions → 文件
 

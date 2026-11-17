@@ -2,6 +2,8 @@
 """Compile and execute real macOS Foundation runtime doubles, never fake Foundation."""
 import argparse
 import json
+import os
+import tempfile
 from pathlib import Path
 import platform
 import subprocess
@@ -33,6 +35,19 @@ def run(project, version):
     with (root/'reports/native-tests.log').open('w') as log:
         subprocess.run(command, cwd=root, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=180)
         subprocess.run([str(output)], cwd=root, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=120)
+        smoke=root/'tests/native/TIMAntiRecallConstructorTests.m'
+        require(smoke.is_file(), 'real constructor smoke test is required')
+        smoke_output=root/'reports/TIMAntiRecallConstructorTests'
+        smoke_command=command.copy()
+        smoke_command[smoke_command.index(str(test))]=str(smoke)
+        smoke_command[smoke_command.index(str(output))]=str(smoke_output)
+        smoke_command.insert(smoke_command.index('clang')+1,'-DTIMANTIRECALL_CONSTRUCTOR_TEST=1')
+        subprocess.run(smoke_command, cwd=root, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=180)
+        with tempfile.TemporaryDirectory(prefix='timantirecall-constructor-') as temporary:
+            home=Path(temporary)/'home'; home.mkdir()
+            tmp=Path(temporary)/'tmp'; tmp.mkdir()
+            environment=dict(os.environ,HOME=str(home),TMPDIR=str(tmp))
+            subprocess.run([str(smoke_output)],cwd=root,env=environment,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=30)
     require(source == source_snapshot(root, version), 'source changed during runtime regression')
     write_json(report, {'status': 'passed', 'source': source, 'command': command,
                         'scope': 'real macOS Foundation runtime doubles; not TIM/iOS device behavior'})

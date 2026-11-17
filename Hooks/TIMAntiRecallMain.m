@@ -1,9 +1,10 @@
 #import "TIMAntiRecallRuntime.h"
+#import "TIMAntiRecallBootstrap.h"
 #import <mach-o/dyld.h>
 #import <mach-o/loader.h>
-#import <stdatomic.h>
+#include <stdio.h>
 
-#ifndef TIMANTIRECALL_NATIVE_TEST
+#if !defined(TIMANTIRECALL_NATIVE_TEST) || defined(TIMANTIRECALL_CONSTRUCTOR_TEST)
 static NSString *timantirecall_mainUUID(void) {
     const struct mach_header_64 *header = (const struct mach_header_64 *)_dyld_get_image_header(0);
     if (!header || header->magic != MH_MAGIC_64) return nil;
@@ -25,26 +26,36 @@ static NSString *timantirecall_mainUUID(void) {
 static void timantirecall_attemptInstall(unsigned attempt) {
     Class target = objc_getClass("OCIQQNTWrapperSession");
     if (timantirecall_installOnClass(target)) {
+        timantirecall_bootstrapEvent("hook-installed-before-kernel");
         timantirecall_logEvent(@"installed-before-kernel");
         return;
     }
-    if (attempt >= 30) { timantirecall_logEvent(@"install-rejected-missing-class-or-ABI"); return; }
+    if (attempt == 0) timantirecall_bootstrapEvent(target ? "hook-rejected-method-or-ABI retry=1" : "hook-class-missing retry=1");
+    if (attempt >= 30) {
+        timantirecall_bootstrapEvent(target ? "hook-final-rejected-method-or-ABI" : "hook-final-class-missing");
+        timantirecall_logEvent(@"install-rejected-missing-class-or-ABI"); return;
+    }
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         timantirecall_attemptInstall(attempt + 1);
     });
 }
 
 __attribute__((constructor)) static void timantirecall_initialize(void) {
+    // First observable side effect precedes Foundation and all identity checks.
+    timantirecall_bootstrapEvent("constructor-enter diagnostic=startup-2");
     @autoreleasepool {
+        timantirecall_bootstrapEvent("foundation-begin");
+        const struct mach_header *image0 = _dyld_get_image_header(0);
+        if (image0) {
+            char event[192];
+            snprintf(event, sizeof(event), "image0 filetype=%u cpu=%u subtype=%u", image0->filetype,
+                     (unsigned)image0->cputype, (unsigned)image0->cpusubtype);
+            timantirecall_bootstrapEvent(event);
+        }
         NSBundle *bundle = NSBundle.mainBundle;
-        if (!timantirecall_matchesTarget(bundle.bundleIdentifier,
-                [bundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"],
-                [bundle objectForInfoDictionaryKey:@"CFBundleVersion"],
-                [bundle objectForInfoDictionaryKey:@"CFBundleExecutable"], timantirecall_mainUUID())) return;
-        timantirecall_logEvent(@"loaded-TIM-4.1.0.81");
-        // Objective-C classes in the main executable are normally registered
-        // before constructors. Retry only on startup when the class is absent.
-        timantirecall_attemptInstall(0);
+        timantirecall_startupWithIdentity(bundle.infoDictionary, timantirecall_mainUUID(), ^{
+            timantirecall_attemptInstall(0);
+        });
     }
 }
 #endif
