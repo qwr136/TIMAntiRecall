@@ -15,5 +15,5 @@ TIMAntiRecall_LDFLAGS = -Wl,-current_version,$(TIMANTIRECALL_VERSION) -Wl,-compa
 include $(THEOS_MAKE_PATH)/library.mk
 
 after-all::
-	mkdir -p dist
-	cp "$(THEOS_OBJ_DIR)/TIMAntiRecall.dylib" dist/TIMAntiRecall.dylib
+	mkdir -p reports/universal
+	cp "$(THEOS_OBJ_DIR)/TIMAntiRecall.dylib" reports/universal/TIMAntiRecall.dylib

@@ -50,7 +50,8 @@ def source_snapshot(project, version):
     require(blobs, 'no tracked source blobs')
     paths = {b['path'] for b in blobs}
     mandatory = {'Makefile', 'TIMAntiRecallBuild.mk', 'build.sh', 'control', 'tweak.json',
-                 'toolchain-lock.json', 'scripts/build_evidence.py', 'scripts/verify_dylib.py'}
+                 'toolchain-lock.json', 'scripts/build_evidence.py', 'scripts/verify_dylib.py',
+                 'scripts/prepare_delivery.py'}
     require(mandatory <= paths, 'build inputs missing from tracked blob list')
     inputs = sorted(str(p.relative_to(root)) for folder in ('Sources', 'Hooks')
                     for p in (root/folder).glob('*.m'))
@@ -74,8 +75,12 @@ def seal(project, version):
     previous = json.loads((root/'reports/build-source.json').read_text())
     require(previous == current, 'source/run/lock changed during compilation')
     artifact = validate_file(root/'dist/TIMAntiRecall.dylib', root, 'trollfools', version)
-    result = {'source': current, 'artifact': artifact,
+    from prepare_delivery import verify_selection
+    selection = verify_selection(root, version)
+    result = {'source': current, 'artifact': artifact, 'build_artifact': selection['internal'],
+              'delivery_selection': selection,
               'compile_contract': {'target': 'iphone:clang:16.5:16.5', 'archs': ['arm64', 'arm64e'],
+                                   'delivery_archs':['arm64'], 'delivery_method':'exact-byte-slice-extraction',
                                    'make_target': 'all', 'code_signature_page_hashes_verified': True}}
     write_json(root/'reports/build-seal.json', result)
     return result
@@ -93,6 +98,10 @@ def receipt(project, evidence, output, version):
             'native Foundation runtime tests missing, failed or from different source/run')
     require(seal_record['source'] == current and seal_record['artifact'] == actual,
             'build seal differs from source/run/artifact')
+    from prepare_delivery import verify_selection
+    selection = verify_selection(root, version)
+    require(seal_record['delivery_selection'] == selection and
+            seal_record['build_artifact'] == selection['internal'], 'build/delivery selection changed after seal')
     require(evidence['lock_sha256'] == current['lock_sha256'], 'receipt lock mismatch')
     verified = json.loads((root/'reports/dylib-verification.json').read_text())
     require(verified == actual, 'dylib verification report does not match artifact')
@@ -100,8 +109,9 @@ def receipt(project, evidence, output, version):
     require({p.name for p in (root/'dist').iterdir()} <= {'TIMAntiRecall.dylib', 'build-receipt.json'},
             'unexpected deliverable in dist')
     result = dict(evidence, **current, artifact=actual, native_tests=native,
+                  build_artifact=selection['internal'], delivery_selection=selection,
                   compile_contract=seal_record['compile_contract'],
-                  validation='Source gates + native macOS runtime doubles + real dual-arch dylib inspection; device untested')
+                  validation='Source gates + native runtime + dual-arch build + exact arm64 delivery inspection; device untested')
     write_json(output, result)
     return result
 

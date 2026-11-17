@@ -110,6 +110,7 @@ def parse_macho(data, cpu, subtype):
     uuids, versions, symtabs, signatures, dysymtabs = [], [], [], [], []
     id_versions = []
     has_text = False
+    text_ranges, init_sections = [], []
     for _ in range(count):
         require(pos + 8 <= end, "truncated load command")
         command, length = struct.unpack_from("<II", data, pos)
@@ -149,6 +150,14 @@ def parse_macho(data, cpu, subtype):
                 if name == "__TEXT" and secname == b"__text" and size:
                     require(offset >= end and offset + size <= len(data), "invalid __text section")
                     has_text = True
+                    text_address = struct.unpack_from('<Q', data, sec + 32)[0]
+                    text_ranges.append((text_address, text_address + size))
+                if attributes & 255 == 0x16:
+                    require(name == '__TEXT' and secname == b'__init_offsets' and size > 0 and size % 4 == 0,
+                            'invalid constructor init-offsets section')
+                    values = [item[0] for item in struct.iter_unpack('<I', data[offset:offset + size])]
+                    init_sections.append({'name':'__TEXT,__init_offsets','size':size,
+                                          'sha256':sha256(data[offset:offset + size]), 'function_offsets':values})
         elif command == 0x1B:
             require(length == 24, "invalid LC_UUID")
             uuids.append(str(uuid.UUID(bytes=data[pos + 8:pos + 24])))
@@ -180,6 +189,8 @@ def parse_macho(data, cpu, subtype):
             "Mach-O minos must be 16.5, locked SDK metadata must be 16.4")
     require(any(name == "__TEXT" and start == 0 and stop >= end for name, start, stop in segments),
             "load commands not covered by __TEXT")
+    require(len(init_sections) == 1 and all(any(start <= value < stop for start, stop in text_ranges)
+            for value in init_sections[0]['function_offsets']), 'missing/invalid constructor entry')
     linkedit = [(start, stop) for name, start, stop in segments if name == "__LINKEDIT"]
     require(len(linkedit) == 1, "missing/duplicate __LINKEDIT")
     symoff, nsyms, stroff, strsize = symtabs[0]
@@ -208,7 +219,7 @@ def parse_macho(data, cpu, subtype):
     return {"filetype": kind, "cpu_subtype": hex(subtype), "flags": hex(flags),
             "uuid": uuids[0], "minos": list(versions[0][0]), "sdk": list(versions[0][1]),
             "id_dylib": identities, "id_versions": id_versions, "dependencies": dependencies, "rpaths": rpaths,
-            "imports": imports, "signature": signature(data, *signatures[0])}
+            "imports": imports, "initializers": init_sections, "signature": signature(data, *signatures[0])}
 
 
 
@@ -240,10 +251,19 @@ def parse_fat(blob):
     return slices
 
 
-def validate_bytes(blob, expected_version):
+def validate_bytes(blob, expected_version, layout='arm64'):
     from build_contract import version_tuple as expected_tuple
     expected = expected_tuple(expected_version)
-    slices = parse_fat(blob)
+    require(layout in ('arm64', 'universal'), 'unknown delivery layout')
+    if layout == 'universal':
+        slices = parse_fat(blob)
+    else:
+        require(len(blob) >= 32 and blob[:4] == b'\xcf\xfa\xed\xfe',
+                'delivery must be thin arm64, never FAT or arm64e')
+        cpu, subtype = struct.unpack_from('<II', blob, 4)
+        require((cpu, subtype) == (0x100000C, 0), 'delivery must use genuine arm64 ALL subtype 0')
+        slices = {'arm64': dict(parse_macho(blob, cpu, subtype), offset=0,
+                                size=len(blob), sha256=sha256(blob))}
     for arch, info in slices.items():
         names = [item['name'] for item in info['dependencies']]
         require(names and len(names) == len(set(names)), 'missing/duplicate dependencies')
@@ -260,7 +280,8 @@ def validate_bytes(blob, expected_version):
         require(info['id_versions'] == [expected], 'binary current_version differs from expected-version')
         require(all(item['library'] in names for item in info['imports'].values()),
                 'flat/self/dynamic lookup import is not an Apple dependency')
-    require(slices['arm64']['uuid'] != slices['arm64e']['uuid'], 'duplicated slice UUID')
+    if layout == 'universal':
+        require(slices['arm64']['uuid'] != slices['arm64e']['uuid'], 'duplicated slice UUID')
     require(b'/var/jb/' not in blob and b'/Library/MobileSubstrate/' not in blob,
             'hardcoded jailbreak installation path')
     return {'sha256': sha256(blob), 'size': len(blob), 'slices': slices,
@@ -269,14 +290,14 @@ def validate_bytes(blob, expected_version):
             'arm64e_instruction_semantics_verified': False}
 
 
-def validate_file(path, project, scheme, expected_version):
+def validate_file(path, project, scheme, expected_version, layout='arm64'):
     from build_contract import validate
     meta = validate(project)
     require(scheme == meta['scheme'], 'artifact scheme mismatch')
     path = Path(path)
     require(path.name == 'TIMAntiRecall.dylib' and path.is_file() and not path.is_symlink(),
             'artifact must be the regular TIMAntiRecall.dylib file')
-    result = validate_bytes(path.read_bytes(), expected_version)
+    result = validate_bytes(path.read_bytes(), expected_version, layout)
     return dict(result, filename=path.name, package=meta['package'], injection=scheme,
                 bundle=meta['bundle'], executable=meta['executable'])
 
@@ -288,12 +309,13 @@ def main():
     parser.add_argument('--scheme', required=True)
     parser.add_argument('--expected-version', required=True)
     parser.add_argument('--output')
+    parser.add_argument('--layout', choices=('arm64','universal'), default='arm64')
     args = parser.parse_args()
-    result = validate_file(args.dylib, args.project, args.scheme, args.expected_version)
+    result = validate_file(args.dylib, args.project, args.scheme, args.expected_version, args.layout)
     if args.output:
         from toolchain import write_json
         write_json(args.output, result)
-    print('PASS actual dylib: arm64 + arm64e, Apple dependencies, CodeDirectory page hashes; device untested')
+    print('PASS actual dylib: arm64 subtype 0, Apple dependencies, CodeDirectory page hashes; device untested')
     return 0
 
 

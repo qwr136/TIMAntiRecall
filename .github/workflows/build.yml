@@ -141,7 +141,7 @@ jobs:
       - name: Real Foundation runtime-double regression
         run: python3 scripts/run_native_tests.py --project . --version "$TIMANTIRECALL_VERSION"
 
-      - name: Build real arm64 and arm64e standalone library
+      - name: Build both architectures and prepare exact arm64 delivery
         run: sh build.sh "${{ matrix.build_variant }}"
 
       - name: Verify actual dylib (blocks upload on failure)

@@ -21,6 +21,15 @@ class StructureTests(unittest.TestCase):
             'tests/native/TIMAntiRecallRuntimeTests.m']
         for name in required: self.assertTrue((ROOT/name).is_file(),name)
 
+    def test_delivery_metadata_separates_build_and_injection_arches(self):
+        meta=json.loads((ROOT/'tweak.json').read_text())
+        fields={line.split(':',1)[0]:line.split(':',1)[1].strip()
+                for line in (ROOT/'control').read_text().splitlines() if ':' in line}
+        self.assertEqual(meta['architectures'],['arm64','arm64e'])
+        self.assertEqual(meta['delivery_architectures'],['arm64'])
+        self.assertEqual(fields['Architecture'],'arm64')
+        self.assertEqual(fields['X-Build-Architectures'],'arm64 arm64e')
+
     def test_namespaced_product_sources(self):
         for folder in ('Sources','Headers','Hooks'):
             for path in (ROOT/folder).iterdir():

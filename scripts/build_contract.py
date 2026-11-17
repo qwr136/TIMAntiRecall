@@ -46,13 +46,15 @@ def validate(project):
                        'author': 'Xiaofei', 'scheme': 'trollfools', 'injection': 'trollfools',
                        'bundle': 'com.tencent.tim', 'executable': 'QQ',
                        'artifact': 'dist/TIMAntiRecall.dylib', 'minimum_ios': '16.5',
-                       'architectures': ['arm64', 'arm64e'], 'preferences': False, 'slider': False,
+                       'architectures': ['arm64', 'arm64e'], 'delivery_architectures': ['arm64'],
+                       'preferences': False, 'slider': False,
                        'target_app_architecture': 'arm64', 'target_app_version': '4.1.0'}.items():
         require(meta.get(key) == value, 'manifest contract differs: ' + key)
     version_tuple(meta['version'])
     fields = control_fields(root/'control')
     for key, value in {'Package': meta['package'], 'Author': meta['author'], 'Maintainer': meta['author'],
-                       'Version': meta['version'], 'Architecture': 'arm64 arm64e',
+                       'Version': meta['version'], 'Architecture': 'arm64',
+                       'X-Build-Architectures': 'arm64 arm64e',
                        'X-Artifact': meta['artifact'], 'X-Injection': meta['injection']}.items():
         require(fields.get(key) == value, 'control metadata differs: ' + key)
     require(not fields.get('Depends'), 'standalone library cannot have Debian Depends')
@@ -77,6 +79,17 @@ def validate(project):
     for needle in ('scripts/toolchain.py verify', 'scripts/build_evidence.py snapshot',
                    'scripts/build_evidence.py seal', 'scripts/verify_dylib.py'):
         require(needle in wrapper, 'wrapper missing gate: ' + needle)
+    require('scripts/prepare_delivery.py' in wrapper and
+            wrapper.index('make all') < wrapper.index('scripts/prepare_delivery.py') < wrapper.index('scripts/verify_dylib.py'),
+            'real arm64 extraction must follow universal compilation and precede verification')
+    require('reports/universal/TIMAntiRecall.dylib' in make and
+            'dist/TIMAntiRecall.dylib' not in make, 'Makefile must not deliver FAT directly')
+    require('scripts/prepare_delivery.py' in wrapper and
+            wrapper.index('make all') < wrapper.index('scripts/prepare_delivery.py') < wrapper.index('scripts/verify_dylib.py'),
+            'exact arm64 extraction must follow universal compile before final verification')
+    require(re.findall(r'^Architecture:\s*(\S+)', (root/'control').read_text(), re.M) == ['arm64'] and
+            re.findall(r'^X-Build-Architectures:\s*(\S+\s+\S+)', (root/'control').read_text(), re.M) == ['arm64 arm64e'],
+            'final architecture metadata must describe arm64 delivery and dual-arch build separately')
     if meta.get('github_actions'):
         workflow = active(root/'.github/workflows/build.yml')
         require(re.findall(r'^\s*-\s+build_variant:\s*(\S+)', workflow, re.M) == ['trollfools'],

@@ -4,7 +4,7 @@
 
 为 **TIM 4.1.0 / build 4.1.0.81 / com.tencent.tim / iOS 16.5** 编写的独立 TrollFools 注入动态库。仅交付 `TIMAntiRecall.dylib`，不需要越狱库、PreferenceLoader、deb 或修改版 IPA。
 
-> 0.10 用户真机反馈未生效且没有日志。本轮仅补启动诊断，未确认防撤回根因、未宣称功能已修好。源码门禁、macOS Foundation 测试、iOS 编译与真机效果是不同验证层。
+> 0.10、0.30 用户真机反馈未生效，0.30 的 Documents 与 tmp 两处均无日志，已确认，不再要求重复搜索旧日志。本轮是 arm64 单架构的受控兼容性对照版，保持 0.30 全部业务、目标校验和诊断源码，未确认根因、未宣称功能已修好。
 
 ## 实现
 
@@ -18,7 +18,7 @@
 
 ## 安装与停用
 
-1. 在 TrollFools 中移除旧防撤回注入，尤其是 `TIMAutoRevoke31.dylib`，结束 TIM 进程。
+1. 在 TrollFools 中仅移除之前启用的本插件 0.30，结束 TIM 进程；旧 `TIMAutoRevoke31.dylib` 已停用则保持停用，不点“全部启用”。
 2. 将 Release 或附件中的 **TIMAntiRecall.dylib** 保存到“文件”。
 3. TrollFools → TIM → 注入该动态库，然后完全退出并重开 TIM。
 4. 默认启用，没有额外设置面板。移除该动态库并重开 TIM 即停用。
@@ -41,10 +41,16 @@
 
 请在移除本插件旧版后注入本轮诊断库，结束并重开 TIM，分别做一次普通收包与撤回复现，发 bootstrap 日志。若主/后备路径都没有，发 TrollFools 的 TIM 已注入列表截图及 TIM 数据沙盒目录截图，不要卸载 TIM 或手动改 App 二进制。闪退附对应 `.ips`。
 
+## arm64 对照交付
+
+设备导出的 0.30 是 thin arm64e ABI_V2 (`0x80000002`)，UUID `36B434EF-D990-383D-804D-6DC9D08652E3`；代码、初始化段与原双架构库的 arm64e 片相同。TrollFools 签名工具依设备 CPU 选片，不依目标 App 选择。本轮 Actions 仍编译并校验双架构，但最终精确提取已编译、已签名的 arm64 ALL subtype0，只交付这份薄片；不用修改 CPU header 冒充另一架构。内部 fat、最终 thin、UUID、初始化入口与代码页哈希分别封存。
+
+这不是已证实根因修复：公开 dyld 的 arm64e keys-off 路径允许 arm64 主程序加载 arm64e dylib，所以不能仅由 subtype 不同断言拒载。本轮只减少加载变量，以真机 bootstrap 和消息结果复测。仅针对当前 arm64 TIM，不保证 arm64e-only 主程序或其他 App 兼容。
+
 ## 源码 → Actions → 文件
 
 公开仓库只包含本插件的原创源码、测试和构建工具，不上传 TIM IPA、腾讯二进制或旧插件。
 
-`main` 推送自动执行 Linux 源码/真实 C 分类器测试 → macOS Foundation Hook 回归 → 锁定 Theos/Xcode 的真实 arm64+arm64e 编译 → dylib 依赖/结构/代码页校验 → 带源码 blob、run/attempt 与文件 SHA256 的回执 → Release。
+`main` 推送自动执行 Linux 源码/真实 C 分类器测试 → macOS Foundation Hook 回归 → 锁定 Theos/Xcode 的真实 arm64+arm64e 编译 → 内部双架构库核验 → 精确提取 arm64 单片并独立核验 → 带源码 blob、run/attempt 与文件 SHA256 的回执 → Release。
 
 工具链版本来自 `toolchain-lock.json`。SDK 目录标签为 16.5，实际 metadata 是 16.4；最低部署版本为 16.5。CodeDirectory 代码页校验不等于 CMS 信任、注入成功或设备运行验收。
