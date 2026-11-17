@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 ROOT=Path(__file__).resolve().parents[1]
@@ -15,7 +16,8 @@ class BootstrapTests(unittest.TestCase):
         compiler=shutil.which('cc') or shutil.which('clang')
         if not compiler: raise RuntimeError('C compiler required')
         output=Path(cls.temp.name)/'bootstrap.so'
-        subprocess.run([compiler,'-x','c','-std=c11','-D_POSIX_C_SOURCE=200809L',
+        feature_macro='-D_DARWIN_C_SOURCE' if sys.platform=='darwin' else '-D_POSIX_C_SOURCE=200809L'
+        subprocess.run([compiler,'-x','c','-std=c11',feature_macro,
             '-DTIMANTIRECALL_NATIVE_TEST=1','-O2','-Wall','-Wextra','-Werror','-shared','-fPIC',
             '-I'+str(ROOT/'Headers'),str(ROOT/'Sources/TIMAntiRecallBootstrap.m'),'-o',str(output)],check=True)
         cls.lib=ctypes.CDLL(str(output))
