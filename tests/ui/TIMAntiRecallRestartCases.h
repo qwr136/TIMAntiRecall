@@ -19,7 +19,6 @@ static void timantirecall_testRestartStart(void) {
     timantirecall_layout(row);timantirecall_count(row,1,@"cold relaunch renders restored red frame without any push or mark call");
     NSObject *unmarked=[TIMAntiRecallSwiftFixture timantirecall_message:timantirecall_record(1,602,@"peer_a",7001)];
     [row bindViewModel:unmarked];timantirecall_count(row,0,@"unmarked sibling remains clean after restart");
-    [session init:config depends:nil dispatcherDepends:nil listener:nil];
     [record setRecallTime:1700000000];
     timantirecall_check(record.recallTime==0 && record.timantirecall_recallSetterCalls==0,
                        @"persisted exact recall identity blocks cold recall setter before any push");
