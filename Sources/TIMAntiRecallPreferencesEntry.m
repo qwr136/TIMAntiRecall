@@ -47,7 +47,11 @@ static void timantirecall_attachPreferences(UIViewController *controller,unsigne
     if(!target) {
         target=[TIMAntiRecallPreferencesEntryTarget new];target.timantirecall_controller=controller;
         target.timantirecall_button=[[UIBarButtonItem alloc] initWithTitle:@"防撤回" style:UIBarButtonItemStylePlain target:target action:@selector(timantirecall_open)];
-        target.timantirecall_button.accessibilityIdentifier=@"TIMAntiRecall.preferencesEntry";
+        target.timantirecall_button.tintColor=UIColor.blackColor;
+        [target.timantirecall_button setTitleTextAttributes:@{NSForegroundColorAttributeName:UIColor.blackColor}
+                                                  forState:UIControlStateNormal];
+        [target.timantirecall_button setTitleTextAttributes:@{NSForegroundColorAttributeName:UIColor.blackColor}
+                                                  forState:UIControlStateHighlighted];
         objc_setAssociatedObject(controller,&timantirecall_preferencesEntryKey,target,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
     target.timantirecall_kind=kind;

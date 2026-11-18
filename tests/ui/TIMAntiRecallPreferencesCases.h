@@ -94,7 +94,13 @@ static void timantirecall_testPreferencesPanel(void) {
         NSArray *buttons=host.navigationItem.rightBarButtonItems;
         timantirecall_check(buttons.count==2 && [buttons containsObject:original],@"original navigation item retained and plugin entry not duplicated");
         UIBarButtonItem *entry=buttons.lastObject;
-        [UIApplication.sharedApplication sendAction:entry.action to:entry.target from:entry forEvent:nil];
+        NSDictionary *normal=[entry titleTextAttributesForState:UIControlStateNormal];
+        NSDictionary *highlighted=[entry titleTextAttributesForState:UIControlStateHighlighted];
+        timantirecall_check([entry.accessibilityIdentifier isEqual:@"TIMAntiRecall.preferencesEntry"] &&
+            [entry.tintColor isEqual:UIColor.blackColor] &&
+            [normal[NSForegroundColorAttributeName] isEqual:UIColor.blackColor] &&
+            [highlighted[NSForegroundColorAttributeName] isEqual:UIColor.blackColor],
+            @"TIM settings entry text is black on light navigation bar");        [UIApplication.sharedApplication sendAction:entry.action to:entry.target from:entry forEvent:nil];
         timantirecall_stepDelay=0.6;
     });
     timantirecall_step(^{
