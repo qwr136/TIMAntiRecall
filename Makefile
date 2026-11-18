@@ -5,7 +5,7 @@ include $(THEOS)/makefiles/common.mk
 LIBRARY_NAME = TIMAntiRecall
 TIMAntiRecall_FILES = $(wildcard Sources/*.m Hooks/*.m)
 TIMAntiRecall_CFLAGS = -fobjc-arc -Wall -Wextra -I./Headers -I./Sources
-TIMAntiRecall_FRAMEWORKS = Foundation CoreFoundation
+TIMAntiRecall_FRAMEWORKS = UIKit Foundation CoreFoundation
 TIMAntiRecall_LIBRARIES =
 TIMAntiRecall_INSTALL_PATH = @rpath
 TIMAntiRecall_INSTALL = 0

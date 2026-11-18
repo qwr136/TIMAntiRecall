@@ -80,6 +80,11 @@ def check_sources(project, meta):
             errors.append('main UUID must come from executable-header API, never dyld image index zero')
         if not re.search(r'\btimantirecall_uuidForMainExecutableHeader\s*\(', main_uuid):
             errors.append('main executable header must be validated before reading UUID')
+        toast = strip_comments((root/'Sources/TIMAntiRecallToast.m').read_text())
+        if not re.search(r'UISceneActivationStateForegroundActive', mask_literals(toast)):
+            errors.append('toast must require a foreground-active scene')
+        if 'window.isKeyWindow' not in mask_literals(toast) or 'sceneScore' not in mask_literals(toast):
+            errors.append('toast must prioritize the foreground key window across scenes')
         startup = strip_comments((root/'Sources/TIMAntiRecallStartup.m').read_text())
         active_startup = mask_literals(startup)
         if not re.search(r'\btimantirecall_targetRejectionReason\s*\(', active_startup):

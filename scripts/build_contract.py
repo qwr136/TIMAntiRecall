@@ -70,7 +70,7 @@ def validate(project):
     require('TARGET = iphone:clang:16.5:16.5' in shared and not re.search(r'^TARGET\s*[:?+]?=', make, re.M),
             'SDK/deployment target must be defined only in Build.mk')
     require('override THEOS_PACKAGE_SCHEME :=' in shared, 'Theos packaging scheme must be empty')
-    require(not re.search(r'tweak\.mk|substrate|roothide|libroot|rootless|/var/jb|UIKit|WebKit|SUBPROJECTS', make),
+    require(not re.search(r'tweak\.mk|substrate|roothide|libroot|rootless|/var/jb|WebKit|SUBPROJECTS', make),
             'jailbreak, UI or subproject dependency in library Makefile')
     require('TIMANTIRECALL_VERSION' in make and '-current_version' in make, 'binary version flag missing')
     wrapper = active(root/'build.sh')

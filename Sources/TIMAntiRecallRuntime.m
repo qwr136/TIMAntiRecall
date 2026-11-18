@@ -1,6 +1,7 @@
 #import "TIMAntiRecallRuntime.h"
 #import "TIMAntiRecallWire.h"
 #import "TIMAntiRecallBootstrap.h"
+#import "TIMAntiRecallToast.h"
 #import <objc/message.h>
 #import <stdatomic.h>
 #import <string.h>
@@ -57,6 +58,7 @@ static void timantirecall_receivePush(id receiver, SEL selector, id command, id 
             timantirecall_logEvent(decision == TIMAntiRecallPrivate ?
                 @"blocked-private-recall" : @"blocked-group-recall");
         }
+        timantirecall_showToast();
         return;
     }
     TIMAntiRecallPushIMP original = (TIMAntiRecallPushIMP)atomic_load_explicit(&timantirecall_originalPush, memory_order_acquire);

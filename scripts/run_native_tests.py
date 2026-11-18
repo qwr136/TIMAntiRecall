@@ -24,7 +24,11 @@ def run(project, version):
             'native runtime tests require real macOS arm64 Foundation')
     source = source_snapshot(root, version)
     output = root/'reports/TIMAntiRecallRuntimeTests'
-    sources = [str(root/p) for p in source['compile_inputs']]
+    sources = [str(root/p) for p in source['compile_inputs']
+               if p != 'Sources/TIMAntiRecallToast.m']
+    stub=root/'tests/native/TIMAntiRecallToastNativeStub.m'
+    require(stub.is_file(), 'macOS UIKit-free toast stub is required')
+    sources.append(str(stub))
     command = ['xcrun', '--sdk', 'macosx', 'clang', '-arch', 'arm64', '-fobjc-arc', '-fblocks',
                '-Wall', '-Wextra', '-DTIMANTIRECALL_NATIVE_TEST=1', '-DTIMANTIRECALL_TESTING=1',
                '-I'+str(root/'Sources'), '-I'+str(root/'Headers'),
