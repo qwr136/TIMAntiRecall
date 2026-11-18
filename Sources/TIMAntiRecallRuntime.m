@@ -2,6 +2,7 @@
 #import "TIMAntiRecallWire.h"
 #import "TIMAntiRecallBootstrap.h"
 #import "TIMAntiRecallMarks.h"
+#import "TIMAntiRecallSettings.h"
 #import <objc/message.h>
 #import <stdatomic.h>
 #import <string.h>
@@ -50,6 +51,10 @@ static void timantirecall_receivePush(id receiver, SEL selector, id command, id 
             timantirecall_bootstrapEvent("olpush-pass-selected");
         }
     }
+    // Explicitly disabled chats reach TIM unchanged, exactly once. Unknown
+    // identities retain the accepted 0.80 behavior; never guess a different peer.
+    if (decision != TIMAntiRecallPass &&
+        !timantirecall_shouldBlockRecall(buffer,timantirecall_sessionOwner(receiver)))decision=TIMAntiRecallPass;
     if (decision != TIMAntiRecallPass) {
         unsigned count = atomic_fetch_add_explicit(&timantirecall_blocked, 1, memory_order_relaxed);
         if (count < 32) {

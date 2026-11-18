@@ -54,4 +54,14 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic,weak,nullable) QQAIOModel *timantirecall_lastModel;
 - (void)updateCellView;
 @end
+@interface QQSettingsViewController : UIViewController
+@property(nonatomic) NSUInteger timantirecall_appearCalls;
+@property(nonatomic) BOOL timantirecall_lastAnimated;
+@end
+@interface QQChatSettingViewController : QQSettingsViewController
+@property(nonatomic,copy) NSString *uin;
+@end
+@interface QQGroupSettingViewController : QQSettingsViewController
+@property(nonatomic,copy) NSString *groupCode;
+@end
 NS_ASSUME_NONNULL_END

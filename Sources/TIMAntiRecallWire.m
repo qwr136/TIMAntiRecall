@@ -178,3 +178,22 @@ size_t timantirecall_extractRecallEvents(const uint8_t *bytes, size_t length,
     }
     return used;
 }
+
+int timantirecall_extractRecallScope(const uint8_t *bytes,size_t length,TIMAntiRecallWireEvent *scope) {
+    if(!scope)return 0;
+    TIMAntiRecallDecision kind=timantirecall_classifyPush(bytes,length);
+    if(kind==TIMAntiRecallPass)return 0;
+    TIMAntiRecallSpan input={bytes,length},message,body,content;
+    if(!timantirecall_span(input,1,&message)||!timantirecall_span(message,3,&body)||
+       !timantirecall_span(body,2,&content))return 0;
+    TIMAntiRecallWireEvent result={0};result.kind=(unsigned)kind;
+    if(kind==TIMAntiRecallPrivate) {
+        TIMAntiRecallSpan info;
+        if(!timantirecall_span(content,1,&info)||!timantirecall_copyUID(info,1,result.from)||
+           !timantirecall_copyUID(info,2,result.to))return 0;
+    }else {
+        TIMAntiRecallSpan notify={content.bytes+7,content.length-7};
+        if(!timantirecall_number(notify,4,&result.group)||!result.group)return 0;
+    }
+    *scope=result;return 1;
+}

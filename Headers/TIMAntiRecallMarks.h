@@ -2,12 +2,21 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 
-// Identity-only state. No message text, media, credentials or private data is persisted.
+// State contains only message/account identifiers and capture timestamps.
 @interface TIMAntiRecallMarkStore : NSObject
+- (instancetype)initWithURL:(NSURL *)url persistent:(BOOL)persistent;
+- (void)timantirecall_setPersistent:(BOOL)persistent;
+- (BOOL)timantirecall_flush:(NSError **)error;
+- (NSError *)timantirecall_lastError;
+- (NSArray<NSDictionary *> *)timantirecall_eventsForOwner:(NSString *)owner;
+- (NSDictionary *)timantirecall_eventForIdentity:(NSDictionary *)identity;
 - (void)timantirecall_addEvents:(NSArray<NSDictionary *> *)events owner:(NSString *)owner;
+- (void)timantirecall_addEvents:(NSArray<NSDictionary *> *)events owner:(NSString *)owner capturedAt:(NSTimeInterval)time;
 - (BOOL)timantirecall_containsIdentity:(NSDictionary *)identity;
 - (void)timantirecall_clear;
 @end
+FOUNDATION_EXPORT TIMAntiRecallMarkStore *timantirecall_sharedMarks(void);
+FOUNDATION_EXPORT void timantirecall_prepareState(void);
 FOUNDATION_EXPORT NSArray<NSDictionary *> *timantirecall_recallEvents(NSData *data);
 FOUNDATION_EXPORT NSDictionary *timantirecall_recordIdentity(id record, NSString *owner);
 FOUNDATION_EXPORT NSString *timantirecall_currentAccount(void);

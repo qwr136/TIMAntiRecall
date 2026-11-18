@@ -17,5 +17,9 @@ typedef struct {
     char from[129], to[129], author[129];
 } TIMAntiRecallWireEvent;
 // Copies bounded identities only; zero means ambiguous/unsupported. Never changes classifier decisions.
+// Scope extraction is independent of mark-only author/time/random fields.
+// It lets a disabled group pass even if the notification has no author UID.
+int timantirecall_extractRecallScope(const uint8_t *bytes, size_t length,
+                                    TIMAntiRecallWireEvent *scope);
 size_t timantirecall_extractRecallEvents(const uint8_t *bytes, size_t length,
                                          TIMAntiRecallWireEvent *events, size_t capacity);

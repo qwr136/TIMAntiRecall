@@ -25,7 +25,8 @@ def run(project, version):
     source = source_snapshot(root, version)
     output = root/'reports/TIMAntiRecallRuntimeTests'
     sources = [str(root/p) for p in source['compile_inputs'] if p.endswith('.m')
-               and p not in ('Sources/TIMAntiRecallInline.m','Sources/TIMAntiRecallIndicatorView.m')]
+               and p not in ('Sources/TIMAntiRecallInline.m','Sources/TIMAntiRecallIndicatorView.m',
+                             'Sources/TIMAntiRecallPreferencesUI.m','Sources/TIMAntiRecallPreferencesEntry.m')]
     stub=root/'tests/native/TIMAntiRecallInlineNativeStub.m'
     require(stub.is_file(), 'macOS UIKit-free inline stub is required')
     sources.append(str(stub))
@@ -47,6 +48,20 @@ def run(project, version):
         marks_command[marks_command.index(str(output))]=str(marks_output)
         subprocess.run(marks_command,cwd=root,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=180)
         subprocess.run([str(marks_output)],cwd=root,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=120)
+        state_test=root/'tests/native/TIMAntiRecallStateTests.m'
+        require(state_test.is_file(), 'cross-process state regression is required')
+        state_output=root/'reports/TIMAntiRecallStateTests'
+        state_command=command.copy()
+        state_command[state_command.index(str(test))]=str(state_test)
+        state_command[state_command.index(str(output))]=str(state_output)
+        subprocess.run(state_command,cwd=root,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=180)
+        with tempfile.TemporaryDirectory(prefix='timantirecall-state-restart-') as state_dir:
+            state_environment=dict(os.environ,TIMANTIRECALL_TEST_STATE_DIR=state_dir)
+            for phase in ('seed','restore','negative'):
+                subprocess.run([str(state_output),phase],cwd=root,env=state_environment,
+                               stdout=log,stderr=subprocess.STDOUT,check=True,timeout=120)
+        write_json(root/'reports/recall-state-tests.json',{'status':'passed',
+                   'phases':['seed','restore','negative'],'separate_processes':True,'source':source})
         smoke=root/'tests/native/TIMAntiRecallConstructorTests.m'
         require(smoke.is_file(), 'real constructor smoke test is required')
         smoke_output=root/'reports/TIMAntiRecallConstructorTests'

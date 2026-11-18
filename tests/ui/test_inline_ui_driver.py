@@ -78,6 +78,28 @@ class ResultGateTests(unittest.TestCase):
                 self.assertIsNone(DRIVER.read_json(path))
 
 
+class RestartGateTests(unittest.TestCase):
+    def test_accepts_actual_different_process_result(self):
+        result={'runToken':'token','sourceDigest':'source','status':'PASS','failures':[],
+                'restoredBeforePush':True,'checks':8,'oldPID':123,'newPID':456}
+        DRIVER.validate_restart_result(result,'token','source')
+        for change in ({'newPID':123},{'newPID':0},{'oldPID':False},{'checks':0},
+                       {'status':'FAIL'},{'restoredBeforePush':False},{'sourceDigest':'old'},
+                       {'failures':['not restored']}):
+            with self.subTest(change=change), self.assertRaises(RuntimeError):
+                DRIVER.validate_restart_result({**result,**change},'token','source')
+
+    def test_settings_screenshot_is_mandatory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            for name in ('tim-inline-preview.png','tim-inline-simulator.png'):
+                (root/name).write_bytes(b'\x89PNG\r\n\x1a\n'+b'0'*128)
+            with self.assertRaisesRegex(RuntimeError,'settings'):
+                DRIVER.validate_previews(root)
+            (root/'tim-inline-settings-preview.png').write_bytes(b'\x89PNG\r\n\x1a\n'+b'0'*128)
+            DRIVER.validate_previews(root)
+
+
 class RuntimeSelectionTests(unittest.TestCase):
     def setUp(self):
         self.runtimes = {"runtimes": []}

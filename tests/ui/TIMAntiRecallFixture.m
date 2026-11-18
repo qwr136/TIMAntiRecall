@@ -66,3 +66,13 @@
 - (void)layoutSubviews { [super layoutSubviews]; self.timantirecall_layouts++; }
 - (void)didMoveToWindow { [super didMoveToWindow]; self.timantirecall_windowMoves++; }
 @end
+
+@implementation QQSettingsViewController
+- (void)viewDidAppear:(BOOL)animated {[super viewDidAppear:animated];self.timantirecall_appearCalls++;self.timantirecall_lastAnimated=animated;}
+@end
+@implementation QQChatSettingViewController
+- (void)viewDidAppear:(BOOL)animated {[super viewDidAppear:animated];}
+@end
+@implementation QQGroupSettingViewController
+- (void)viewDidAppear:(BOOL)animated {[super viewDidAppear:animated];}
+@end

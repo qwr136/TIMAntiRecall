@@ -1,0 +1,182 @@
+#import "TIMAntiRecallPreferencesUI.h"
+#import "TIMAntiRecallSettings.h"
+#import "TIMAntiRecallMarks.h"
+@interface TIMAntiRecallSettingsSwitch : UISwitch
+@property(nonatomic,copy) NSDictionary *timantirecall_chat;
+@end
+@implementation TIMAntiRecallSettingsSwitch @end
+@interface TIMAntiRecallPreferencesController ()
+@property(nonatomic,copy) NSString *timantirecall_owner;
+@property(nonatomic,copy) NSDictionary *timantirecall_chat;
+@property(nonatomic) unsigned timantirecall_mode; // 0 settings, 1 chats, 2 timestamps
+@property(nonatomic,copy) NSArray<NSDictionary *> *timantirecall_items;
+@property(nonatomic,copy) NSArray *timantirecall_observers;
+@end
+static NSArray<NSDictionary *> *timantirecall_optionRows(void) {
+    return @[@{@"key":@"enabled",@"title":@"启用防撤回",@"icon":@"shield.checkered"},
+             @{@"key":@"persistMarks",@"title":@"重启后保留撤回标记",@"icon":@"externaldrive"},
+             @{@"key":@"showTime",@"title":@"标记旁显示拦截时间",@"icon":@"clock"}];
+}
+static NSString *timantirecall_chatTitle(NSDictionary *chat) {
+    BOOL group=[chat[@"kind"] intValue]==2;
+    NSString *identifier=group?[chat[@"group"] stringValue]:chat[@"alias"]?:chat[@"peer"];
+    return [NSString stringWithFormat:@"%@ · %@",group?@"群聊":@"私聊",identifier?:@"身份待确认"];
+}
+@implementation TIMAntiRecallPreferencesController
+- (instancetype)initWithOwner:(NSString *)owner chat:(NSDictionary *)chat {
+    self=[super initWithStyle:UITableViewStyleInsetGrouped];
+    if(self){_timantirecall_owner=[owner copy];_timantirecall_chat=[chat copy];_timantirecall_items=@[];self.title=@"TIM 防撤回";}
+    return self;
+}
+- (void)viewDidLoad {
+    [super viewDidLoad];self.view.backgroundColor=UIColor.systemGroupedBackgroundColor;
+    self.tableView.rowHeight=56;self.tableView.accessibilityIdentifier=@"TIMAntiRecall.preferences";
+    if(self.navigationController.viewControllers.firstObject==self)
+        self.navigationItem.leftBarButtonItem=[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(timantirecall_done)];
+    __weak typeof(self) weakSelf=self;NSMutableArray *tokens=[NSMutableArray array];
+    for(NSNotificationName name in @[TIMAntiRecallSettingsChangedNotification,TIMAntiRecallStateChangedNotification,UIApplicationDidBecomeActiveNotification])
+        [tokens addObject:[NSNotificationCenter.defaultCenter addObserverForName:name object:nil queue:NSOperationQueue.mainQueue usingBlock:^(__unused NSNotification *note){[weakSelf timantirecall_reload];}]];
+    self.timantirecall_observers=[tokens copy];[self timantirecall_reload];
+}
+- (void)viewWillAppear:(BOOL)animated {[super viewWillAppear:animated];[self timantirecall_reload];}
+- (void)dealloc {for(id token in _timantirecall_observers)[NSNotificationCenter.defaultCenter removeObserver:token];}
+- (void)timantirecall_done {[self dismissViewControllerAnimated:YES completion:nil];}
+- (BOOL)timantirecall_validOwner {return [self.timantirecall_owner isEqual:timantirecall_currentAccount()];}
+- (void)timantirecall_reload {
+    if(!self.isViewLoaded)return;
+    if(![self timantirecall_validOwner])self.timantirecall_items=@[];
+    else if(self.timantirecall_mode==1)self.timantirecall_items=[timantirecall_settings() timantirecall_chatsForOwner:self.timantirecall_owner];
+    else if(self.timantirecall_mode==2) {
+        NSMutableArray *rows=[NSMutableArray array];
+        for(NSDictionary *event in [timantirecall_sharedMarks() timantirecall_eventsForOwner:self.timantirecall_owner])
+            if(!self.timantirecall_chat || [timantirecall_scopeKey(event) isEqual:timantirecall_scopeKey(self.timantirecall_chat)])[rows addObject:event];
+        self.timantirecall_items=[rows copy];
+    }
+    [self.tableView reloadData];
+}
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {(void)tableView;return self.timantirecall_mode?1:2;}
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    (void)tableView;if(self.timantirecall_mode)return (NSInteger)self.timantirecall_items.count;
+    return section==0?3:(self.timantirecall_chat?3:2);
+}
+- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
+    (void)tableView;
+    if(self.timantirecall_mode==1)return @"已识别的聊天";
+    if(self.timantirecall_mode==2)return @"首次拦截时间 · 仅当前账号";
+    return section==0?@"功能":@"聊天与记录";
+}
+- (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
+    (void)tableView;
+    if(![self timantirecall_validOwner])return @"账号已切换，请关闭面板后重新打开；不会显示或修改其他账号的数据。";
+    NSError *error=[timantirecall_settings() timantirecall_lastError]?:[timantirecall_sharedMarks() timantirecall_lastError];
+    if(error)return [@"保存/读取失败：" stringByAppendingString:error.localizedDescription];
+    if(self.timantirecall_mode==1)return @"先打开目标聊天即可识别。关闭只放行此聊天之后的撤回；不会删除已经保留的消息。总开关关闭时所有聊天均放行。";
+    if(self.timantirecall_mode==2)return self.timantirecall_items.count?@"设备本地记录的首次拦截时间，不是原消息发送时间。仅保存身份标识，不保存文字、图片或语音副本。":@"当前没有已保存的拦截记录。只记录启用此版本以后本机实际拦截的撤回。";
+    if(section==0)return @"默认沿用0.80防撤回及红框。标记保存默认开启，最多保留4096条，超限淘汰最早记录。关闭保存会移除已保存的标记文件，本次进程中的标记仍保留。";
+    return @"标记与开关保存在TIM沙盒，仅本机有效，不上传；不恢复TIM已删除的原消息。移除插件不会删除TIM聊天记录。";
+}
+- (void)timantirecall_icon:(NSString *)name cell:(UITableViewCell *)cell {
+    static NSCache *cache;static dispatch_once_t once;dispatch_once(&once,^{cache=[NSCache new];cache.countLimit=12;});
+    UIImage *icon=[cache objectForKey:name];
+    if(!icon) {
+        UIGraphicsImageRenderer *renderer=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(28,28)];
+        icon=[renderer imageWithActions:^(__unused UIGraphicsImageRendererContext *context){
+            [UIColor.systemBlueColor setFill];[[UIBezierPath bezierPathWithRoundedRect:CGRectMake(0,0,28,28) cornerRadius:7] fill];
+            UIImageSymbolConfiguration *configuration=[UIImageSymbolConfiguration configurationWithPointSize:16 weight:UIImageSymbolWeightRegular];
+            UIImage *symbol=[[UIImage systemImageNamed:name withConfiguration:configuration] imageWithTintColor:UIColor.whiteColor renderingMode:UIImageRenderingModeAlwaysOriginal];
+            [symbol drawInRect:CGRectMake(6,6,16,16)];
+        }];
+        [cache setObject:icon forKey:name];
+    }
+    cell.imageView.image=icon;
+    cell.backgroundColor=UIColor.secondarySystemGroupedBackgroundColor;
+    cell.textLabel.font=[UIFont systemFontOfSize:17];cell.detailTextLabel.font=[UIFont systemFontOfSize:12];
+    cell.textLabel.numberOfLines=0;cell.detailTextLabel.numberOfLines=0;
+}
+- (UISwitch *)timantirecall_switch:(NSString *)key value:(BOOL)value enabled:(BOOL)enabled index:(NSInteger)index {
+    TIMAntiRecallSettingsSwitch *control=[TIMAntiRecallSettingsSwitch new];control.on=value;control.enabled=enabled;control.onTintColor=UIColor.systemBlueColor;
+    control.accessibilityIdentifier=key;control.tag=index;
+    [control addTarget:self action:@selector(timantirecall_changed:) forControlEvents:UIControlEventValueChanged];return control;
+}
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
+    (void)tableView;UITableViewCell *cell=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
+    BOOL active=[self timantirecall_validOwner],enabled=[timantirecall_settings() timantirecall_enabled];
+    if(self.timantirecall_mode==1) {
+        NSDictionary *chat=self.timantirecall_items[(NSUInteger)path.row];
+        cell.textLabel.text=timantirecall_chatTitle(chat);[self timantirecall_icon:@"bubble.left.and.bubble.right" cell:cell];
+        cell.accessoryView=[self timantirecall_switch:@"chat-enabled" value:[timantirecall_settings() timantirecall_enabledForChat:chat] enabled:active&&enabled index:1000+path.row];
+        ((TIMAntiRecallSettingsSwitch *)cell.accessoryView).timantirecall_chat=chat;
+    }else if(self.timantirecall_mode==2) {
+        NSDictionary *e=self.timantirecall_items[(NSUInteger)path.row];cell.textLabel.text=timantirecall_chatTitle(e);
+        NSDateFormatter *format=[NSDateFormatter new];format.dateStyle=NSDateFormatterMediumStyle;format.timeStyle=NSDateFormatterMediumStyle;
+        cell.detailTextLabel.text=[NSString stringWithFormat:@"%@ · 消息序号 %@",[format stringFromDate:[NSDate dateWithTimeIntervalSince1970:[e[@"capturedAt"] doubleValue]]],e[@"seq"]];
+        [self timantirecall_icon:@"clock.arrow.circlepath" cell:cell];cell.accessoryType=UITableViewCellAccessoryDisclosureIndicator;
+    }else if(path.section==0) {
+        NSDictionary *row=timantirecall_optionRows()[(NSUInteger)path.row];NSString *key=row[@"key"];
+        cell.textLabel.text=row[@"title"];[self timantirecall_icon:row[@"icon"] cell:cell];
+        BOOL value=path.row==0?enabled:path.row==1?[timantirecall_settings() timantirecall_persistMarks]:[timantirecall_settings() timantirecall_showTime];
+        cell.accessoryView=[self timantirecall_switch:key value:value enabled:active&&(path.row==0||enabled) index:path.row];
+    }else {
+        NSInteger index=path.row;
+        if(self.timantirecall_chat && index==0) {
+            cell.textLabel.text=@"当前聊天防撤回";cell.detailTextLabel.text=timantirecall_chatTitle(self.timantirecall_chat);
+            [self timantirecall_icon:@"bubble.left.and.bubble.right" cell:cell];
+            cell.accessoryView=[self timantirecall_switch:@"current-chat" value:[timantirecall_settings() timantirecall_enabledForChat:self.timantirecall_chat] enabled:active&&enabled index:2000];
+            ((TIMAntiRecallSettingsSwitch *)cell.accessoryView).timantirecall_chat=self.timantirecall_chat;
+        }else {
+            if(self.timantirecall_chat)index--;
+            cell.textLabel.text=index==0?@"按聊天单独设置":@"查看拦截时间";
+            [self timantirecall_icon:index==0?@"list.bullet":@"clock.arrow.circlepath" cell:cell];cell.accessoryType=UITableViewCellAccessoryDisclosureIndicator;
+        }
+    }
+    cell.selectionStyle=cell.accessoryView?UITableViewCellSelectionStyleNone:UITableViewCellSelectionStyleDefault;
+    if(!active){cell.userInteractionEnabled=NO;cell.textLabel.textColor=UIColor.secondaryLabelColor;}
+    return cell;
+}
+- (void)timantirecall_error:(NSError *)error {
+    if(self.presentedViewController)return;
+    UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"未保存" message:error.localizedDescription?:@"账号已切换或身份未确认" preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"知道了" style:UIAlertActionStyleCancel handler:nil]];[self presentViewController:alert animated:YES completion:nil];
+}
+- (void)timantirecall_commitSwitch:(UISwitch *)control {
+    NSError *error=nil;BOOL ok=NO;
+    if([self timantirecall_validOwner]) {
+        if(control.tag>=1000) {
+            NSDictionary *chat=[control isKindOfClass:TIMAntiRecallSettingsSwitch.class]?((TIMAntiRecallSettingsSwitch *)control).timantirecall_chat:nil;
+            ok=[timantirecall_settings() timantirecall_setChat:chat enabled:control.isOn error:&error];
+        }else if(control.tag>=0 && control.tag<3) {
+            NSString *key=timantirecall_optionRows()[(NSUInteger)control.tag][@"key"];
+            ok=[timantirecall_settings() timantirecall_updateOptions:@{key:@(control.isOn)} error:&error];
+            if(ok && control.tag==1)[timantirecall_sharedMarks() timantirecall_setPersistent:control.isOn];
+        }
+    }
+    if(!ok)[self timantirecall_error:error];[self timantirecall_reload];
+}
+- (void)timantirecall_changed:(UISwitch *)control {
+    if(control.tag==1 && !control.isOn) {
+        control.on=YES;
+        UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"关闭重启保留？" message:@"将移除本插件已保存的标记文件；本次进程中的红框仍保留，不会删除TIM聊天消息。" preferredStyle:UIAlertControllerStyleAlert];
+        __weak typeof(self) weakSelf=self;
+        [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+        [alert addAction:[UIAlertAction actionWithTitle:@"关闭保存" style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *action){control.on=NO;[weakSelf timantirecall_commitSwitch:control];}]];
+        [self presentViewController:alert animated:YES completion:nil];return;
+    }
+    [self timantirecall_commitSwitch:control];
+}
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path {
+    [tableView deselectRowAtIndexPath:path animated:YES];if(![self timantirecall_validOwner])return;
+    if(self.timantirecall_mode==2) {
+        NSDictionary *e=self.timantirecall_items[(NSUInteger)path.row];NSDateFormatter *format=[NSDateFormatter new];
+        format.dateFormat=@"yyyy-MM-dd HH:mm:ss ZZZZZ";
+        NSString *time=[format stringFromDate:[NSDate dateWithTimeIntervalSince1970:[e[@"capturedAt"] doubleValue]]];
+        NSString *message=[NSString stringWithFormat:@"%@\n首次拦截：%@\n消息序号：%@\n此时间来自本机，不代表服务器撤回时间。",timantirecall_chatTitle(e),time,e[@"seq"]];
+        UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"拦截时间" message:message preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"关闭" style:UIAlertActionStyleCancel handler:nil]];[self presentViewController:alert animated:YES completion:nil];return;
+    }
+    if(self.timantirecall_mode || path.section!=1 || (self.timantirecall_chat && path.row==0))return;
+    NSInteger index=path.row-(self.timantirecall_chat?1:0);
+    TIMAntiRecallPreferencesController *next=[[TIMAntiRecallPreferencesController alloc] initWithOwner:self.timantirecall_owner chat:self.timantirecall_chat];
+    next.timantirecall_mode=index==0?1:2;next.title=index==0?@"按聊天单独设置":@"查看拦截时间";
+    [self.navigationController pushViewController:next animated:NO];
+}
+@end

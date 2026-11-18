@@ -3,6 +3,7 @@
 #import "TIMAntiRecallFixture.h"
 #import "TIMAntiRecallMarks.h"
 #import "TIMAntiRecallRuntime.h"
+#import "TIMAntiRecallSettings.h"
 #import "TIMAntiRecallWire.h"
 #import "TIMAntiRecallIndicatorView.h"
 #import "TIMAntiRecallBootstrap.h"
@@ -43,6 +44,13 @@ static void timantirecall_stage(NSString *name) {
 static void timantirecall_finish(void) {
     if(timantirecall_finished)return;
     timantirecall_finished=YES;
+    NSError *saveError=nil;
+    [timantirecall_settings() timantirecall_setChat:@{@"owner":@"self_uid",@"kind":@2,@"group":@9988} enabled:NO error:&saveError];
+    timantirecall_check(!saveError && [timantirecall_sharedMarks() timantirecall_flush:&saveError],@"restart archive and chat config committed before termination");
+    NSDictionary *expectedIdentity=@{@"owner":@"self_uid",@"kind":@1,@"seq":@601,@"author":@"peer_a",@"peer":@"peer_a"};
+    NSDictionary *expected=[timantirecall_sharedMarks() timantirecall_eventForIdentity:expectedIdentity];
+    timantirecall_writeJSON(@{@"runToken":timantirecall_build[@"runToken"]?:@"",@"pid":@(NSProcessInfo.processInfo.processIdentifier),
+                             @"capturedAt":expected[@"capturedAt"]?:@0},@"tim-inline-restart-expected.json");
     timantirecall_writeJSON(@{
         @"status":timantirecall_failures.count?@"FAIL":@"PASS", @"mode":@"real-uikit-scene",
         @"checks":@(timantirecall_checks), @"failures":timantirecall_failures,
@@ -425,6 +433,8 @@ static void timantirecall_testPushToRow(UIView *root) {
     });
 }
 
+#import "TIMAntiRecallPreferencesCases.h"
+
 static void timantirecall_testGeometry(UIView *root) {
     CGFloat width=root.bounds.size.width-16;
     timantirecall_step(^{timantirecall_mark(timantirecall_private(@"peer_a",@"self_uid",401),@"self_uid");});
@@ -557,8 +567,13 @@ static void timantirecall_capturePreview(void) {
     timantirecall_check(timantirecall_previewWritten,@"real drawViewHierarchy preview saved successfully");
 }
 
+#import "TIMAntiRecallRestartCases.h"
+
 static void timantirecall_start(void) {
     if(timantirecall_started)return;
+    if([NSProcessInfo.processInfo.arguments containsObject:@"--timantirecall-restore-only"]) {
+        timantirecall_started=YES;timantirecall_testRestartStart();return;
+    }
     timantirecall_started=YES;
     timantirecall_failures=[NSMutableArray array];timantirecall_coverage=[NSMutableSet set];
     timantirecall_steps=[NSMutableArray array];
@@ -580,6 +595,8 @@ static void timantirecall_start(void) {
         timantirecall_testPushToRow(root);
         timantirecall_testGeometry(root);
         timantirecall_testWeakRelease(root);
+        timantirecall_testRecallSettings(root);
+        timantirecall_testPreferencesPanel();
         timantirecall_step(^{timantirecall_makePreview(root);});
         timantirecall_step(^{
             timantirecall_count(root,2,@"three equal-text messages: only private and group targets marked");

@@ -74,6 +74,7 @@ NSDictionary *timantirecall_recordIdentity(id record,NSString *owner) {
     if(kind==1) {
         if(!timantirecall_uid(peer) || (![author isEqualToString:owner]&&![author isEqualToString:peer]))return nil;
         identity[@"peer"]=peer;
+        identity[@"peerUin"]=@(timantirecall_integer(record,@"peerUin"));
     } else {
         int64_t group=timantirecall_integer(record,@"peerUin");
         if(group<=0)return nil;
@@ -81,46 +82,3 @@ NSDictionary *timantirecall_recordIdentity(id record,NSString *owner) {
     }
     return identity;
 }
-
-@interface TIMAntiRecallMarkStore ()
-@property(nonatomic,strong) NSMutableArray<NSDictionary *> *timantirecall_events;
-@end
-@implementation TIMAntiRecallMarkStore
-- (instancetype)init {self=[super init];if(self)_timantirecall_events=[NSMutableArray array];return self;}
-- (void)timantirecall_addEvents:(NSArray<NSDictionary *> *)events owner:(NSString *)owner {
-    if(!timantirecall_uid(owner))return;
-    @synchronized(self) {
-        for(NSDictionary *event in events) {
-            if(![event isKindOfClass:NSDictionary.class] || [event[@"seq"] unsignedLongLongValue]==0)continue;
-            NSMutableDictionary *e=[event mutableCopy];e[@"owner"]=owner;
-            unsigned kind=[e[@"kind"] unsignedIntValue];
-            if(kind==1) {
-                if(!timantirecall_uid(e[@"from"])||!timantirecall_uid(e[@"to"]))continue;
-                if([e[@"from"] isEqual:owner])e[@"peer"]=e[@"to"];
-                else if([e[@"to"] isEqual:owner])e[@"peer"]=e[@"from"];
-                else continue;
-                e[@"author"]=e[@"from"];
-            }else if(kind!=2 || [e[@"group"] unsignedLongLongValue]==0 || !timantirecall_uid(e[@"author"]))continue;
-            if([self.timantirecall_events containsObject:e])continue;
-            [self.timantirecall_events addObject:[e copy]];
-            if(self.timantirecall_events.count>4096)[self.timantirecall_events removeObjectAtIndex:0];
-        }
-    }
-}
-- (BOOL)timantirecall_containsIdentity:(NSDictionary *)identity {
-    if(!identity)return NO;
-    @synchronized(self) {
-        for(NSDictionary *event in self.timantirecall_events.reverseObjectEnumerator) {
-            if(![event[@"owner"] isEqual:identity[@"owner"]]||![event[@"kind"] isEqual:identity[@"kind"]]||
-               ![event[@"seq"] isEqual:identity[@"seq"]]||![event[@"author"] isEqual:identity[@"author"]])continue;
-            NSString *key=[event[@"kind"] intValue]==1?@"peer":@"group";
-            if(![event[key] isEqual:identity[key]])continue;
-            if(event[@"random"] && ![event[@"random"] isEqual:identity[@"random"]])continue;
-            if(event[@"time"] && ![event[@"time"] isEqual:identity[@"time"]])continue;
-            return YES;
-        }
-    }
-    return NO;
-}
-- (void)timantirecall_clear {@synchronized(self){[self.timantirecall_events removeAllObjects];}}
-@end

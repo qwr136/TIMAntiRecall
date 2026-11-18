@@ -33,7 +33,9 @@ PRODUCTION = (
     "Sources/TIMAntiRecallMarks.m", "Sources/TIMAntiRecallWire.m",
     "Sources/TIMAntiRecallInline.m", "Sources/TIMAntiRecallIndicatorView.m",
     "Sources/TIMAntiRecallSession.m", "Sources/TIMAntiRecallLegacy.m",
-    "Sources/TIMAntiRecallRuntime.m",
+    "Sources/TIMAntiRecallRuntime.m", "Sources/TIMAntiRecallSettings.m",
+    "Sources/TIMAntiRecallStorage.m", "Sources/TIMAntiRecallMarkStore.m",
+    "Sources/TIMAntiRecallPreferencesUI.m", "Sources/TIMAntiRecallPreferencesEntry.m",
 )
 SWIFT = ("Sources/TIMAntiRecallRecordBridge.swift",
          "tests/ui/TIMAntiRecallSwiftFixture.swift")
@@ -44,6 +46,7 @@ REQUIRED_COVERAGE = {
     "group-identity", "account-isolation", "reuse-lifecycle", "row-geometry",
     "touch-routing", "weak-release", "real-scene-background", "real-scene-resume",
     "swift-direct-binding", "legacy-conversion-binding", "push-to-row", "startup-owner",
+    "chat-forwarding", "captured-time", "persist-ui", "preferences-entry", "preferences-controls",
 }
 COMMANDS: list[list[str]] = []
 TRANSCRIPT: list[str] = []
@@ -239,8 +242,38 @@ def wait_for_result(device: str, documents: Path, token: str, receipt: dict) -> 
     raise TimeoutError(f"No final Documents/tim-inline-result.json after {RESULT_TIMEOUT}s; last stage={stage}")
 
 
+def validate_restart_result(result: dict, token: str, digest: str) -> None:
+    if result.get('runToken') != token or result.get('sourceDigest') != digest:
+        raise RuntimeError('Stale or wrong-source restart result')
+    if result.get('status') != 'PASS' or result.get('failures') != [] or not result.get('restoredBeforePush'):
+        raise RuntimeError(f"Cold process restoration failed: {result.get('failures')}")
+    if type(result.get('checks')) is not int or result['checks'] < 8:
+        raise RuntimeError('Restart result lacks executed checks')
+    if type(result.get('newPID')) is not int or type(result.get('oldPID')) is not int or result['newPID'] <= 0 or result['oldPID'] <= 0 or result['newPID'] == result['oldPID']:
+        raise RuntimeError('Restart did not create a different app process')
+
+
+def run_restart(device: str, documents: Path, receipt: dict) -> None:
+    path = documents / 'tim-inline-restart-result.json'
+    if path.exists():
+        path.unlink()
+    run(['xcrun', 'simctl', 'terminate', device, BUNDLE], timeout=30)
+    run(['xcrun', 'simctl', 'launch', device, BUNDLE, '--timantirecall-restore-only'], timeout=40)
+    deadline = time.monotonic() + 45
+    while time.monotonic() < deadline:
+        result = read_json(path)
+        if result is not None:
+            (REPORT / path.name).write_text(json.dumps(result, indent=2, ensure_ascii=False))
+            validate_restart_result(result, receipt['runToken'], receipt['sourceDigest'])
+            receipt['restartVerified'] = True
+            print(f"PASS cold app restart: {result['oldPID']} -> {result['newPID']}; {result['checks']} checks", flush=True)
+            return
+        time.sleep(0.25)
+    raise TimeoutError('No cold restart result within 45 seconds')
+
+
 def validate_previews(report: Path) -> None:
-    for name in ("tim-inline-preview.png", "tim-inline-simulator.png"):
+    for name in ("tim-inline-preview.png", "tim-inline-simulator.png", "tim-inline-settings-preview.png"):
         path = report / name
         if not path.is_file() or path.stat().st_size < 128 or path.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
             raise RuntimeError(f"Missing real UIKit/simulator screenshot: {name}")
@@ -310,6 +343,7 @@ def main() -> int:
         documents.mkdir(exist_ok=True)
         run(["xcrun", "simctl", "launch", "--terminate-running-process", device, BUNDLE], timeout=60)
         result = wait_for_result(device, documents, token, receipt)
+        run_restart(device, documents, receipt)
         collect(device, data)
         validate_previews(REPORT)
         print(f"PASS: real UIKit scene app; {result['checks']} checks; runtime iOS {runtime_version}, target {DEPLOY}", flush=True)

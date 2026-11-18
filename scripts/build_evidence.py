@@ -96,6 +96,10 @@ def receipt(project, evidence, output, version):
     native = json.loads((root/'reports/native-tests.json').read_text())
     require(native.get('status') == 'passed' and native.get('source') == current,
             'native Foundation runtime tests missing, failed or from different source/run')
+    state_tests=json.loads((root/'reports/recall-state-tests.json').read_text())
+    require(state_tests.get('status')=='passed' and state_tests.get('separate_processes') is True and
+            state_tests.get('phases')==['seed','restore','negative'] and state_tests.get('source')==current,
+            'cross-process persistence/settings tests missing or from different source/run')
     require(seal_record['source'] == current and seal_record['artifact'] == actual,
             'build seal differs from source/run/artifact')
     from prepare_delivery import verify_selection
@@ -104,7 +108,7 @@ def receipt(project, evidence, output, version):
             seal_record['build_artifact'] == selection['internal'], 'build/delivery selection changed after seal')
     import sys
     sys.path.insert(0,str(root/'tests/ui'))
-    from run_inline_ui_tests import validate_result, validate_previews, source_receipt
+    from run_inline_ui_tests import validate_result, validate_previews, source_receipt, validate_restart_result
     ui_dir=root/'reports/inline-ui'
     ui_build=json.loads((ui_dir/'build-receipt.json').read_text())
     ui_result=json.loads((ui_dir/'tim-inline-result.json').read_text())
@@ -115,14 +119,17 @@ def receipt(project, evidence, output, version):
     require(ui_build['sourceDigest']==source_receipt()['sourceDigest'], 'UIKit source hashes differ')
     validate_result(ui_result,ui_build['runToken'],ui_build['sourceDigest'])
     validate_previews(ui_dir)
+    restart=json.loads((ui_dir/'tim-inline-restart-result.json').read_text())
+    require(ui_build.get('restartVerified') is True,'UIKit cold process restart was not performed')
+    validate_restart_result(restart,ui_build['runToken'],ui_build['sourceDigest'])
     require(evidence['lock_sha256'] == current['lock_sha256'], 'receipt lock mismatch')
     verified = json.loads((root/'reports/dylib-verification.json').read_text())
     require(verified == actual, 'dylib verification report does not match artifact')
     require(not list((root/'packages').glob('*.deb')), 'unexpected deb output')
     require({p.name for p in (root/'dist').iterdir()} <= {'TIMAntiRecall.dylib', 'build-receipt.json'},
             'unexpected deliverable in dist')
-    result = dict(evidence, **current, artifact=actual, native_tests=native,
-                  uikit_tests={'build':ui_build,'result':ui_result},
+    result = dict(evidence, **current, artifact=actual, native_tests=native, state_tests=state_tests,
+                  uikit_tests={'build':ui_build,'result':ui_result,'restart':restart},
                   build_artifact=selection['internal'], delivery_selection=selection,
                   compile_contract=seal_record['compile_contract'],
                   validation='Source gates + native runtime + dual-arch build + exact arm64 delivery inspection; device untested')

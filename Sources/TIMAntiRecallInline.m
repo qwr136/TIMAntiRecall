@@ -1,4 +1,5 @@
 #import "TIMAntiRecallMarks.h"
+#import "TIMAntiRecallSettings.h"
 #import "TIMAntiRecallBootstrap.h"
 #import "TIMAntiRecallIndicatorView.h"
 #import "TIMAntiRecall-Swift.h"
@@ -87,7 +88,7 @@ static void timantirecall_syncRow(UIView *view) {
 static void timantirecall_refreshRow(TIMAntiRecallRowContext *context) {
     if(!context)return;
     UIView *view=context.timantirecall_view;
-    if(!view || !timantirecall_hasEvents || !timantirecall_inlineInstalled) {timantirecall_clearVisual(context);return;}
+    if(!view || !timantirecall_inlineInstalled) {timantirecall_clearVisual(context);return;}
     NSString *owner=timantirecall_currentAccount();
     if(timantirecall_inlinePaused || !view.window ||
        view.hidden || view.alpha<0.01 || !timantirecall_windowActive(view.window) ||
@@ -97,7 +98,9 @@ static void timantirecall_refreshRow(TIMAntiRecallRowContext *context) {
     BOOL legacy=timantirecall_legacyClass && [view isKindOfClass:timantirecall_legacyClass];
     id record=legacy?nil:[TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model];
     NSDictionary *identity=legacy?timantirecall_legacyRowIdentity(model,owner):timantirecall_recordIdentity(record,owner);
-    if(![timantirecall_marks timantirecall_containsIdentity:identity]) {timantirecall_clearVisual(context);return;}
+    [timantirecall_settings() timantirecall_observeChat:identity];
+    NSDictionary *event=[timantirecall_marks timantirecall_eventForIdentity:identity];
+    if(![timantirecall_settings() timantirecall_enabled] || !event) {timantirecall_clearVisual(context);return;}
     UIView *host=timantirecall_rowHost(view);
     CGRect bounds=host.bounds;
     if(host.window!=view.window || bounds.size.width<120 || bounds.size.height<32 ||
@@ -109,6 +112,8 @@ static void timantirecall_refreshRow(TIMAntiRecallRowContext *context) {
     if(context.timantirecall_indicator.superview!=host) {
         [context.timantirecall_indicator removeFromSuperview];[host addSubview:context.timantirecall_indicator];
     }
+    [context.timantirecall_indicator timantirecall_setCaptureTime:[event[@"capturedAt"] doubleValue]
+                                                      showTime:[timantirecall_settings() timantirecall_showTime]];
     [context.timantirecall_indicator timantirecall_fitToBounds:bounds];
     [host bringSubviewToFront:context.timantirecall_indicator];
 }
@@ -149,10 +154,16 @@ static void timantirecall_refreshRows(void) {
 static void timantirecall_setupMarks(void) {
     static dispatch_once_t once;
     dispatch_once(&once,^{
-        timantirecall_marks=[TIMAntiRecallMarkStore new];
+        timantirecall_marks=timantirecall_sharedMarks();
+        timantirecall_hasEvents=YES; // also allow restored marks before the first live recall
         timantirecall_rows=[NSHashTable weakObjectsHashTable];
         NSMutableArray *tokens=[NSMutableArray array];
         NSNotificationCenter *center=NSNotificationCenter.defaultCenter;
+        [tokens addObject:[center addObserverForName:TIMAntiRecallSettingsChangedNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(__unused NSNotification *note){
+            [timantirecall_marks timantirecall_setPersistent:[timantirecall_settings() timantirecall_persistMarks]];
+            timantirecall_refreshRows();
+        }]];
+        [tokens addObject:[center addObserverForName:TIMAntiRecallStateChangedNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(__unused NSNotification *note){timantirecall_refreshRows();}]];
         for(NSNotificationName name in @[UIApplicationWillResignActiveNotification,UIApplicationDidEnterBackgroundNotification]) {
             id token=[center addObserverForName:name object:nil queue:NSOperationQueue.mainQueue usingBlock:^(__unused NSNotification *note){
                 timantirecall_inlinePaused=YES;
@@ -313,11 +324,12 @@ void timantirecall_markIntercepted(NSData *data,NSString *owner) {
     NSArray *events=timantirecall_recallEvents(data);
     if(!events.count || !owner.length)return;
     NSString *account=[owner copy];
+    NSTimeInterval captured=NSDate.date.timeIntervalSince1970;
     dispatch_async(dispatch_get_main_queue(),^{
         timantirecall_installInlineIndicator();
         timantirecall_setupMarks();
         if(![timantirecall_currentAccount() isEqual:account])return;
-        [timantirecall_marks timantirecall_addEvents:events owner:account];
+        [timantirecall_marks timantirecall_addEvents:events owner:account capturedAt:captured];
         timantirecall_hasEvents=YES;
         timantirecall_refreshRows();
     });
