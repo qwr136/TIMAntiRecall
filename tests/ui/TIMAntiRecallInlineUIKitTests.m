@@ -65,6 +65,8 @@ static void timantirecall_finish(void) {
     }, @"tim-inline-result.json");
 }
 static NSMutableArray<dispatch_block_t> *timantirecall_steps;
+static NSTimeInterval timantirecall_stepDelay;
+static BOOL timantirecall_holdSteps;
 static void timantirecall_step(dispatch_block_t block) { [timantirecall_steps addObject:[block copy]]; }
 static void timantirecall_nextStep(void) {
     if(timantirecall_finished || !timantirecall_steps.count)return;
@@ -77,7 +79,10 @@ static void timantirecall_nextStep(void) {
     }
     // Production markIntercepted queues its update before this continuation.
     // Never spin a nested run loop inside a main-dispatch callback.
-    dispatch_async(dispatch_get_main_queue(),^{timantirecall_nextStep();});
+    if(timantirecall_holdSteps)return;
+    NSTimeInterval delay=timantirecall_stepDelay;timantirecall_stepDelay=0;
+    if(delay>0)dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(delay*NSEC_PER_SEC)),dispatch_get_main_queue(),^{timantirecall_nextStep();});
+    else dispatch_async(dispatch_get_main_queue(),^{timantirecall_nextStep();});
 }
 static NSArray<TIMAntiRecallIndicatorView *> *timantirecall_indicators(UIView *root) {
     NSMutableArray *found=[NSMutableArray array];

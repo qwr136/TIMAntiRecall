@@ -59,6 +59,17 @@ static void timantirecall_testRecallSettings(UIView *root) {
         [timantirecall_coverage addObjectsFromArray:@[@"chat-forwarding",@"captured-time",@"persist-ui"]];
     });
 }
+static void timantirecall_waitSettingsCapture(unsigned attempt) {
+    if(timantirecall_finished)return;
+    NSData *data=[NSData dataWithContentsOfFile:timantirecall_document(@"tim-inline-settings-captured.json")];
+    NSDictionary *ack=data?[NSJSONSerialization JSONObjectWithData:data options:0 error:NULL]:nil;
+    if([ack[@"runToken"] isEqual:timantirecall_build[@"runToken"]]) {
+        [timantirecall_coverage addObject:@"preferences-visible"];
+        timantirecall_holdSteps=NO;timantirecall_nextStep();return;
+    }
+    if(attempt>=200){timantirecall_check(NO,@"no compositor settings screenshot acknowledgement");timantirecall_finish();return;}
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_MSEC*100),dispatch_get_main_queue(),^{timantirecall_waitSettingsCapture(attempt+1);});
+}
 static void timantirecall_testPreferencesPanel(void) {
     __block UIViewController *previous;
     QQSettingsViewController *host=[QQSettingsViewController new];
@@ -71,15 +82,20 @@ static void timantirecall_testPreferencesPanel(void) {
         previous=timantirecall_window.rootViewController;
         timantirecall_window.rootViewController=[[UINavigationController alloc] initWithRootViewController:host];
         [timantirecall_window makeKeyAndVisible];[host.view layoutIfNeeded];
+        timantirecall_stepDelay=0.5;
     });
     timantirecall_step(^{
+        [host beginAppearanceTransition:NO animated:NO];[host endAppearanceTransition];
         NSUInteger before=host.timantirecall_appearCalls;
-        [host viewDidAppear:YES];[host viewDidAppear:NO];
+        [host beginAppearanceTransition:YES animated:YES];[host endAppearanceTransition];
+        [host beginAppearanceTransition:NO animated:NO];[host endAppearanceTransition];
+        [host beginAppearanceTransition:YES animated:NO];[host endAppearanceTransition];
         timantirecall_check(host.timantirecall_appearCalls==before+2 && !host.timantirecall_lastAnimated,@"settings BOOL parameter and original invocation preserved");
         NSArray *buttons=host.navigationItem.rightBarButtonItems;
         timantirecall_check(buttons.count==2 && [buttons containsObject:original],@"original navigation item retained and plugin entry not duplicated");
         UIBarButtonItem *entry=buttons.lastObject;
         [UIApplication.sharedApplication sendAction:entry.action to:entry.target from:entry forEvent:nil];
+        timantirecall_stepDelay=0.6;
     });
     timantirecall_step(^{
         presented=(UINavigationController *)host.presentedViewController;
@@ -87,17 +103,29 @@ static void timantirecall_testPreferencesPanel(void) {
         panel=(TIMAntiRecallPreferencesController *)presented.topViewController;
         [panel loadViewIfNeeded];[panel.tableView reloadData];[panel.tableView layoutIfNeeded];
         timantirecall_check([panel isKindOfClass:TIMAntiRecallPreferencesController.class] && [panel numberOfSectionsInTableView:panel.tableView]==2,@"real production card preferences has required sections");
-        UITableViewCell *cell=[panel tableView:panel.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:2 inSection:0]];
+        timantirecall_check(panel.view.window==timantirecall_window && !panel.view.hidden && panel.tableView.visibleCells.count>=3,
+                           @"settings panel and actual table cells are visible in active window");
+        UITableViewCell *cell=[panel.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:2 inSection:0]];
         UISwitch *control=(UISwitch *)cell.accessoryView;
+        timantirecall_check(control.window==timantirecall_window,@"actual on-screen switch is used, not a detached datasource cell");
         timantirecall_check([control isKindOfClass:UISwitch.class] && [control.accessibilityIdentifier isEqual:@"showTime"],@"real option control is wired with stable key");
         control.on=YES;[control sendActionsForControlEvents:UIControlEventValueChanged];
         timantirecall_check([timantirecall_settings() timantirecall_showTime],@"actual settings switch commits configuration");
         control.on=NO;[control sendActionsForControlEvents:UIControlEventValueChanged];
+        timantirecall_stepDelay=0.4;
+    });
+    timantirecall_step(^{
         [panel.tableView layoutIfNeeded];
+        timantirecall_check(panel.view.window==timantirecall_window,@"panel remains visible for compositor capture");
         UIGraphicsImageRenderer *renderer=[[UIGraphicsImageRenderer alloc] initWithBounds:timantirecall_window.bounds];
         UIImage *image=[renderer imageWithActions:^(__unused UIGraphicsImageRendererContext *context){[timantirecall_window drawViewHierarchyInRect:timantirecall_window.bounds afterScreenUpdates:YES];}];
         timantirecall_check([UIImagePNGRepresentation(image) writeToFile:timantirecall_document(@"tim-inline-settings-preview.png") atomically:YES],@"actual UIKit settings screenshot saved");
+        timantirecall_holdSteps=YES;timantirecall_stage(@"settings-ready");
+        timantirecall_waitSettingsCapture(0);
+    });
+    timantirecall_step(^{
         [panel tableView:panel.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]];
+        timantirecall_stepDelay=0.3;
     });
     timantirecall_step(^{
         UIViewController *list=presented.topViewController;
@@ -113,16 +141,17 @@ static void timantirecall_testPreferencesPanel(void) {
         if(count>0){UITableViewCell *cell=[records tableView:records.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
             timantirecall_check([cell.detailTextLabel.text containsString:@"消息序号"],@"timestamp record renders metadata without chat content");}
         QQAccountsManager.GetInstance.currentUid=@"other_uid";
-        [records viewWillAppear:NO];
+        [records beginAppearanceTransition:NO animated:NO];[records endAppearanceTransition];
+        [records beginAppearanceTransition:YES animated:NO];[records endAppearanceTransition];
         timantirecall_check([records tableView:records.tableView numberOfRowsInSection:0]==0,@"open time list hides old account records after switch");
         QQAccountsManager.GetInstance.currentUid=@"self_uid";
-        [host dismissViewControllerAnimated:NO completion:nil];
+        [host dismissViewControllerAnimated:NO completion:nil];timantirecall_stepDelay=0.5;
     });
     timantirecall_step(^{
         QQChatSettingViewController *private=[QQChatSettingViewController new];private.uin=@"123456";
         QQGroupSettingViewController *group=[QQGroupSettingViewController new];group.groupCode=@"7001";
         for(QQSettingsViewController *controller in @[private,group]) {
-            [controller viewDidAppear:YES];
+            [controller beginAppearanceTransition:YES animated:YES];[controller endAppearanceTransition];
             timantirecall_check(controller.timantirecall_appearCalls==1 && controller.timantirecall_lastAnimated,
                                @"nested chat/settings hooks preserve single superclass callback and BOOL");
             timantirecall_check(controller.navigationItem.rightBarButtonItems.count==1,@"private and group details each receive one settings entry");

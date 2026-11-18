@@ -46,7 +46,7 @@ REQUIRED_COVERAGE = {
     "group-identity", "account-isolation", "reuse-lifecycle", "row-geometry",
     "touch-routing", "weak-release", "real-scene-background", "real-scene-resume",
     "swift-direct-binding", "legacy-conversion-binding", "push-to-row", "startup-owner",
-    "chat-forwarding", "captured-time", "persist-ui", "preferences-entry", "preferences-controls",
+    "chat-forwarding", "captured-time", "persist-ui", "preferences-entry", "preferences-controls", "preferences-visible",
 }
 COMMANDS: list[list[str]] = []
 TRANSCRIPT: list[str] = []
@@ -214,12 +214,15 @@ def wait_for_result(device: str, documents: Path, token: str, receipt: dict) -> 
     stage = ""
     background_sent = False
     foreground_sent = False
+    settings_sent = False
     while time.monotonic() < deadline:
         # A result is terminal even when FAIL; never wait for a later PASS.
         result = read_json(documents / "tim-inline-result.json")
         if result is not None:
             (REPORT / "tim-inline-result.json").write_text(json.dumps(result, indent=2, ensure_ascii=False))
             validate_result(result, token, receipt["sourceDigest"])
+            if not settings_sent:
+                raise RuntimeError("App reported success before actual settings compositor screenshot")
             if not (background_sent and foreground_sent):
                 raise RuntimeError("App reported success before real simulator lifecycle actions")
             return result
@@ -229,7 +232,11 @@ def wait_for_result(device: str, documents: Path, token: str, receipt: dict) -> 
             if current != stage:
                 print(f"APP STAGE {current}", flush=True)
                 stage = current
-            if current == "ready-for-background" and not background_sent:
+            if current == "settings-ready" and not settings_sent:
+                run(["xcrun", "simctl", "io", device, "screenshot", REPORT / "tim-inline-settings-simulator.png"], timeout=25)
+                (documents / "tim-inline-settings-captured.json").write_text(json.dumps({'runToken': token}))
+                settings_sent = True
+            elif current == "ready-for-background" and not background_sent:
                 run(["xcrun", "simctl", "io", device, "screenshot", REPORT / "tim-inline-simulator.png"], timeout=25)
                 # Safari is local on every iPhone runtime. No external page needed.
                 run(["xcrun", "simctl", "launch", device, "com.apple.mobilesafari"], timeout=30)
@@ -273,7 +280,7 @@ def run_restart(device: str, documents: Path, receipt: dict) -> None:
 
 
 def validate_previews(report: Path) -> None:
-    for name in ("tim-inline-preview.png", "tim-inline-simulator.png", "tim-inline-settings-preview.png"):
+    for name in ("tim-inline-preview.png", "tim-inline-simulator.png", "tim-inline-settings-preview.png", "tim-inline-settings-simulator.png"):
         path = report / name
         if not path.is_file() or path.stat().st_size < 128 or path.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
             raise RuntimeError(f"Missing real UIKit/simulator screenshot: {name}")

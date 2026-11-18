@@ -43,17 +43,17 @@ class ResultGateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "tim-inline-result.json").write_text(json.dumps(valid_result()))
-            with mock.patch.object(DRIVER, "REPORT", root), self.assertRaisesRegex(RuntimeError, "before real"):
+            with mock.patch.object(DRIVER, "REPORT", root), self.assertRaisesRegex(RuntimeError, "before actual settings"):
                 DRIVER.wait_for_result("device", root, "token", {"sourceDigest": "source"})
 
     def test_real_lifecycle_command_order_and_no_termination_on_resume(self):
-        stages = iter(["ready-for-background", "background-observed"])
+        stages = iter(["settings-ready", "ready-for-background", "background-observed"])
         polls = 0
         def read(path):
             nonlocal polls
             if path.name == "tim-inline-result.json":
                 polls += 1
-                return valid_result() if polls >= 3 else None
+                return valid_result() if polls >= 4 else None
             return {"runToken": "token", "stage": next(stages)}
         with tempfile.TemporaryDirectory() as directory, mock.patch.object(DRIVER, "REPORT", Path(directory)), \
                 mock.patch.object(DRIVER, "read_json", side_effect=read), \
@@ -61,8 +61,11 @@ class ResultGateTests(unittest.TestCase):
             DRIVER.wait_for_result("device", Path(directory), "token", {"sourceDigest": "source"})
             commands = [call.args[0] for call in run.call_args_list]
             self.assertEqual(commands[0][:5], ["xcrun", "simctl", "io", "device", "screenshot"])
-            self.assertEqual(commands[1], ["xcrun", "simctl", "launch", "device", "com.apple.mobilesafari"])
-            self.assertEqual(commands[2], ["xcrun", "simctl", "launch", "device", DRIVER.BUNDLE])
+            self.assertTrue(str(commands[0][-1]).endswith('tim-inline-settings-simulator.png'))
+            self.assertTrue(str(commands[1][-1]).endswith('tim-inline-simulator.png'))
+            self.assertEqual(commands[2], ["xcrun", "simctl", "launch", "device", "com.apple.mobilesafari"])
+            self.assertEqual(commands[3], ["xcrun", "simctl", "launch", "device", DRIVER.BUNDLE])
+            self.assertEqual(json.loads((Path(directory)/'tim-inline-settings-captured.json').read_text())['runToken'],'token')
             self.assertTrue(all("--terminate-running-process" not in command for command in commands))
 
     def test_stalled_app_has_deadline(self):
@@ -97,6 +100,9 @@ class RestartGateTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'settings'):
                 DRIVER.validate_previews(root)
             (root/'tim-inline-settings-preview.png').write_bytes(b'\x89PNG\r\n\x1a\n'+b'0'*128)
+            with self.assertRaisesRegex(RuntimeError,'settings-simulator'):
+                DRIVER.validate_previews(root)
+            (root/'tim-inline-settings-simulator.png').write_bytes(b'\x89PNG\r\n\x1a\n'+b'0'*128)
             DRIVER.validate_previews(root)
 
 
