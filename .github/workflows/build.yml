@@ -144,6 +144,9 @@ jobs:
       - name: Build both architectures and prepare exact arm64 delivery
         run: sh build.sh "${{ matrix.build_variant }}"
 
+      - name: Real Swift and UIKit row lifecycle regression
+        run: python3 tests/ui/run_inline_ui_tests.py
+
       - name: Verify actual dylib (blocks upload on failure)
         run: python3 scripts/verify_dylib.py --project . --scheme '${{ matrix.build_variant }}' --expected-version "$TIMANTIRECALL_VERSION" --output reports/dylib-verification.json dist/TIMAntiRecall.dylib
 

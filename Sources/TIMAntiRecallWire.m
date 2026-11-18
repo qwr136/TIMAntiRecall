@@ -121,3 +121,60 @@ TIMAntiRecallDecision timantirecall_classifyPush(const uint8_t *bytes, size_t le
         timantirecall_groupRecall(content)) return TIMAntiRecallGroup;
     return TIMAntiRecallPass;
 }
+
+static bool timantirecall_copyUID(TIMAntiRecallSpan input, unsigned number, char output[129]) {
+    TIMAntiRecallSpan value;
+    if (!timantirecall_span(input,number,&value) || value.length>128) return false;
+    for (size_t i=0;i<value.length;i++) {
+        uint8_t c=value.bytes[i];
+        if (!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='_'||c=='-')) return false;
+        output[i]=(char)c;
+    }
+    output[value.length]=0;
+    return true;
+}
+
+static bool timantirecall_optionalNumber(TIMAntiRecallSpan input, unsigned number, uint64_t *value, unsigned *present) {
+    size_t position=0; unsigned count=0; *present=0;
+    while (position<input.length) {
+        TIMAntiRecallField field;
+        if (++count>TIMANTIRECALL_MAX_FIELDS || !timantirecall_next(input,&position,&field)) return false;
+        if (field.number==number) {
+            if (*present || field.wire!=0) return false;
+            *present=1; *value=field.integer;
+        }
+    }
+    return true;
+}
+
+size_t timantirecall_extractRecallEvents(const uint8_t *bytes, size_t length,
+                                         TIMAntiRecallWireEvent *events, size_t capacity) {
+    TIMAntiRecallDecision kind=timantirecall_classifyPush(bytes,length);
+    if (kind==TIMAntiRecallPass || !events || !capacity) return 0;
+    TIMAntiRecallSpan input={bytes,length},message,body,content;
+    if (!timantirecall_span(input,1,&message)||!timantirecall_span(message,3,&body)||
+        !timantirecall_span(body,2,&content)) return 0;
+    if (kind==TIMAntiRecallPrivate) {
+        TIMAntiRecallSpan info; TIMAntiRecallWireEvent event={0};event.kind=1;
+        if (!timantirecall_span(content,1,&info)||!timantirecall_copyUID(info,1,event.from)||
+            !timantirecall_copyUID(info,2,event.to)||!timantirecall_number(info,20,&event.sequence)) return 0;
+        events[0]=event; return 1;
+    }
+    TIMAntiRecallSpan notify={content.bytes+7,content.length-7},recall;
+    uint64_t group=0;
+    if (!timantirecall_number(notify,4,&group)||!timantirecall_span(notify,11,&recall)) return 0;
+    size_t position=0,used=0;
+    while(position<recall.length) {
+        TIMAntiRecallField field;
+        if (!timantirecall_next(recall,&position,&field)) return 0;
+        if (field.number!=3) continue;
+        if (field.wire!=2 || used>=capacity) return 0;
+        TIMAntiRecallWireEvent event={0};event.kind=2;event.group=group;
+        if (!timantirecall_number(field.span,1,&event.sequence)||!event.sequence||
+            !timantirecall_copyUID(field.span,6,event.author)||
+            !timantirecall_optionalNumber(field.span,3,&event.random,&event.hasRandom)||
+            !timantirecall_optionalNumber(field.span,2,&event.time,&event.hasTime)) return 0;
+        events[used++]=event;
+    }
+    return used;
+}

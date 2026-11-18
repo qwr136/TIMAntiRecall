@@ -267,15 +267,19 @@ def validate_bytes(blob, expected_version, layout='arm64'):
     for arch, info in slices.items():
         names = [item['name'] for item in info['dependencies']]
         require(names and len(names) == len(set(names)), 'missing/duplicate dependencies')
+        swift_names = {name for name in names if name.startswith('@rpath/libswift') and
+                       name.endswith('.dylib') and '/' not in name[len('@rpath/'):]
+                       and all(c.isalnum() or c in '._' for c in name[len('@rpath/'):])}
         for name in names:
-            require(name.startswith(('/System/Library/', '/usr/lib/')) and
+            require((name.startswith(('/System/Library/', '/usr/lib/')) or name in swift_names) and
                     '..' not in name.split('/') and '\\' not in name and
                     not any(token in name.lower() for token in ('substrate', 'roothide', 'libroot', 'ellekit')),
                     'non-Apple dependency: ' + name)
         require('/usr/lib/libSystem.B.dylib' in names and
                 '/System/Library/Frameworks/Foundation.framework/Foundation' in names,
                 'missing required Apple system dependency')
-        require(not info['rpaths'], 'unexpected LC_RPATH')
+        require(set(info['rpaths']) <= {'/usr/lib/swift','/usr/lib/libswift/stable'}, 'unexpected LC_RPATH')
+        require(not swift_names or '/usr/lib/swift' in info['rpaths'], 'Swift dependencies require system runtime rpath')
         require(info['id_dylib'] == ['@rpath/TIMAntiRecall.dylib'], 'unexpected install name')
         require(info['id_versions'] == [expected], 'binary current_version differs from expected-version')
         require(all(item['library'] in names for item in info['imports'].values()),

@@ -1,6 +1,7 @@
 #import "TIMAntiRecallRuntime.h"
 #import "TIMAntiRecallBootstrap.h"
 #import "TIMAntiRecallImage.h"
+#import "TIMAntiRecallMarks.h"
 #import <mach-o/dyld.h>
 #import <crt_externs.h>
 #import <mach-o/loader.h>
@@ -21,9 +22,11 @@ static NSString *timantirecall_mainUUID(void) {
 
 static void timantirecall_attemptInstall(unsigned attempt) {
     Class target = objc_getClass("OCIQQNTWrapperSession");
+    timantirecall_installSessionTracking(target);
     if (timantirecall_installOnClass(target)) {
         timantirecall_bootstrapEvent("hook-installed-before-kernel");
         timantirecall_logEvent(@"installed-before-kernel");
+        dispatch_async(dispatch_get_main_queue(),^{ timantirecall_installInlineIndicator(); });
         return;
     }
     if (attempt == 0) timantirecall_bootstrapEvent(target ? "hook-rejected-method-or-ABI retry=1" : "hook-class-missing retry=1");

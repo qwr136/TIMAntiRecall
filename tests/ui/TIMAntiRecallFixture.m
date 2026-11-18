@@ -1,0 +1,40 @@
+#import "TIMAntiRecallFixture.h"
+
+@implementation OCMsgRecord @end
+@implementation QQAccountsManager
++ (instancetype)GetInstance {
+    static QQAccountsManager *manager;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ manager=[self new]; manager.currentUid=@"self_uid"; });
+    return manager;
+}
+@end
+@implementation OCInitSessionConfig @end
+@implementation TIMAntiRecallTestSession
+- (void)init:(id)config depends:(id)depends dispatcherDepends:(id)dispatcher listener:(id)listener {
+    self.timantirecall_initCalls++;
+    self.timantirecall_lastArguments=@[config?:NSNull.null, depends?:NSNull.null,
+                                      dispatcher?:NSNull.null, listener?:NSNull.null];
+}
+- (void)close:(id)callback {
+    self.timantirecall_closeCalls++;
+    self.timantirecall_lastArguments=@[callback?:NSNull.null];
+}
+@end
+@implementation TIMAntiRecallTestBaseView
+- (instancetype)initWithFrame:(CGRect)frame {
+    self=[super initWithFrame:frame];
+    if(self) self.timantirecall_bindResult=YES;
+    return self;
+}
+- (BOOL)bindViewModel:(id)model {
+    self.timantirecall_binds++;
+    self.timantirecall_lastBindArgument=model;
+    self.timantirecall_model=self.timantirecall_bindResult?model:nil;
+    return self.timantirecall_bindResult;
+}
+- (void)unbindViewModel { self.timantirecall_unbinds++; self.timantirecall_model=nil; }
+- (void)prepareForReuse { self.timantirecall_reuses++; self.timantirecall_model=nil; }
+- (void)layoutSubviews { [super layoutSubviews]; self.timantirecall_layouts++; }
+- (void)didMoveToWindow { [super didMoveToWindow]; self.timantirecall_windowMoves++; }
+@end

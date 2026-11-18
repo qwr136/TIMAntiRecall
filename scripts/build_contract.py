@@ -96,7 +96,7 @@ def validate(project):
                 'CI matrix must contain only trollfools')
         require('needs: test' in workflow and 'runs-on: ubuntu-24.04' in workflow, 'Linux source gate missing')
         steps = ('toolchain.py prepare', 'toolchain.py verify', 'scripts/run_native_tests.py',
-                 'sh build.sh', 'scripts/verify_dylib.py', 'toolchain.py receipt', 'name: Upload Artifacts')
+                 'sh build.sh', 'tests/ui/run_inline_ui_tests.py', 'scripts/verify_dylib.py', 'toolchain.py receipt', 'name: Upload Artifacts')
         positions = [workflow.find(step) for step in steps]
         require(all(i >= 0 for i in positions) and positions == sorted(positions), 'CI gate order invalid')
         require('packages/*.deb' not in workflow and 'verify_deb.py' not in workflow, 'CI must not deliver deb')

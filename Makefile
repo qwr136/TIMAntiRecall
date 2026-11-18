@@ -4,6 +4,9 @@ include $(THEOS)/makefiles/common.mk
 
 LIBRARY_NAME = TIMAntiRecall
 TIMAntiRecall_FILES = $(wildcard Sources/*.m Hooks/*.m)
+TIMAntiRecall_FILES += $(wildcard Sources/*.swift)
+TIMAntiRecall_SWIFTFLAGS = -swift-version 5 -parse-as-library
+TIMAntiRecall_SWIFT_BRIDGING_HEADER = Headers/TIMAntiRecallSwift-Bridging.h
 TIMAntiRecall_CFLAGS = -fobjc-arc -Wall -Wextra -I./Headers -I./Sources
 TIMAntiRecall_FRAMEWORKS = UIKit Foundation CoreFoundation
 TIMAntiRecall_LIBRARIES =

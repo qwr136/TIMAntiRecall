@@ -24,10 +24,10 @@ def run(project, version):
             'native runtime tests require real macOS arm64 Foundation')
     source = source_snapshot(root, version)
     output = root/'reports/TIMAntiRecallRuntimeTests'
-    sources = [str(root/p) for p in source['compile_inputs']
-               if p != 'Sources/TIMAntiRecallToast.m']
-    stub=root/'tests/native/TIMAntiRecallToastNativeStub.m'
-    require(stub.is_file(), 'macOS UIKit-free toast stub is required')
+    sources = [str(root/p) for p in source['compile_inputs'] if p.endswith('.m')
+               and p not in ('Sources/TIMAntiRecallInline.m','Sources/TIMAntiRecallIndicatorView.m')]
+    stub=root/'tests/native/TIMAntiRecallInlineNativeStub.m'
+    require(stub.is_file(), 'macOS UIKit-free inline stub is required')
     sources.append(str(stub))
     command = ['xcrun', '--sdk', 'macosx', 'clang', '-arch', 'arm64', '-fobjc-arc', '-fblocks',
                '-Wall', '-Wextra', '-DTIMANTIRECALL_NATIVE_TEST=1', '-DTIMANTIRECALL_TESTING=1',
@@ -39,6 +39,14 @@ def run(project, version):
     with (root/'reports/native-tests.log').open('w') as log:
         subprocess.run(command, cwd=root, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=180)
         subprocess.run([str(output)], cwd=root, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=120)
+        marks_test=root/'tests/native/TIMAntiRecallMarksTests.m'
+        require(marks_test.is_file(), 'identity/session runtime tests are required')
+        marks_output=root/'reports/TIMAntiRecallMarksTests'
+        marks_command=command.copy()
+        marks_command[marks_command.index(str(test))]=str(marks_test)
+        marks_command[marks_command.index(str(output))]=str(marks_output)
+        subprocess.run(marks_command,cwd=root,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=180)
+        subprocess.run([str(marks_output)],cwd=root,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=120)
         smoke=root/'tests/native/TIMAntiRecallConstructorTests.m'
         require(smoke.is_file(), 'real constructor smoke test is required')
         smoke_output=root/'reports/TIMAntiRecallConstructorTests'

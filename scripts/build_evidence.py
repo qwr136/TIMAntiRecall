@@ -54,7 +54,7 @@ def source_snapshot(project, version):
                  'scripts/prepare_delivery.py'}
     require(mandatory <= paths, 'build inputs missing from tracked blob list')
     inputs = sorted(str(p.relative_to(root)) for folder in ('Sources', 'Hooks')
-                    for p in (root/folder).glob('*.m'))
+                    for extension in ('*.m','*.swift') for p in (root/folder).glob(extension))
     require(inputs and any(p.startswith('Hooks/') for p in inputs), 'no Objective-C Hooks/*.m build input')
     require(set(inputs) <= paths, 'untracked compile input')
     identity = {key: os.environ.get(env, '') for key, env in (
@@ -102,6 +102,19 @@ def receipt(project, evidence, output, version):
     selection = verify_selection(root, version)
     require(seal_record['delivery_selection'] == selection and
             seal_record['build_artifact'] == selection['internal'], 'build/delivery selection changed after seal')
+    import sys
+    sys.path.insert(0,str(root/'tests/ui'))
+    from run_inline_ui_tests import validate_result, validate_previews, source_receipt
+    ui_dir=root/'reports/inline-ui'
+    ui_build=json.loads((ui_dir/'build-receipt.json').read_text())
+    ui_result=json.loads((ui_dir/'tim-inline-result.json').read_text())
+    require(ui_build.get('driverExitCode')==0 and ui_build.get('dirty')=='', 'UIKit driver did not pass on clean source')
+    require(ui_build.get('commit')==current['source_sha'] and
+            str(ui_build.get('githubRunID'))==current['run_id'] and
+            str(ui_build.get('githubRunAttempt'))==current['run_attempt'], 'UIKit source/run differs')
+    require(ui_build['sourceDigest']==source_receipt()['sourceDigest'], 'UIKit source hashes differ')
+    validate_result(ui_result,ui_build['runToken'],ui_build['sourceDigest'])
+    validate_previews(ui_dir)
     require(evidence['lock_sha256'] == current['lock_sha256'], 'receipt lock mismatch')
     verified = json.loads((root/'reports/dylib-verification.json').read_text())
     require(verified == actual, 'dylib verification report does not match artifact')
@@ -109,6 +122,7 @@ def receipt(project, evidence, output, version):
     require({p.name for p in (root/'dist').iterdir()} <= {'TIMAntiRecall.dylib', 'build-receipt.json'},
             'unexpected deliverable in dist')
     result = dict(evidence, **current, artifact=actual, native_tests=native,
+                  uikit_tests={'build':ui_build,'result':ui_result},
                   build_artifact=selection['internal'], delivery_selection=selection,
                   compile_contract=seal_record['compile_contract'],
                   validation='Source gates + native runtime + dual-arch build + exact arm64 delivery inspection; device untested')
