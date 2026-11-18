@@ -17,6 +17,7 @@
 @end
 FOUNDATION_EXPORT TIMAntiRecallMarkStore *timantirecall_sharedMarks(void);
 FOUNDATION_EXPORT void timantirecall_prepareState(void);
+FOUNDATION_EXPORT BOOL timantirecall_installColdRecallProtection(void);
 FOUNDATION_EXPORT NSArray<NSDictionary *> *timantirecall_recallEvents(NSData *data);
 FOUNDATION_EXPORT NSDictionary *timantirecall_recordIdentity(id record, NSString *owner);
 FOUNDATION_EXPORT NSString *timantirecall_currentAccount(void);

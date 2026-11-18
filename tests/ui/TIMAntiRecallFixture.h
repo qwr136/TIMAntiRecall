@@ -4,7 +4,8 @@
 NS_ASSUME_NONNULL_BEGIN
 // Deliberately retain TIM's q/i/@ getter encodings for production ABI checks.
 @interface OCMsgRecord : NSObject
-@property(nonatomic) int64_t msgId, msgSeq, msgRandom, msgTime, peerUin, clientSeq;
+@property(nonatomic) int64_t msgId, msgSeq, msgRandom, msgTime, peerUin, clientSeq, recallTime;
+@property(nonatomic) NSUInteger timantirecall_recallSetterCalls;
 @property(nonatomic) int chatType;
 @property(nonatomic,copy) NSString *senderUid, *peerUid;
 @end

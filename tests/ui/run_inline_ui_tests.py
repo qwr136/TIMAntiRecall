@@ -33,7 +33,7 @@ PRODUCTION = (
     "Sources/TIMAntiRecallMarks.m", "Sources/TIMAntiRecallWire.m",
     "Sources/TIMAntiRecallInline.m", "Sources/TIMAntiRecallIndicatorView.m",
     "Sources/TIMAntiRecallSession.m", "Sources/TIMAntiRecallLegacy.m",
-    "Sources/TIMAntiRecallRuntime.m", "Sources/TIMAntiRecallSettings.m",
+    "Sources/TIMAntiRecallRuntime.m", "Sources/TIMAntiRecallColdSync.m", "Sources/TIMAntiRecallSettings.m",
     "Sources/TIMAntiRecallStorage.m", "Sources/TIMAntiRecallMarkStore.m",
     "Sources/TIMAntiRecallPreferencesUI.m", "Sources/TIMAntiRecallPreferencesEntry.m",
 )

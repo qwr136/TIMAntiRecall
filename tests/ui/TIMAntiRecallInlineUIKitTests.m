@@ -2,6 +2,7 @@
 #import <QuartzCore/QuartzCore.h>
 #import "TIMAntiRecallFixture.h"
 #import "TIMAntiRecallMarks.h"
+#import "TIMAntiRecallColdSync.h"
 #import "TIMAntiRecallRuntime.h"
 #import "TIMAntiRecallSettings.h"
 #import "TIMAntiRecallWire.h"

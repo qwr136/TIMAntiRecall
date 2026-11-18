@@ -43,4 +43,13 @@ class InlineContractTests(unittest.TestCase):
         for token in ('Sources/TIMAntiRecallInline.m','Sources/TIMAntiRecallIndicatorView.m','TIMAntiRecallMarksTests.m'):
             self.assertIn(token,source)
         self.assertNotIn("'Sources/TIMAntiRecallMarks.m'",source)
-if __name__=='__main__':unittest.main()
+    def test_cold_recall_protection_is_exact_setter_only(self):
+        source=strip_comments((ROOT/'Sources/TIMAntiRecallColdSync.m').read_text())
+        self.assertIn('setRecallTime:',source);self.assertIn('timantirecall_recordIdentity',source)
+        self.assertIn('timantirecall_sharedMarks()',source)
+        self.assertIn('timantirecall_containsIdentity',source)
+        self.assertIn('void(*)(id,SEL,int64_t)',source)
+        self.assertNotIn('removeDBMsg',source);self.assertNotIn('deleteMsg',source)
+    def test_cold_hook_is_installed_before_session_push(self):
+        source=(ROOT/'Hooks/TIMAntiRecallMain.m').read_text()
+        self.assertLess(source.index('timantirecall_installColdRecallProtection()'),source.index('timantirecall_installSessionTracking'))

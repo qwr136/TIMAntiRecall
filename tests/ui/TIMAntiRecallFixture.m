@@ -1,6 +1,8 @@
 #import "TIMAntiRecallFixture.h"
 
-@implementation OCMsgRecord @end
+@implementation OCMsgRecord
+- (void)setRecallTime:(int64_t)value { _recallTime=value;self.timantirecall_recallSetterCalls++; }
+@end
 @implementation QQMessageModel @end
 @implementation QQAIOModel @end
 @implementation QQAIOMsgModel @end

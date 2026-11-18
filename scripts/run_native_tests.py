@@ -48,8 +48,18 @@ def run(project, version):
         marks_command[marks_command.index(str(output))]=str(marks_output)
         subprocess.run(marks_command,cwd=root,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=180)
         subprocess.run([str(marks_output)],cwd=root,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=120)
+        cold_test=root/'tests/native/TIMAntiRecallColdSyncTests.m'
+        require(cold_test.is_file(), 'cold recall setter regression is required')
+        cold_output=root/'reports/TIMAntiRecallColdSyncTests'
+        cold_command=command.copy()
+        cold_command[cold_command.index(str(test))]=str(cold_test)
+        cold_command[cold_command.index(str(output))]=str(cold_output)
+        subprocess.run(cold_command,cwd=root,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=180)
+        with tempfile.TemporaryDirectory(prefix='timantirecall-cold-state-') as cold_state:
+            cold_env=dict(os.environ,TIMANTIRECALL_TEST_STATE_DIR=cold_state)
+            subprocess.run([str(cold_output)],cwd=root,env=cold_env,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=120)
+
         state_test=root/'tests/native/TIMAntiRecallStateTests.m'
-        require(state_test.is_file(), 'cross-process state regression is required')
         state_output=root/'reports/TIMAntiRecallStateTests'
         state_command=command.copy()
         state_command[state_command.index(str(test))]=str(state_test)

@@ -29,8 +29,17 @@ static void timantirecall_attemptUIInstall(unsigned attempt) {
         timantirecall_attemptUIInstall(attempt+1);
     });
 }
+static void timantirecall_attemptColdInstall(unsigned attempt) {
+    if(timantirecall_installColdRecallProtection())return;
+    if(attempt>=30){timantirecall_bootstrapEvent("cold-recall-hook-install-failed");return;}
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(),^{
+        timantirecall_attemptColdInstall(attempt+1);
+    });
+}
 static void timantirecall_attemptInstall(unsigned attempt) {
     timantirecall_prepareState();
+    if(!timantirecall_installColdRecallProtection() && attempt==0)
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(),^{timantirecall_attemptColdInstall(1);});
     timantirecall_installLegacyBridge();
     Class target = objc_getClass("OCIQQNTWrapperSession");
     timantirecall_installSessionTracking(target);
