@@ -2,6 +2,7 @@
 #import <QuartzCore/QuartzCore.h>
 #import "TIMAntiRecallFixture.h"
 #import "TIMAntiRecallMarks.h"
+#import "TIMAntiRecallRuntime.h"
 #import "TIMAntiRecallWire.h"
 #import "TIMAntiRecallIndicatorView.h"
 #import "TIMAntiRecallBootstrap.h"
@@ -9,6 +10,7 @@
 
 // The only production stub: bootstrap logging, never matching/UI/reflection.
 bool timantirecall_bootstrapEvent(const char *event) { (void)event; return true; }
+void timantirecall_logEvent(NSString *event) { (void)event; }
 
 static NSMutableArray<NSString *> *timantirecall_failures;
 static NSMutableSet<NSString *> *timantirecall_coverage;
@@ -125,7 +127,7 @@ static OCMsgRecord *timantirecall_record(int type, int64_t sequence, NSString *p
     record.senderUid=peer;record.peerUin=group;return record;
 }
 static TIMAntiRecallTestBaseView *timantirecall_row(UIView *host, CGRect frame) {
-    TIMAntiRecallTestBaseView *row=[[TIMAntiRecallTestBaseView alloc] initWithFrame:frame];
+    TIMAntiRecallTestBaseView *row=[TIMAntiRecallSwiftFixture timantirecall_rowWithFrame:frame];
     [host addSubview:row];return row;
 }
 static void timantirecall_mark(NSData *packet, NSString *owner) {
@@ -301,6 +303,128 @@ static void timantirecall_testGroup(UIView *host) {
     });
 }
 
+static void timantirecall_testCurrentBinding(UIView *root) {
+    TIMAntiRecallTestBaseView *row=timantirecall_row(root,CGRectMake(8,80,root.bounds.size.width-16,100));
+    NSObject *target=[TIMAntiRecallSwiftFixture timantirecall_message:timantirecall_record(1,701,@"peer_a",0)];
+    NSObject *other=[TIMAntiRecallSwiftFixture timantirecall_message:timantirecall_record(1,702,@"peer_a",0)];
+    timantirecall_step(^{
+        [TIMAntiRecallSwiftFixture timantirecall_directBind:row model:target];
+        // Deliberately do not invoke layout here. The recall-time bounded walk
+        // must discover this row even when neither binding nor layout was seen.
+        timantirecall_check(row.timantirecall_binds==0,@"Swift direct storage bypasses Objective-C bind thunk");
+        timantirecall_check([TIMAntiRecallRecordBridge timantirecall_currentModelForView:row]==target,
+                           @"production reflection reads actual optional Swift viewModel");
+        timantirecall_mark(timantirecall_private(@"peer_a",@"self_uid",701),@"self_uid");
+    });
+    timantirecall_step(^{
+        timantirecall_count(row,1,@"direct Swift bind marks on recall without ObjC bind callback");
+        [TIMAntiRecallSwiftFixture timantirecall_directBind:row model:other];timantirecall_layout(row);
+        timantirecall_count(row,0,@"direct model replacement clears stale mark");
+        [TIMAntiRecallSwiftFixture timantirecall_directBind:row model:target];timantirecall_layout(row);
+        timantirecall_count(row,1,@"direct rebind to target restores exactly one mark");
+        [TIMAntiRecallSwiftFixture timantirecall_directBind:row model:nil];timantirecall_layout(row);
+        timantirecall_count(row,0,@"Swift optional nil removes context and mark");
+        timantirecall_check([TIMAntiRecallRecordBridge timantirecall_currentModelForView:NSObject.new]==nil,
+                           @"unrelated object has no accepted viewModel storage");
+        [row removeFromSuperview];[timantirecall_coverage addObject:@"swift-direct-binding"];
+    });
+}
+static void timantirecall_testLegacyRows(UIView *root) {
+    for(NSNumber *kind in @[@1,@2]) {
+        int type=kind.intValue;int64_t sequence=800+type;
+        QQAIOCell *cell=[[QQAIOCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
+        cell.frame=CGRectMake(8,80,root.bounds.size.width-16,112);
+        OCMsgRecord *record=timantirecall_record(type,sequence,@"peer_a",7001);record.clientSeq=9000+sequence;
+        __block QQAIOMsgModel *model;
+        __block QQAIOMsgModel *other;
+        timantirecall_step(^{
+            [root addSubview:cell];[cell layoutIfNeeded];
+            model=[QQAIOMsgModel new];model.msgModel=[NTRecordConverter recordConvertMessageModel:record];
+            OCMsgRecord *otherRecord=timantirecall_record(type,sequence+10,@"peer_a",7001);otherRecord.clientSeq=12345;
+            other=[QQAIOMsgModel new];other.msgModel=[NTRecordConverter recordConvertMessageModel:otherRecord];
+            timantirecall_check(model.msgModel.msgSeq==(type==1?record.clientSeq:record.msgSeq),
+                               @"fixture preserves TIM private clientSeq/group msgSeq conversion");
+            NSDictionary *identity=timantirecall_legacyRowIdentity(model,@"self_uid");
+            timantirecall_check([identity[@"seq"] longLongValue]==sequence,@"legacy bridge retains original server identity");
+            [cell setAioModel:model];
+            timantirecall_check(cell.timantirecall_sets==1 && cell.timantirecall_lastModel==model,
+                               @"legacy setter forwards exact argument exactly once");
+            NSData *packet=type==1?timantirecall_private(@"peer_a",@"self_uid",sequence):
+                timantirecall_group(7001,@"peer_a",sequence,33,1700000000);
+            timantirecall_mark(packet,@"self_uid");
+        });
+        timantirecall_step(^{
+            timantirecall_count(cell.contentView,1,@"legacy private/group target has one whole-row indicator");
+            CGRect saved=cell.frame;[cell updateCellView];[cell layoutIfNeeded];
+            timantirecall_check(CGRectEqualToRect(saved,cell.frame) && cell.timantirecall_updates==1,
+                               @"legacy update original and frame preserved");
+            timantirecall_count(cell.contentView,1,@"legacy updates do not duplicate indicator");
+            [cell setAioModel:other];timantirecall_count(cell.contentView,0,@"legacy reuse to other sequence clears indicator");
+            [cell setAioModel:model];timantirecall_count(cell.contentView,1,@"legacy target rebind restores indicator");
+            model.msgModel.msgSeq++;[cell updateCellView];
+            timantirecall_count(cell.contentView,0,@"mutated converted model invalidates saved identity");
+            model.msgModel.msgSeq--;[cell updateCellView];
+            timantirecall_count(cell.contentView,1,@"unchanged converted model fingerprint matches");
+            QQAccountsManager.GetInstance.currentUid=@"other_uid";[cell updateCellView];
+            timantirecall_count(cell.contentView,0,@"converted identity cannot cross account boundary");
+            QQAccountsManager.GetInstance.currentUid=@"self_uid";[cell updateCellView];
+            timantirecall_count(cell.contentView,1,@"original owner can still display its retained mark");
+            RecallNotiAIOModel *notice=[RecallNotiAIOModel new];notice.msgModel=model.msgModel;
+            [cell setAioModel:notice];timantirecall_count(cell.contentView,0,@"legacy recall notice is excluded even with same record");
+            QQAIOMsgModel *unlinked=[QQAIOMsgModel new];unlinked.msgModel=[QQMessageModel new];
+            [cell setAioModel:unlinked];timantirecall_count(cell.contentView,0,@"unlinked old model never falls back to text or legacy sequence");
+            [cell setAioModel:model];[cell removeFromSuperview];timantirecall_count(cell.contentView,0,@"legacy off-window mark removed");
+            [root addSubview:cell];timantirecall_count(cell.contentView,1,@"legacy on-window model revalidated");
+            [cell prepareForReuse];timantirecall_count(cell.contentView,0,@"legacy prepare clears indicator");
+            timantirecall_check(cell.timantirecall_reuses==1,@"legacy prepare original called once");
+            [cell removeFromSuperview];model=nil;other=nil;
+        });
+    }
+    timantirecall_step(^{[timantirecall_coverage addObject:@"legacy-conversion-binding"];});
+}
+
+static void timantirecall_testStartupOwner(UIView *root) {
+    TIMAntiRecallTestBaseView *row=timantirecall_row(root,CGRectMake(8,80,root.bounds.size.width-16,100));
+    timantirecall_step(^{
+        QQAccountsManager.GetInstance.currentUid=@"";
+        [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:timantirecall_record(1,925,@"peer_a",0)]];
+        timantirecall_count(row,0,@"binding before account setup cannot mark a row");
+        QQAccountsManager.GetInstance.currentUid=@"self_uid";
+        timantirecall_mark(timantirecall_private(@"peer_a",@"self_uid",925),@"self_uid");
+    });
+    timantirecall_step(^{
+        timantirecall_count(row,1,@"initially empty owner resolves after login and matches recall");
+        QQAccountsManager.GetInstance.currentUid=@"other_uid";timantirecall_layout(row);
+        timantirecall_count(row,0,@"known owner is never replaced during account switch");
+        QQAccountsManager.GetInstance.currentUid=@"self_uid";[row prepareForReuse];[row removeFromSuperview];
+        [timantirecall_coverage addObject:@"startup-owner"];
+    });
+}
+
+static void timantirecall_testPushToRow(UIView *root) {
+    TIMAntiRecallTestSession *session=[TIMAntiRecallTestSession new];
+    OCInitSessionConfig *config=[OCInitSessionConfig new];config.selfUid=@"self_uid";
+    TIMAntiRecallTestBaseView *row=timantirecall_row(root,CGRectMake(8,80,root.bounds.size.width-16,100));
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_installOnClass(TIMAntiRecallTestSession.class),@"production push hook installed in UIKit app");
+        [session init:config depends:nil dispatcherDepends:nil listener:nil];
+        [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:timantirecall_record(1,951,@"peer_a",0)]];
+        NSObject *extra=NSObject.new;NSData *ordinary=[NSData data];NSString *command=@"ordinary";
+        [session onMsfPush:command msgBuffer:ordinary pushExtraInfo:extra];
+        timantirecall_check(session.timantirecall_pushCalls==1 && session.timantirecall_lastPush[0]==command &&
+            session.timantirecall_lastPush[1]==ordinary && session.timantirecall_lastPush[2]==extra,
+            @"ordinary push preserves original arguments and one invocation");
+        [session onMsfPush:@"trpc.msg.olpush.OlPushService.MsgPush"
+                msgBuffer:timantirecall_private(@"peer_a",@"self_uid",951) pushExtraInfo:extra];
+        timantirecall_check(session.timantirecall_pushCalls==1,@"recognized recall is intercepted before original consumer");
+    });
+    timantirecall_step(^{
+        timantirecall_count(row,1,@"actual push hook/session owner/Wire/Swift/current row produce indicator");
+        [session close:nil];[row prepareForReuse];[row removeFromSuperview];
+        [timantirecall_coverage addObject:@"push-to-row"];
+    });
+}
+
 static void timantirecall_testGeometry(UIView *root) {
     CGFloat width=root.bounds.size.width-16;
     timantirecall_step(^{timantirecall_mark(timantirecall_private(@"peer_a",@"self_uid",401),@"self_uid");});
@@ -450,6 +574,10 @@ static void timantirecall_start(void) {
         UIView *root=timantirecall_window.rootViewController.view;
         timantirecall_testBindAndPrivate(root);
         timantirecall_testGroup(root);
+        timantirecall_testCurrentBinding(root);
+        timantirecall_testLegacyRows(root);
+        timantirecall_testStartupOwner(root);
+        timantirecall_testPushToRow(root);
         timantirecall_testGeometry(root);
         timantirecall_testWeakRelease(root);
         timantirecall_step(^{timantirecall_makePreview(root);});

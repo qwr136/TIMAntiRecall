@@ -1,4 +1,15 @@
 import Foundation
+import UIKit
+
+// Storage deliberately lives in Swift, not in the Objective-C test base.
+// Direct writes below bypass bindViewModel:, as Swift dispatch can in the host.
+class NTAIOBaseCellView: TIMAntiRecallTestBaseView {
+    var viewModel: NSObject?
+    override var timantirecall_model: Any? {
+        get { viewModel }
+        set { viewModel = newValue as? NSObject }
+    }
+}
 
 // No @objc on record: production must read inherited Swift storage via Mirror.
 class NTAIOBaseCellViewModel: NSObject {
@@ -21,6 +32,14 @@ private enum TIMAntiRecallInvalidTypes {
 
 @objc(TIMAntiRecallSwiftFixture)
 final class TIMAntiRecallSwiftFixture: NSObject {
+    @objc(timantirecall_rowWithFrame:)
+    static func timantirecall_row(frame: CGRect) -> TIMAntiRecallTestBaseView {
+        NTAIOBaseCellView(frame: frame)
+    }
+    @objc(timantirecall_directBind:model:)
+    static func timantirecall_directBind(_ row: TIMAntiRecallTestBaseView, model: NSObject?) {
+        (row as? NTAIOBaseCellView)?.viewModel = model
+    }
     @objc(timantirecall_message:)
     static func timantirecall_message(_ record: OCMsgRecord) -> NSObject {
         ChatMessageCellViewModel(record: record)

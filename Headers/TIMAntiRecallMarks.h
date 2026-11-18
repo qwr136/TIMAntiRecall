@@ -15,5 +15,7 @@ FOUNDATION_EXPORT BOOL timantirecall_methodTypes(Method method, const char *resu
                                                  unsigned argumentCount, const char * const *arguments);
 FOUNDATION_EXPORT void timantirecall_installSessionTracking(Class target);
 FOUNDATION_EXPORT NSString *timantirecall_sessionOwner(id session);
+FOUNDATION_EXPORT BOOL timantirecall_installLegacyBridge(void);
+FOUNDATION_EXPORT NSDictionary *timantirecall_legacyRowIdentity(id model, NSString *owner);
 FOUNDATION_EXPORT BOOL timantirecall_installInlineIndicator(void);
 FOUNDATION_EXPORT void timantirecall_markIntercepted(NSData *data, NSString *owner);

@@ -16,7 +16,9 @@ class InlineContractTests(unittest.TestCase):
         stub=(ROOT/'tests/native/TIMAntiRecallInlineNativeStub.m').read_text()
         for text in (header,source,stub):self.assertIn('BOOL timantirecall_installInlineIndicator(void)',text)
         body=function_body(source,'timantirecall_installInlineIndicator')
-        self.assertIn('return YES;',body);self.assertIn('return NO;',body)
+        self.assertIn('return nt && legacy;',body);self.assertIn('return NO;',body)
+        self.assertIn('timantirecall_installNTRows()',body)
+        self.assertIn('timantirecall_installLegacyRows()',body)
         self.assertNotIn('return;',body)
     def test_swift_is_real_input_and_generated_header(self):
         make=(ROOT/'Makefile').read_text();snapshot=(ROOT/'scripts/build_evidence.py').read_text()

@@ -20,13 +20,21 @@ static NSString *timantirecall_mainUUID(void) {
     return uuid;
 }
 
+static void timantirecall_attemptUIInstall(unsigned attempt) {
+    BOOL installed=timantirecall_installInlineIndicator();
+    if(installed || attempt>=10)return;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(),^{
+        timantirecall_attemptUIInstall(attempt+1);
+    });
+}
 static void timantirecall_attemptInstall(unsigned attempt) {
+    timantirecall_installLegacyBridge();
     Class target = objc_getClass("OCIQQNTWrapperSession");
     timantirecall_installSessionTracking(target);
     if (timantirecall_installOnClass(target)) {
         timantirecall_bootstrapEvent("hook-installed-before-kernel");
         timantirecall_logEvent(@"installed-before-kernel");
-        dispatch_async(dispatch_get_main_queue(),^{ timantirecall_installInlineIndicator(); });
+        dispatch_async(dispatch_get_main_queue(),^{ timantirecall_attemptUIInstall(0); });
         return;
     }
     if (attempt == 0) timantirecall_bootstrapEvent(target ? "hook-rejected-method-or-ABI retry=1" : "hook-class-missing retry=1");

@@ -24,7 +24,9 @@
 static char timantirecall_contextKey;
 static TIMAntiRecallMarkStore *timantirecall_marks;
 static NSHashTable<TIMAntiRecallRowContext *> *timantirecall_rows;
-static Class timantirecall_inlineClass;
+static Class timantirecall_inlineClass, timantirecall_legacyClass;
+static _Atomic(IMP) timantirecall_legacySetOriginal, timantirecall_legacyUpdateOriginal,
+    timantirecall_legacyReuseOriginal, timantirecall_legacyLayoutOriginal, timantirecall_legacyWindowOriginal;
 static _Atomic(IMP) timantirecall_bindOriginal, timantirecall_unbindOriginal,
     timantirecall_reuseOriginal, timantirecall_layoutOriginal, timantirecall_windowOriginal;
 static BOOL timantirecall_inlinePaused;
@@ -49,17 +51,52 @@ static UIView *timantirecall_rowHost(UIView *view) {
     }
     return view;
 }
+static BOOL timantirecall_windowActive(UIWindow *window) {
+    if(!window || window.hidden || window.alpha<0.01)return NO;
+    if(window.windowScene)return window.windowScene.activationState==UISceneActivationStateForegroundActive;
+    return UIApplication.sharedApplication.applicationState==UIApplicationStateActive;
+}
+static id timantirecall_boundModel(UIView *view) {
+    if(timantirecall_legacyClass && [view isKindOfClass:timantirecall_legacyClass]) {
+        SEL sel=sel_registerName("aioModel");const char *args[]={"@",":"};
+        if(!timantirecall_methodTypes(class_getInstanceMethod(object_getClass(view),sel),"@",2,args))return nil;
+        return ((id(*)(id,SEL))[view methodForSelector:sel])(view,sel);
+    }
+    return [TIMAntiRecallRecordBridge timantirecall_currentModelForView:view];
+}
+static void timantirecall_setupMarks(void);
+static void timantirecall_syncRow(UIView *view) {
+    if(!NSThread.isMainThread || ![view isKindOfClass:UIView.class])return;
+    timantirecall_setupMarks();
+    id model=timantirecall_boundModel(view);
+    TIMAntiRecallRowContext *context=objc_getAssociatedObject(view,&timantirecall_contextKey);
+    if(!model){timantirecall_resetRow(view);return;}
+    if(!context || context.timantirecall_model!=model) {
+        timantirecall_resetRow(view);
+        context=[TIMAntiRecallRowContext new];
+        context.timantirecall_view=view;context.timantirecall_model=model;
+        context.timantirecall_owner=timantirecall_currentAccount();
+        objc_setAssociatedObject(view,&timantirecall_contextKey,context,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        [timantirecall_rows addObject:context];
+    }
+    // A row may bind during startup before currentUid is populated. Resolve an
+    // absent owner once; never relabel a known owner when accounts change.
+    if(!context.timantirecall_owner.length)context.timantirecall_owner=timantirecall_currentAccount();
+    timantirecall_refreshRow(context);
+}
 static void timantirecall_refreshRow(TIMAntiRecallRowContext *context) {
     if(!context)return;
     UIView *view=context.timantirecall_view;
     if(!view || !timantirecall_hasEvents || !timantirecall_inlineInstalled) {timantirecall_clearVisual(context);return;}
     NSString *owner=timantirecall_currentAccount();
     if(timantirecall_inlinePaused || !view.window ||
-       view.hidden || view.alpha<0.01 || view.window.windowScene.activationState!=UISceneActivationStateForegroundActive ||
+       view.hidden || view.alpha<0.01 || !timantirecall_windowActive(view.window) ||
        ![owner isEqual:context.timantirecall_owner]) {timantirecall_clearVisual(context);return;}
-    id model=context.timantirecall_model;
-    id record=model?[TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model]:nil;
-    NSDictionary *identity=timantirecall_recordIdentity(record,owner);
+    id model=timantirecall_boundModel(view);
+    if(!model || model!=context.timantirecall_model) {timantirecall_syncRow(view);return;}
+    BOOL legacy=timantirecall_legacyClass && [view isKindOfClass:timantirecall_legacyClass];
+    id record=legacy?nil:[TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model];
+    NSDictionary *identity=legacy?timantirecall_legacyRowIdentity(model,owner):timantirecall_recordIdentity(record,owner);
     if(![timantirecall_marks timantirecall_containsIdentity:identity]) {timantirecall_clearVisual(context);return;}
     UIView *host=timantirecall_rowHost(view);
     CGRect bounds=host.bounds;
@@ -75,7 +112,38 @@ static void timantirecall_refreshRow(TIMAntiRecallRowContext *context) {
     [context.timantirecall_indicator timantirecall_fitToBounds:bounds];
     [host bringSubviewToFront:context.timantirecall_indicator];
 }
+// One bounded walk per accepted recall batch. It recovers visible rows whose
+// Swift binding/layout ran without our Objective-C thunk; never scans text.
+static void timantirecall_visitRows(UIView *view,unsigned depth,unsigned *budget) {
+    if(!view || depth>24 || !*budget || view.hidden || view.alpha<0.01)return;
+    (*budget)--;
+    if((timantirecall_inlineClass && [view isKindOfClass:timantirecall_inlineClass]) ||
+       (timantirecall_legacyClass && [view isKindOfClass:timantirecall_legacyClass]))
+        timantirecall_syncRow(view);
+    for(UIView *child in view.subviews) {
+        if(!*budget)break;
+        timantirecall_visitRows(child,depth+1,budget);
+    }
+}
+static void timantirecall_discoverVisibleRows(void) {
+    if(!timantirecall_hasEvents)return;
+    unsigned budget=2048;
+    NSMutableArray<UIWindow *> *windows=[NSMutableArray array];
+    for(UIScene *scene in UIApplication.sharedApplication.connectedScenes)
+        if([scene isKindOfClass:UIWindowScene.class])
+            [windows addObjectsFromArray:((UIWindowScene *)scene).windows];
+    // TIM 4.1.0.81 has no UIApplicationSceneManifest and may use legacy windows.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    [windows addObjectsFromArray:UIApplication.sharedApplication.windows];
+#pragma clang diagnostic pop
+    for(UIWindow *window in [NSOrderedSet orderedSetWithArray:windows]) {
+        if(!budget)break;
+        if(timantirecall_windowActive(window))timantirecall_visitRows(window,0,&budget);
+    }
+}
 static void timantirecall_refreshRows(void) {
+    timantirecall_discoverVisibleRows();
     for(TIMAntiRecallRowContext *context in timantirecall_rows.allObjects)timantirecall_refreshRow(context);
 }
 static void timantirecall_setupMarks(void) {
@@ -133,12 +201,12 @@ static void timantirecall_reuseRow(id receiver,SEL selector) {
 static void timantirecall_layoutRow(id receiver,SEL selector) {
     IMP original=atomic_load_explicit(&timantirecall_layoutOriginal,memory_order_acquire);
     if(original)((void(*)(id,SEL))original)(receiver,selector);
-    if(NSThread.isMainThread)timantirecall_refreshRow(objc_getAssociatedObject(receiver,&timantirecall_contextKey));
+    if(NSThread.isMainThread)timantirecall_syncRow(receiver);
 }
 static void timantirecall_windowRow(id receiver,SEL selector) {
     IMP original=atomic_load_explicit(&timantirecall_windowOriginal,memory_order_acquire);
     if(original)((void(*)(id,SEL))original)(receiver,selector);
-    if(NSThread.isMainThread)timantirecall_refreshRow(objc_getAssociatedObject(receiver,&timantirecall_contextKey));
+    if(NSThread.isMainThread)timantirecall_syncRow(receiver);
 }
 
 static Method timantirecall_inlineOwn(Class cls,SEL selector) {
@@ -146,8 +214,7 @@ static Method timantirecall_inlineOwn(Class cls,SEL selector) {
     for(unsigned i=0;i<count;i++)if(method_getName(methods[i])==selector){result=methods[i];break;}
     free(methods);return result;
 }
-BOOL timantirecall_installInlineIndicator(void) {
-    if(!NSThread.isMainThread) {dispatch_async(dispatch_get_main_queue(),^{timantirecall_installInlineIndicator();});return NO;}
+static BOOL timantirecall_installNTRows(void) {
     if(timantirecall_inlineClass)return YES;
 #ifdef TIMANTIRECALL_UI_TEST
     Class cls=objc_getClass("TIMAntiRecallTestBaseView");
@@ -179,6 +246,68 @@ BOOL timantirecall_installInlineIndicator(void) {
     timantirecall_inlineInstalled=YES;
     timantirecall_bootstrapEvent("inline-nt-bind-installed");
     return YES;
+}
+static void timantirecall_legacySet(id receiver,SEL selector,id model) {
+    if(NSThread.isMainThread)timantirecall_resetRow(receiver);
+    IMP original=atomic_load_explicit(&timantirecall_legacySetOriginal,memory_order_acquire);
+    if(original)((void(*)(id,SEL,id))original)(receiver,selector,model);
+    if(NSThread.isMainThread)timantirecall_syncRow(receiver);
+}
+static void timantirecall_legacyUpdate(id receiver,SEL selector) {
+    IMP original=atomic_load_explicit(&timantirecall_legacyUpdateOriginal,memory_order_acquire);
+    if(original)((void(*)(id,SEL))original)(receiver,selector);
+    if(NSThread.isMainThread)timantirecall_syncRow(receiver);
+}
+static void timantirecall_legacyReuse(id receiver,SEL selector) {
+    if(NSThread.isMainThread)timantirecall_resetRow(receiver);
+    IMP original=atomic_load_explicit(&timantirecall_legacyReuseOriginal,memory_order_acquire);
+    if(original)((void(*)(id,SEL))original)(receiver,selector);
+}
+static void timantirecall_legacyLayout(id receiver,SEL selector) {
+    IMP original=atomic_load_explicit(&timantirecall_legacyLayoutOriginal,memory_order_acquire);
+    if(original)((void(*)(id,SEL))original)(receiver,selector);
+    if(NSThread.isMainThread)timantirecall_syncRow(receiver);
+}
+static void timantirecall_legacyWindow(id receiver,SEL selector) {
+    IMP original=atomic_load_explicit(&timantirecall_legacyWindowOriginal,memory_order_acquire);
+    if(original)((void(*)(id,SEL))original)(receiver,selector);
+    if(NSThread.isMainThread)timantirecall_syncRow(receiver);
+}
+static BOOL timantirecall_installLegacyRows(void) {
+    if(timantirecall_legacyClass)return YES;
+    if(!timantirecall_installLegacyBridge())return NO;
+    Class cls=objc_getClass("QQAIOCell");
+    if(!cls || ![cls isSubclassOfClass:UITableViewCell.class])return NO;
+    SEL set=sel_registerName("setAioModel:"),update=sel_registerName("updateCellView"),
+        reuse=sel_registerName("prepareForReuse"),layout=@selector(layoutSubviews),window=@selector(didMoveToWindow);
+    Method sm=timantirecall_inlineOwn(cls,set),um=timantirecall_inlineOwn(cls,update),
+        rm=timantirecall_inlineOwn(cls,reuse),lm=timantirecall_inlineOwn(cls,layout),wm=class_getInstanceMethod(cls,window);
+    const char *setArgs[]={"@",":","@"};const char *plain[]={"@",":"};
+    if(!timantirecall_methodTypes(sm,"v",3,setArgs)||!timantirecall_methodTypes(um,"v",2,plain)||
+       !timantirecall_methodTypes(rm,"v",2,plain)||!timantirecall_methodTypes(lm,"v",2,plain)||
+       !timantirecall_methodTypes(wm,"v",2,plain)||
+       !timantirecall_methodTypes(class_getInstanceMethod(cls,sel_registerName("aioModel")),"@",2,plain))return NO;
+    timantirecall_setupMarks();
+    atomic_store_explicit(&timantirecall_legacySetOriginal,method_getImplementation(sm),memory_order_release);
+    atomic_store_explicit(&timantirecall_legacyUpdateOriginal,method_getImplementation(um),memory_order_release);
+    atomic_store_explicit(&timantirecall_legacyReuseOriginal,method_getImplementation(rm),memory_order_release);
+    atomic_store_explicit(&timantirecall_legacyLayoutOriginal,method_getImplementation(lm),memory_order_release);
+    atomic_store_explicit(&timantirecall_legacyWindowOriginal,method_getImplementation(wm),memory_order_release);
+    if(timantirecall_inlineOwn(cls,window))method_setImplementation(wm,(IMP)timantirecall_legacyWindow);
+    else if(!class_addMethod(cls,window,(IMP)timantirecall_legacyWindow,method_getTypeEncoding(wm)))return NO;
+    method_setImplementation(sm,(IMP)timantirecall_legacySet);
+    method_setImplementation(um,(IMP)timantirecall_legacyUpdate);
+    method_setImplementation(rm,(IMP)timantirecall_legacyReuse);
+    method_setImplementation(lm,(IMP)timantirecall_legacyLayout);
+    timantirecall_legacyClass=cls;timantirecall_inlineInstalled=YES;
+    timantirecall_bootstrapEvent("inline-legacy-bind-installed");
+    return YES;
+}
+BOOL timantirecall_installInlineIndicator(void) {
+    if(!NSThread.isMainThread) {dispatch_async(dispatch_get_main_queue(),^{timantirecall_installInlineIndicator();});return NO;}
+    BOOL nt=timantirecall_installNTRows();
+    BOOL legacy=timantirecall_installLegacyRows();
+    return nt && legacy;
 }
 void timantirecall_markIntercepted(NSData *data,NSString *owner) {
     NSArray *events=timantirecall_recallEvents(data);

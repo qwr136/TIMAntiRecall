@@ -32,7 +32,8 @@ RESULT_TIMEOUT = 120
 PRODUCTION = (
     "Sources/TIMAntiRecallMarks.m", "Sources/TIMAntiRecallWire.m",
     "Sources/TIMAntiRecallInline.m", "Sources/TIMAntiRecallIndicatorView.m",
-    "Sources/TIMAntiRecallSession.m",
+    "Sources/TIMAntiRecallSession.m", "Sources/TIMAntiRecallLegacy.m",
+    "Sources/TIMAntiRecallRuntime.m",
 )
 SWIFT = ("Sources/TIMAntiRecallRecordBridge.swift",
          "tests/ui/TIMAntiRecallSwiftFixture.swift")
@@ -42,6 +43,7 @@ REQUIRED_COVERAGE = {
     "swift-reflection", "session-owner", "bind-abi", "private-identity",
     "group-identity", "account-isolation", "reuse-lifecycle", "row-geometry",
     "touch-routing", "weak-release", "real-scene-background", "real-scene-resume",
+    "swift-direct-binding", "legacy-conversion-binding", "push-to-row", "startup-owner",
 }
 COMMANDS: list[list[str]] = []
 TRANSCRIPT: list[str] = []

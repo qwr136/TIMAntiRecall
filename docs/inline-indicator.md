@@ -1,5 +1,7 @@
 # Inline recalled message indicator
 
+0.70 device feedback: neither private nor group rows were decorated. Current binding/legacy compatibility work and its verified static evidence are documented in [inline-binding-fix.md](inline-binding-fix.md); the missing device edge is not yet established.
+
 Baseline: 0.60 / fb7fd59bcc789b7ba013f6c6def2719e957f4e9b. Target remains TIM4.1.0.81, bundle com.tencent.tim, QQ UUID3C237FA0-5985-3376-BF98-EF1698563247, iOS16.5. User's requested UI: thin red rounded border around the whole retained message row including avatar and bubble, fixed lower-right 已撤回 label. Temporary toast is removed.
 
 ## Runtime connection
