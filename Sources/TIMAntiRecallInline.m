@@ -30,6 +30,8 @@ static _Atomic(IMP) timantirecall_legacySetOriginal, timantirecall_legacyUpdateO
     timantirecall_legacyReuseOriginal, timantirecall_legacyLayoutOriginal, timantirecall_legacyWindowOriginal;
 static _Atomic(IMP) timantirecall_bindOriginal, timantirecall_unbindOriginal,
     timantirecall_reuseOriginal, timantirecall_layoutOriginal, timantirecall_windowOriginal;
+static _Atomic(IMP) timantirecall_outerReuseOriginal;
+static Class timantirecall_outerCellClass;
 static BOOL timantirecall_inlinePaused;
 static BOOL timantirecall_hasEvents;
 static BOOL timantirecall_inlineInstalled;
@@ -65,6 +67,32 @@ static id timantirecall_boundModel(UIView *view) {
     }
     return [TIMAntiRecallRecordBridge timantirecall_currentModelForView:view];
 }
+static NSDictionary *timantirecall_identityForModel(UIView *view,id model,NSString *owner) {
+    BOOL legacy=timantirecall_legacyClass && [view isKindOfClass:timantirecall_legacyClass];
+    if(legacy)return timantirecall_legacyRowIdentity(model,owner);
+    return timantirecall_recordIdentity([TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model],owner);
+}
+static BOOL timantirecall_slotIsAmbiguous(TIMAntiRecallRowContext *context,NSDictionary *identity,NSDictionary *event,NSString *owner) {
+    BOOL ambiguous=NO;
+    NSMutableArray<TIMAntiRecallRowContext *> *matches=[NSMutableArray arrayWithObject:context];
+    for(TIMAntiRecallRowContext *other in timantirecall_rows.allObjects) {
+        if(other==context || other.timantirecall_waitingForRebind || ![owner isEqual:other.timantirecall_owner])continue;
+        UIView *view=other.timantirecall_view;
+        if(!view.window || view.hidden || view.alpha<0.01 || !timantirecall_windowActive(view.window))continue;
+        id model=timantirecall_boundModel(view);
+        if(!model || model!=other.timantirecall_model)continue;
+        NSDictionary *candidate=timantirecall_identityForModel(view,model,owner);
+        if(!timantirecall_recallEventMatchesIdentity(event,candidate))continue;
+        [matches addObject:other];
+        if(![identity[@"id"] isEqual:candidate[@"id"]] || ![identity[@"random"] isEqual:candidate[@"random"]] ||
+           ![identity[@"time"] isEqual:candidate[@"time"]])ambiguous=YES;
+    }
+    if(ambiguous) {
+        [timantirecall_marks timantirecall_suppressDisplayForEvent:event];
+        for(TIMAntiRecallRowContext *row in matches)timantirecall_clearVisual(row);
+    }
+    return ambiguous;
+}
 static void timantirecall_setupMarks(void);
 static void timantirecall_syncRow(UIView *view) {
     if(!NSThread.isMainThread || ![view isKindOfClass:UIView.class])return;
@@ -95,12 +123,15 @@ static void timantirecall_refreshRow(TIMAntiRecallRowContext *context) {
        ![owner isEqual:context.timantirecall_owner]) {timantirecall_clearVisual(context);return;}
     id model=timantirecall_boundModel(view);
     if(!model || model!=context.timantirecall_model) {timantirecall_syncRow(view);return;}
-    BOOL legacy=timantirecall_legacyClass && [view isKindOfClass:timantirecall_legacyClass];
-    id record=legacy?nil:[TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model];
-    NSDictionary *identity=legacy?timantirecall_legacyRowIdentity(model,owner):timantirecall_recordIdentity(record,owner);
+    NSDictionary *identity=timantirecall_identityForModel(view,model,owner);
     [timantirecall_settings() timantirecall_observeChat:identity];
+    if(![timantirecall_settings() timantirecall_enabled]){timantirecall_clearVisual(context);return;}
+    NSDictionary *candidate=[timantirecall_marks timantirecall_displayCandidateForIdentity:identity];
+    if(!candidate || timantirecall_slotIsAmbiguous(context,identity,candidate,owner)) {
+        timantirecall_clearVisual(context);return;
+    }
     NSDictionary *event=[timantirecall_marks timantirecall_eventForIdentity:identity];
-    if(![timantirecall_settings() timantirecall_enabled] || !event) {timantirecall_clearVisual(context);return;}
+    if(!event){timantirecall_clearVisual(context);return;}
     UIView *host=timantirecall_rowHost(view);
     CGRect bounds=host.bounds;
     if(host.window!=view.window || bounds.size.width<120 || bounds.size.height<32 ||
@@ -203,6 +234,41 @@ static void timantirecall_unbindRow(id receiver,SEL selector) {
     if(NSThread.isMainThread)timantirecall_resetRow(receiver);
     IMP original=atomic_load_explicit(&timantirecall_unbindOriginal,memory_order_acquire);
     if(original)((void(*)(id,SEL))original)(receiver,selector);
+}
+static Method timantirecall_inlineOwn(Class cls,SEL selector);
+static void timantirecall_clearDescendantRows(UIView *view,unsigned depth,unsigned *budget) {
+    if(!view||depth>24||!*budget)return;
+    (*budget)--;
+    if((timantirecall_inlineClass&&[view isKindOfClass:timantirecall_inlineClass])||
+       (timantirecall_legacyClass&&[view isKindOfClass:timantirecall_legacyClass]))timantirecall_resetRow(view);
+    for(UIView *child in view.subviews){if(!*budget)break;timantirecall_clearDescendantRows(child,depth+1,budget);}
+}
+static void timantirecall_outerReuse(id receiver,SEL selector) {
+    if(NSThread.isMainThread&&[receiver isKindOfClass:UIView.class]) {
+        unsigned before=2048;timantirecall_clearDescendantRows(receiver,0,&before);
+    }
+    IMP original=atomic_load_explicit(&timantirecall_outerReuseOriginal,memory_order_acquire);
+    if(original)((void(*)(id,SEL))original)(receiver,selector);
+    if(NSThread.isMainThread&&[receiver isKindOfClass:UIView.class]) {
+        unsigned after=2048;timantirecall_clearDescendantRows(receiver,0,&after);
+    }
+}
+static BOOL timantirecall_installOuterReuse(void) {
+    if(timantirecall_outerCellClass)return YES;
+    Class cls=nil;
+#ifdef TIMANTIRECALL_UI_TEST
+    cls=objc_getClass("QQAIOCell");
+#else
+    cls=objc_getClass("_TtC6AIOLib14AIOContentCell");
+#endif
+    if(!cls||![cls isSubclassOfClass:UITableViewCell.class])return NO;
+    SEL selector=sel_registerName("prepareForReuse");Method method=timantirecall_inlineOwn(cls,selector);
+    const char *args[]={"@",":"};
+    if(!timantirecall_methodTypes(method,"v",2,args))return NO;
+    IMP original=method_getImplementation(method);if(!original)return NO;
+    atomic_store_explicit(&timantirecall_outerReuseOriginal,original,memory_order_release);
+    method_setImplementation(method,(IMP)timantirecall_outerReuse);
+    timantirecall_outerCellClass=cls;return YES;
 }
 static void timantirecall_reuseRow(id receiver,SEL selector) {
     if(NSThread.isMainThread)timantirecall_resetRow(receiver);
@@ -318,6 +384,7 @@ BOOL timantirecall_installInlineIndicator(void) {
     if(!NSThread.isMainThread) {dispatch_async(dispatch_get_main_queue(),^{timantirecall_installInlineIndicator();});return NO;}
     BOOL nt=timantirecall_installNTRows();
     BOOL legacy=timantirecall_installLegacyRows();
+    if(timantirecall_inlineClass)(void)timantirecall_installOuterReuse();
     return nt && legacy;
 }
 void timantirecall_markIntercepted(NSData *data,NSString *owner) {

@@ -501,6 +501,53 @@ static void timantirecall_testGeometry(UIView *root) {
     timantirecall_step(^{[timantirecall_coverage addObjectsFromArray:@[@"row-geometry",@"touch-routing"]];});
 }
 
+static void timantirecall_testOuterReuse(UIView *host) {
+    __block QQAIOCell *outer;
+    __block TIMAntiRecallTestBaseView *inner;
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_installInlineIndicator(),@"outer host reuse hook installs with exact ABI");
+        outer=[[QQAIOCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
+        inner=[[TIMAntiRecallTestBaseView alloc] initWithFrame:CGRectMake(0,0,240,72)];
+        outer.frame=CGRectMake(8,80,260,88);[outer.contentView addSubview:inner];[host addSubview:outer];
+        OCMsgRecord *record=timantirecall_record(1,777,@"peer_a",0);
+        [inner bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:record]];
+        timantirecall_check(timantirecall_indicators(outer.contentView).count==0,@"unmarked outer cell is clear");
+        timantirecall_mark(timantirecall_private(@"peer_a",@"self_uid",777),@"self_uid");
+    });
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_indicators(outer.contentView).count==1,@"outer cell displays its recalled child");
+        [outer prepareForReuse];
+        timantirecall_check(outer.timantirecall_reuses==1&&timantirecall_indicators(outer.contentView).count==0,
+                            @"outer prepareForReuse clears child decoration");
+        OCMsgRecord *nextRecord=timantirecall_record(1,778,@"peer_a",0);
+        [inner bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:nextRecord]];
+        timantirecall_check(timantirecall_indicators(outer.contentView).count==0,
+                            @"reused row with an unmarked last message remains clear");
+        [outer removeFromSuperview];
+        [timantirecall_coverage addObject:@"outer-cell-reuse"];
+    });
+}
+static void timantirecall_testAmbiguousSequence(UIView *host) {
+    __block TIMAntiRecallTestBaseView *first,*second;
+    timantirecall_step(^{
+        first=timantirecall_row(host,CGRectMake(8,80,host.bounds.size.width-16,84));
+        second=timantirecall_row(host,CGRectMake(8,170,host.bounds.size.width-16,84));
+        OCMsgRecord *target=timantirecall_record(1,779,@"peer_a",0);
+        OCMsgRecord *collision=timantirecall_record(1,779,@"peer_a",0);collision.msgId++;
+        [first bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:target]];
+        [second bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:collision]];
+        timantirecall_mark(timantirecall_private(@"peer_a",@"self_uid",779),@"self_uid");
+    });
+    timantirecall_step(^{
+        timantirecall_count(first,0,@"same-sequence collision never marks the first row");
+        timantirecall_count(second,0,@"same-sequence collision never marks the other row");
+        NSDictionary *identity=timantirecall_recordIdentity(timantirecall_record(1,779,@"peer_a",0),@"self_uid");
+        NSDictionary *event=[timantirecall_sharedMarks() timantirecall_eventForIdentity:identity];
+        timantirecall_check([event[@"displayAmbiguous"] boolValue],@"ambiguous wire identity is persisted fail-closed");
+        [first removeFromSuperview];[second removeFromSuperview];
+        [timantirecall_coverage addObject:@"same-sequence-ambiguous"];
+    });
+}
 static void timantirecall_testWeakRelease(UIView *host) {
     timantirecall_step(^{timantirecall_mark(timantirecall_private(@"peer_a",@"self_uid",501),@"self_uid");});
     timantirecall_step(^{
@@ -602,6 +649,8 @@ static void timantirecall_start(void) {
         timantirecall_testStartupOwner(root);
         timantirecall_testPushToRow(root);
         timantirecall_testGeometry(root);
+        timantirecall_testOuterReuse(root);
+        timantirecall_testAmbiguousSequence(root);
         timantirecall_testWeakRelease(root);
         timantirecall_testRecallSettings(root);
         timantirecall_testPreferencesPanel();

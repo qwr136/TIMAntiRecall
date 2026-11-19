@@ -55,6 +55,19 @@ static void timantirecall_testRowIsolation(void) {
         fourth[@"seq"]=@103;CHECK(![store timantirecall_containsIdentity:fourth]);
         CHECK([store timantirecall_containsIdentity:last]);
     }
+    TIMAntiRecallMarkStore *collisionStore=[TIMAntiRecallMarkStore new];
+    NSDictionary *shared=@{@"kind":@1,@"seq":@501,@"from":@"peer",@"to":@"owner"};
+    NSDictionary *same=@{@"owner":@"owner",@"kind":@1,@"seq":@501,@"author":@"peer",@"peer":@"peer",@"id":@501,@"random":@7,@"time":@1700000000};
+    [collisionStore timantirecall_addEvents:@[shared] owner:@"owner"];
+    CHECK([collisionStore timantirecall_eventForIdentity:same]!=nil);
+    CHECK([collisionStore timantirecall_displayCandidateForIdentity:same]!=nil);
+    NSMutableDictionary *other=same.mutableCopy;other[@"id"]=@502;
+    CHECK([collisionStore timantirecall_displayCandidateForIdentity:other]!=nil);
+    [collisionStore timantirecall_suppressDisplayForEvent:[collisionStore timantirecall_eventForIdentity:same]];
+    CHECK([collisionStore timantirecall_displayCandidateForIdentity:same]==nil);
+    [collisionStore timantirecall_addEvents:@[@{@"kind":@1,@"seq":@501,@"from":@"owner",@"to":@"peer"}] owner:@"owner"];
+    CHECK([collisionStore timantirecall_eventForIdentity:same]!=nil);
+    CHECK([collisionStore timantirecall_displayCandidateForIdentity:same]==nil);
 }
 int main(void) {
     @autoreleasepool {timantirecall_testRowIsolation();}

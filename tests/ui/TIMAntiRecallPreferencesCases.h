@@ -130,27 +130,18 @@ static void timantirecall_testPreferencesPanel(void) {
         timantirecall_waitSettingsCapture(0);
     });
     timantirecall_step(^{
+        timantirecall_check([panel tableView:panel.tableView numberOfRowsInSection:1]==1,
+                           @"global chat section only contains chat management");
+        TIMAntiRecallPreferencesController *chatPanel=[[TIMAntiRecallPreferencesController alloc]
+            initWithOwner:@"self_uid" chat:@{@"owner":@"self_uid",@"kind":@2,@"group":@7001}];
+        timantirecall_check([chatPanel tableView:panel.tableView numberOfRowsInSection:1]==2,
+                           @"chat-specific panel only adds the current chat switch");
         [panel tableView:panel.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]];
         timantirecall_stepDelay=0.3;
     });
     timantirecall_step(^{
-        UIViewController *list=presented.topViewController;
-        timantirecall_check([list.title isEqual:@"按聊天单独设置"],@"chat management navigation uses production controller");
-        [presented popToRootViewControllerAnimated:NO];
-        [panel tableView:panel.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:1 inSection:1]];
-    });
-    timantirecall_step(^{
-        TIMAntiRecallPreferencesController *records=(TIMAntiRecallPreferencesController *)presented.topViewController;
-        [records loadViewIfNeeded];[records.tableView layoutIfNeeded];
-        NSInteger count=[records tableView:records.tableView numberOfRowsInSection:0];
-        timantirecall_check([records.title isEqual:@"查看拦截时间"] && count>0,@"timestamp page actually contains saved current-owner captures");
-        if(count>0){UITableViewCell *cell=[records tableView:records.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
-            timantirecall_check([cell.detailTextLabel.text containsString:@"消息序号"],@"timestamp record renders metadata without chat content");}
-        QQAccountsManager.GetInstance.currentUid=@"other_uid";
-        [records beginAppearanceTransition:NO animated:NO];[records endAppearanceTransition];
-        [records beginAppearanceTransition:YES animated:NO];[records endAppearanceTransition];
-        timantirecall_check([records tableView:records.tableView numberOfRowsInSection:0]==0,@"open time list hides old account records after switch");
-        QQAccountsManager.GetInstance.currentUid=@"self_uid";
+        timantirecall_check([presented.topViewController.title isEqual:@"按聊天单独设置"],
+                           @"chat management still opens from the real panel");
         [host dismissViewControllerAnimated:NO completion:nil];timantirecall_stepDelay=0.5;
     });
     timantirecall_step(^{

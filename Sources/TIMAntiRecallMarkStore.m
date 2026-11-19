@@ -43,10 +43,23 @@ static NSDictionary *timantirecall_normalizedMark(NSDictionary *input,NSString *
         if(!binding)return nil;
         e[@"binding"]=binding;
     }
+    if([input[@"displayAmbiguous"] isEqual:@YES])e[@"displayAmbiguous"]=@YES;
     return [e copy];
 }
 static NSDictionary *timantirecall_markKey(NSDictionary *event) {
-    NSMutableDictionary *key=[event mutableCopy];[key removeObjectForKey:@"capturedAt"];[key removeObjectForKey:@"binding"];return [key copy];
+    NSMutableDictionary *key=[event mutableCopy];
+    [key removeObjectsForKeys:@[@"capturedAt",@"binding",@"displayAmbiguous"]];
+    return [key copy];
+}
+BOOL timantirecall_recallEventMatchesIdentity(NSDictionary *event,NSDictionary *identity) {
+    if(![event isKindOfClass:NSDictionary.class]||![identity isKindOfClass:NSDictionary.class])return NO;
+    if(![event[@"owner"] isEqual:identity[@"owner"]]||![event[@"kind"] isEqual:identity[@"kind"]]||
+       ![event[@"seq"] isEqual:identity[@"seq"]]||![event[@"author"] isEqual:identity[@"author"]])return NO;
+    NSString *scope=[event[@"kind"] intValue]==1?@"peer":@"group";
+    if(![event[scope] isEqual:identity[scope]])return NO;
+    if(event[@"random"] && ![event[@"random"] isEqual:identity[@"random"]])return NO;
+    if(event[@"time"] && ![event[@"time"] isEqual:identity[@"time"]])return NO;
+    return YES;
 }
 @interface TIMAntiRecallMarkStore ()
 @property(nonatomic,strong) NSMutableSet<NSDictionary *> *timantirecall_keys;
@@ -145,24 +158,49 @@ static NSDictionary *timantirecall_markKey(NSDictionary *event) {
         if(changed && self.timantirecall_persistent)[self timantirecall_scheduleWrite];
     }
 }
+- (NSDictionary *)timantirecall_displayCandidateForIdentity:(NSDictionary *)identity {
+    if(!timantirecall_recordBinding(identity))return nil;
+    @synchronized(self) {
+        NSDictionary *match=nil;
+        for(NSDictionary *event in self.timantirecall_events) {
+            if(!timantirecall_recallEventMatchesIdentity(event,identity))continue;
+            if(match || [event[@"displayAmbiguous"] boolValue])return nil;
+            match=event;
+        }
+        return match;
+    }
+}
+- (void)timantirecall_suppressDisplayForEvent:(NSDictionary *)event {
+    NSDictionary *key=timantirecall_markKey(event);
+    @synchronized(self) {
+        if(![self.timantirecall_keys containsObject:key])return;
+        for(NSUInteger i=0;i<self.timantirecall_events.count;i++) {
+            NSDictionary *stored=self.timantirecall_events[i];
+            if(![timantirecall_markKey(stored) isEqual:key])continue;
+            if([stored[@"displayAmbiguous"] boolValue])return;
+            NSMutableDictionary *updated=stored.mutableCopy;
+            updated[@"displayAmbiguous"]=@YES;
+            self.timantirecall_events[i]=updated.copy;
+            if(self.timantirecall_persistent)[self timantirecall_scheduleWrite];
+            return;
+        }
+    }
+}
 - (NSDictionary *)timantirecall_eventForIdentity:(NSDictionary *)identity {
     if(![identity isKindOfClass:NSDictionary.class])return nil;
     @synchronized(self) {
         for(NSUInteger index=self.timantirecall_events.count;index>0;index--) {
             NSDictionary *event=self.timantirecall_events[index-1];
-            if(![event[@"owner"] isEqual:identity[@"owner"]]||![event[@"kind"] isEqual:identity[@"kind"]]||
-               ![event[@"seq"] isEqual:identity[@"seq"]]||![event[@"author"] isEqual:identity[@"author"]])continue;
-            NSString *key=[event[@"kind"] intValue]==1?@"peer":@"group";
-            if(![event[key] isEqual:identity[key]])continue;
-            if(event[@"random"] && ![event[@"random"] isEqual:identity[@"random"]])continue;
-            if(event[@"time"] && ![event[@"time"] isEqual:identity[@"time"]])continue;
+            if(!timantirecall_recallEventMatchesIdentity(event,identity))continue;
             NSDictionary *binding=timantirecall_recordBinding(identity);
             if(!binding)return nil;
             if(event[@"binding"]) {
                 if(![event[@"binding"] isEqual:binding])continue;
             }else {
-                NSMutableDictionary *pinned=[event mutableCopy];pinned[@"binding"]=binding;
-                event=[pinned copy];self.timantirecall_events[index-1]=event;
+                NSMutableDictionary *pinned=event.mutableCopy;
+                pinned[@"binding"]=binding;
+                event=pinned.copy;
+                self.timantirecall_events[index-1]=event;
                 if(self.timantirecall_persistent)[self timantirecall_scheduleWrite];
             }
             return event;
