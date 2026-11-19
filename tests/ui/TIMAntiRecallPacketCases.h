@@ -14,6 +14,20 @@
 static NSUInteger timantirecall_ingressCalls, timantirecall_walletCalls;
 static NSArray *timantirecall_forwardedRecords;
 static OCMsgRecord *timantirecall_walletRecord;
+static NSUInteger timantirecall_openButtonCalls;
+@interface TIMAntiRecallPacketOpenFixture : NSObject
+@property(nonatomic,strong) UIView *timantirecall_overlay;
+@property(nonatomic,copy) void (^timantirecall_completion)(NSDictionary *,NSError *);
+- (void)timantirecall_open:(UIButton *)sender;
+@end
+@implementation TIMAntiRecallPacketOpenFixture
+- (void)timantirecall_open:(UIButton *)sender {
+    (void)sender;timantirecall_openButtonCalls++;
+    [self.timantirecall_overlay removeFromSuperview];
+    if(self.timantirecall_completion)self.timantirecall_completion(@{},nil);
+}
+@end
+static TIMAntiRecallPacketOpenFixture *timantirecall_openFixture;
 @interface NTMsgPushMonitorService : NSObject
 + (void)recvMsgsWithRecords:(NSArray *)records;
 @end
@@ -33,7 +47,15 @@ static OCMsgRecord *timantirecall_walletRecord;
 + (void)grabRedPackWithMsgRecord:(OCMsgRecord *)record rootVC:(UIViewController *)controller completion:(void (^)(NSDictionary *, NSError *))completion {
     timantirecall_check(NSThread.isMainThread && controller.view.window==timantirecall_window,@"native route receives visible controller on main queue");
     timantirecall_walletRecord=record;timantirecall_walletCalls++;
-    completion(@{},nil);
+    TIMAntiRecallPacketOpenFixture *fixture=[TIMAntiRecallPacketOpenFixture new];
+    fixture.timantirecall_completion=completion;
+    UIView *overlay=[[UIView alloc] initWithFrame:controller.view.bounds];
+    fixture.timantirecall_overlay=overlay;
+    UIButton *open=[UIButton buttonWithType:UIButtonTypeSystem];open.frame=CGRectMake(80,160,120,80);
+    [open setTitle:@"開" forState:UIControlStateNormal];
+    [open addTarget:fixture action:@selector(timantirecall_open:) forControlEvents:UIControlEventTouchUpInside];
+    [overlay addSubview:open];[controller.view addSubview:overlay];
+    timantirecall_openFixture=fixture;
 }
 @end
 @interface NTRedPackRouterService : NSObject
@@ -74,17 +96,20 @@ static void timantirecall_testPacketMonitor(void) {
         OCMsgRecord *sent=timantirecall_testPacket(1,8104,2,@"fixture-self");sent.senderUid=owner;
         OCMsgRecord *special=timantirecall_testPacket(2,8105,6,@"fixture-special");
         [NTMsgPushMonitorService recvMsgsWithRecords:@[old,sent,special,privatePacket]];
-        timantirecall_stepDelay=1.2;
+        timantirecall_stepDelay=1.6;
     });
     timantirecall_step(^{
         timantirecall_check(timantirecall_walletCalls==1&&timantirecall_walletRecord==privatePacket,@"only fresh supported incoming private packet reaches route");
+        timantirecall_check(timantirecall_openButtonCalls==1,@"private native open control dispatched exactly once");
         [NTMsgPushMonitorService recvMsgsWithRecords:@[privatePacket,groupPacket]];
+        timantirecall_stepDelay=0.5;
     });
     timantirecall_step(^{
         timantirecall_check(timantirecall_walletCalls==2&&timantirecall_walletRecord==groupPacket,@"duplicate skips while fresh group routes without opening chat");
         [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:owner error:NULL];
         [timantirecall_settings() timantirecall_setPacketOption:@"diagnostics" enabled:NO owner:owner error:NULL];
-        timantirecall_forwardedRecords=nil;timantirecall_walletRecord=nil;
-        [timantirecall_coverage addObject:@"packet-monitor"];
+        timantirecall_check(timantirecall_openButtonCalls==2,@"group native open control dispatched exactly once");
+        timantirecall_forwardedRecords=nil;timantirecall_walletRecord=nil;timantirecall_openFixture=nil;
+        [timantirecall_coverage addObjectsFromArray:@[@"packet-monitor",@"packet-open-action"]];
     });
 }

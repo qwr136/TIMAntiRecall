@@ -5,12 +5,12 @@
 void timantirecall_traceEvent(NSString *event) {
     if(![timantirecall_settings() timantirecall_packetDiagnostics])return;
     static _Atomic(unsigned) count;
-    if(atomic_fetch_add_explicit(&count,1,memory_order_relaxed)>=64)return;
+    if(atomic_fetch_add_explicit(&count,1,memory_order_relaxed)>=192)return;
     static dispatch_queue_t queue;static dispatch_once_t once;
     dispatch_once(&once,^{queue=dispatch_queue_create("com.minis.timantirecall.packet-diagnostic",DISPATCH_QUEUE_SERIAL);});
     NSString *safe=@"invalid";
-    NSCharacterSet *allowed=[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"];
-    if([event isKindOfClass:NSString.class]&&event.length<=80&&[event rangeOfCharacterFromSet:allowed.invertedSet].location==NSNotFound)safe=[event copy];
+    NSCharacterSet *allowed=[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.:@?"];
+    if([event isKindOfClass:NSString.class]&&event.length<=160&&[event rangeOfCharacterFromSet:allowed.invertedSet].location==NSNotFound)safe=[event copy];
     dispatch_async(queue,^{
         @autoreleasepool {
             NSArray<NSURL *> *documents=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask];

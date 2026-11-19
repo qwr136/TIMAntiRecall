@@ -12,8 +12,10 @@
 #include <time.h>
 #include <unistd.h>
 
+#if defined(TIMANTIRECALL_NATIVE_TEST)
 #define TIMANTIRECALL_BOOTSTRAP_LIMIT (128U * 1024U)
 static atomic_uint timantirecall_bootstrapEvents = 0;
+#endif
 
 void timantirecall_bootstrapSafeValue(const char *input, char *output, size_t capacity) {
     if (!output || !capacity) return;
@@ -28,6 +30,8 @@ void timantirecall_bootstrapSafeValue(const char *input, char *output, size_t ca
     output[used] = 0;
 }
 
+#if defined(TIMANTIRECALL_NATIVE_TEST)
+// The legacy writer is available only to isolated regression executables.
 static int timantirecall_bootstrapDirectory(int parent, const char *name) {
     if (mkdirat(parent, name, 0700) != 0 && errno != EEXIST) return -1;
     return openat(parent, name, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
@@ -93,3 +97,13 @@ bool timantirecall_bootstrapEvent(const char *event) {
     }
     return result;
 }
+#else
+bool timantirecall_bootstrapWrite(const char *home, const char *temporary, const char *event) {
+    (void)home; (void)temporary; (void)event;
+    return false;
+}
+bool timantirecall_bootstrapEvent(const char *event) {
+    (void)event;
+    return false;
+}
+#endif
