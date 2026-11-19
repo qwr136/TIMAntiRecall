@@ -639,6 +639,8 @@ static void timantirecall_start(void) {
         timantirecall_testPreferencesPanel();
         timantirecall_testPacketMonitor();
         timantirecall_testPacketOpenGuards();
+        timantirecall_testReceiptCloseGuards();
+        timantirecall_testProxyRejections();
         timantirecall_step(^{timantirecall_makePreview(root);});
         timantirecall_step(^{
             timantirecall_count(root,2,@"three equal-text messages: only private and group targets marked");

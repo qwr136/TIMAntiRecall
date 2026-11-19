@@ -45,7 +45,7 @@ class PacketOpenTests(unittest.TestCase):
         source=(ROOT/'Sources/TIMAntiRecallPacket.m').read_text()
         start=source.index('static BOOL timantirecall_packetAttempt')
         body=source[start:source.index('static BOOL timantirecall_packetObserve',start)]
-        self.assertLess(body.index('timantirecall_packetReserve('),body.index('timantirecall_beginPacketOpen('))
+        self.assertLess(body.index('timantirecall_packetReserve('),body.index('timantirecall_beginPacketOpenWithReceipt('))
         self.assertIn('timantirecall_packetStillActive(owner,epoch)',body)
         self.assertIn('timantirecall_autoClaimRedPackets',body)
 
@@ -57,5 +57,20 @@ class PacketOpenTests(unittest.TestCase):
         cases=(ROOT/'tests/ui/TIMAntiRecallPacketOpenCases.h').read_text()
         for token in ('pre-existing open or payment','stale account/foreground/setting','ambiguous multiple','manual action forwards exactly once'):
             self.assertIn(token,cases)
+
+    def test_weak_proxy_uses_observed_target_and_forwarding_not_dummy_signature(self):
+        source=(ROOT/'Sources/TIMAntiRecallPacketOpen.m').read_text()
+        for token in ('objc_getClass("WeakProxy")','sel_registerName("target")','sel_registerName("forwardingTargetForSelector:")','forwarded!=receiver','sel_registerName("openButtonClick")','objc_precise_lifetime'):
+            self.assertIn(token,source)
+        self.assertNotIn('[target methodSignatureForSelector:',source)
+
+    def test_close_requires_same_native_owner_and_positive_new_receipt(self):
+        source=(ROOT/'Sources/TIMAntiRecallPacketOpen.m').read_text()
+        for token in ('context.timantirecall_received()','receiver!=context.timantirecall_openedReceiver','sel_registerName("dismissView")','skipped-receipt-unconfirmed','!context.timantirecall_dispatching'):
+            self.assertIn(token,source)
+        route=(ROOT/'Sources/TIMAntiRecallPacket.m').read_text()
+        for token in ('initialAmount==0','nativeFailure=nativeFailure || failed','amountSelector,"Q"','timantirecall_hasPendingPacketUI()'):
+            self.assertIn(token,route)
+        self.assertNotIn('setGrabbedAmount:',route)
 
 if __name__=='__main__':unittest.main()

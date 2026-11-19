@@ -126,24 +126,34 @@ static BOOL timantirecall_packetAttempt(id record, id wallet, NSString *owner, u
     }
     NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
     UIViewController *presenter = timantirecall_packetPresenter();
-    if (!presenter || now < timantirecall_packetBusyUntil || !timantirecall_packetStillActive(owner, epoch) ||
+    if (!presenter || timantirecall_hasPendingPacketUI() || now < timantirecall_packetBusyUntil || !timantirecall_packetStillActive(owner, epoch) ||
         ![timantirecall_settings() timantirecall_autoClaimRedPackets]) return NO;
     if (!timantirecall_packetReserve(owner, timantirecall_packetObject(wallet, sel_registerName("billNo")), now)) return NO;
     timantirecall_packetBusyUntil = now + 15;
     NSUInteger serial = ++timantirecall_packetSerial;
     timantirecall_traceEvent(@"redpack-native-route-attempted");
+    SEL amountSelector=sel_registerName("grabbedAmount");
+    IMP initialGetter=timantirecall_packetGetter(wallet,amountSelector,"Q");
+    uint64_t initialAmount=initialGetter?((uint64_t(*)(id,SEL))initialGetter)(wallet,amountSelector):UINT64_MAX;
+    __block BOOL nativeFailure=NO; // main queue only
     TIMAntiRecallPacketCompletion completion = ^(NSDictionary *result, NSError *error) {
         (void)result;
         BOOL failed = error != nil;
         dispatch_async(dispatch_get_main_queue(), ^{
             if (serial != timantirecall_packetSerial) return;
+            nativeFailure=nativeFailure || failed;
             timantirecall_packetBusyUntil = NSProcessInfo.processInfo.systemUptime + 1;
             if (timantirecall_packetStillActive(owner, epoch))
                 timantirecall_traceEvent(failed ? @"redpack-native-route-error" : @"redpack-native-route-callback");
         });
     };
-    timantirecall_beginPacketOpen(presenter,objc_getClass("QQWalletRedPacketMsgService"),^BOOL(void){
+    timantirecall_beginPacketOpenWithReceipt(presenter,objc_getClass("QQWalletRedPacketMsgService"),^BOOL(void){
         return timantirecall_packetStillActive(owner,epoch) && [timantirecall_settings() timantirecall_autoClaimRedPackets];
+    },^BOOL(void){
+        // Same native wallet record must transition from no receipt to a positive
+        // received amount. Never invent grabState enums or treat a callback as credit.
+        IMP getter=timantirecall_packetGetter(wallet,amountSelector,"Q");
+        return !nativeFailure && initialAmount==0 && getter && ((uint64_t(*)(id,SEL))getter)(wallet,amountSelector)>0;
     });
     ((TIMAntiRecallPacketRoute)method_getImplementation(route))(router, handle, presenter, record, nil, completion);
     return YES;
