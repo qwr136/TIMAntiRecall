@@ -209,6 +209,18 @@ def validate_result(result: dict, token: str, digest: str) -> None:
         raise RuntimeError("App did not write a UIKit preview")
 
 
+def run_screenshot(device: str, destination: Path) -> None:
+    errors = []
+    for attempt in range(1, 4):
+        try:
+            run(["xcrun", "simctl", "io", device, "screenshot", destination], timeout=30)
+            return
+        except (subprocess.SubprocessError, RuntimeError) as error:
+            errors.append(str(error))
+            print(f"Simulator screenshot attempt {attempt}/3 failed: {error}", flush=True)
+    raise RuntimeError("Simulator screenshot failed after 3 bounded attempts: " + " | ".join(errors[-2:]))
+
+
 def wait_for_result(device: str, documents: Path, token: str, receipt: dict) -> dict:
     deadline = time.monotonic() + RESULT_TIMEOUT
     stage = ""
@@ -233,11 +245,11 @@ def wait_for_result(device: str, documents: Path, token: str, receipt: dict) -> 
                 print(f"APP STAGE {current}", flush=True)
                 stage = current
             if current == "settings-ready" and not settings_sent:
-                run(["xcrun", "simctl", "io", device, "screenshot", REPORT / "tim-inline-settings-simulator.png"], timeout=25)
+                run_screenshot(device, REPORT / "tim-inline-settings-simulator.png")
                 (documents / "tim-inline-settings-captured.json").write_text(json.dumps({'runToken': token}))
                 settings_sent = True
             elif current == "ready-for-background" and not background_sent:
-                run(["xcrun", "simctl", "io", device, "screenshot", REPORT / "tim-inline-simulator.png"], timeout=25)
+                run_screenshot(device, REPORT / "tim-inline-simulator.png")
                 # Safari is local on every iPhone runtime. No external page needed.
                 run(["xcrun", "simctl", "launch", device, "com.apple.mobilesafari"], timeout=30)
                 background_sent = True

@@ -68,6 +68,15 @@ class ResultGateTests(unittest.TestCase):
             self.assertEqual(json.loads((Path(directory)/'tim-inline-settings-captured.json').read_text())['runToken'],'token')
             self.assertTrue(all("--terminate-running-process" not in command for command in commands))
 
+    def test_screenshot_retries_only_three_times(self):
+        with mock.patch.object(DRIVER, "run", side_effect=[RuntimeError("busy"), RuntimeError("busy"), "captured"]) as run:
+            DRIVER.run_screenshot("device", Path("screen.png"))
+            self.assertEqual(run.call_count, 3)
+        with mock.patch.object(DRIVER, "run", side_effect=RuntimeError("busy")) as run:
+            with self.assertRaisesRegex(RuntimeError, "after 3 bounded attempts"):
+                DRIVER.run_screenshot("device", Path("screen.png"))
+            self.assertEqual(run.call_count, 3)
+
     def test_stalled_app_has_deadline(self):
         with tempfile.TemporaryDirectory() as directory, mock.patch.object(DRIVER.time, "monotonic", side_effect=[0, 121]):
             with self.assertRaises(TimeoutError):
