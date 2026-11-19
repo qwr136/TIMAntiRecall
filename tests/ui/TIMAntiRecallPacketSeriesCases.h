@@ -5,6 +5,7 @@ static void timantirecall_testForegroundPacketSeries(void) {
     __block NSUInteger opens,closes,details;
     timantirecall_step(^{
         opens=timantirecall_nativePopupOpens;closes=timantirecall_nativePopupCloses;details=timantirecall_detailsShown;
+        timantirecall_check(!timantirecall_hasPendingPacketUI(),@"standalone probe without an open popup or bill does not own the next route");
         [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:YES owner:@"self_uid" error:NULL];
         settings=[[TIMAntiRecallPreferencesController alloc] initWithOwner:@"self_uid" chat:nil];
         UINavigationController *navigation=[[UINavigationController alloc] initWithRootViewController:settings];

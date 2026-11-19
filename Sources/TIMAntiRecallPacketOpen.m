@@ -321,7 +321,7 @@ BOOL timantirecall_hasPendingPacketUI(void) {
     TIMAntiRecallPacketOpenContext *context=timantirecall_openContext;
     if(timantirecall_popupAttached(context))return YES;
     if(context.timantirecall_opened || !timantirecall_openValid(context)) {timantirecall_endPacketUI(context);return NO;}
-    return YES;
+    return context.timantirecall_bill.length!=0; // A standalone probe owns no route before opening.
 }
 void timantirecall_settlePacketUIForNext(void) {
     TIMAntiRecallPacketOpenContext *context=timantirecall_openContext;
