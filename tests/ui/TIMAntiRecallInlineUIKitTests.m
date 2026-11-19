@@ -526,7 +526,7 @@ static void timantirecall_testOuterReuse(UIView *host) {
                             [saved[@"seq"] isEqual:@777] && candidate!=nil &&
                             [timantirecall_currentAccount() isEqual:@"self_uid"],
                             @"outer row fixture resolves to the exact marked message identity");
-        NSLog(@"TIMAntiRecall outer reuse diagnostic identity=%@ saved=%@ candidate=%@ rowWindow=%@ hostWindow=%@ hostBounds=%@ active=%d",identity,saved,candidate,inner.window,outer.contentView.window,NSStringFromCGRect(outer.contentView.bounds),timantirecall_windowActive(inner.window));
+        NSLog(@"TIMAntiRecall outer reuse diagnostic identity=%@ saved=%@ candidate=%@ rowWindow=%@ hostWindow=%@ hostBounds=%@ active=%d",identity,saved,candidate,inner.window,outer.contentView.window,NSStringFromCGRect(outer.contentView.bounds),inner.window.windowScene.activationState==UISceneActivationStateForegroundActive);
         timantirecall_check(inner.window==outer.contentView.window&&outer.contentView.bounds.size.width>=120&&outer.contentView.bounds.size.height>=32,
                             @"outer host geometry is active and large enough");
         timantirecall_check(timantirecall_indicators(outer.contentView).count==1,@"outer cell displays its recalled child");
