@@ -26,6 +26,7 @@ static int timantirecall_receiptMode; // 0=model receipt; 1=no receipt; 2=native
 - (BOOL)respondsToSelector:(SEL)selector {return [self.target respondsToSelector:selector];}
 - (NSMethodSignature *)methodSignatureForSelector:(SEL)selector {(void)selector;return [NSMethodSignature signatureWithObjCTypes:"v@:"];}
 @end
+#import "TIMAntiRecallPacketSeriesFixture.h"
 @interface TIMAntiRecallPacketOpenFixture : NSObject
 @property(nonatomic,strong) UIView *timantirecall_overlay;
 @property(nonatomic,strong) OCWalletElement *timantirecall_wallet;
@@ -80,6 +81,18 @@ static TIMAntiRecallPacketOpenFixture *timantirecall_openFixture;
 + (void)grabRedPackWithMsgRecord:(OCMsgRecord *)record rootVC:(UIViewController *)controller completion:(void (^)(NSDictionary *, NSError *))completion {
     timantirecall_check(NSThread.isMainThread && controller.view.window==timantirecall_window,@"native route receives visible controller on main queue");
     timantirecall_walletRecord=record;timantirecall_walletCalls++;
+    if(timantirecall_seriesEnabled) {
+        QQWalletGrapHBService *wallet=QQWalletGrapHBService.shareInstance;
+        timantirecall_check(!wallet.grapHBCallback && !wallet.preGrapHBCallback,@"routes never overwrite either occupied native slot");
+        [timantirecall_seriesStarts addObject:record];timantirecall_fixtureHost=controller;
+        QQWalletPreGrapHBResultViewController *popup=[QQWalletPreGrapHBResultViewController new];
+        popup.modalPresentationStyle=UIModalPresentationOverFullScreen;
+        popup.timantirecall_variant=timantirecall_seriesStarts.count;popup.timantirecall_callback=completion;
+        popup.grapHBData=[QQWalletGrapHBData new];popup.grapHBData.aioData=[QQWalletGrapHBAIOData new];
+        popup.grapHBData.aioData.listId=((OCMsgElement *)record.elements.firstObject).walletElement.billNo;
+        timantirecall_fixturePopup=popup;
+        [controller presentViewController:popup animated:NO completion:nil];return;
+    }
     TIMAntiRecallPacketOpenFixture *fixture=[TIMAntiRecallPacketOpenFixture new];
     fixture.timantirecall_completion=completion;
     UIView *overlay=[[UIView alloc] initWithFrame:controller.view.bounds];

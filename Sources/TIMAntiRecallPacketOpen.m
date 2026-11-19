@@ -1,5 +1,9 @@
 #import "TIMAntiRecallPacketOpen.h"
 #ifdef TIMANTIRECALL_NATIVE_TEST
+BOOL timantirecall_beginPacketOpenForBill(id presenter,Class service,NSString *bill,BOOL (^valid)(void),BOOL (^receipt)(void),BOOL (^returned)(void),BOOL (^failed)(void)) {
+    (void)presenter;(void)service;(void)bill;(void)valid;(void)receipt;(void)returned;(void)failed;return NO;
+}
+void timantirecall_settlePacketUIForNext(void) {}
 void timantirecall_beginPacketOpen(id presenter, Class walletService, BOOL (^isValid)(void)) {
     (void)presenter;(void)walletService;(void)isValid;
 }
@@ -11,6 +15,7 @@ BOOL timantirecall_hasPendingPacketUI(void) {return NO;}
 #import "TIMAntiRecallMarks.h"
 #import "TIMAntiRecallSettings.h"
 #import "TIMAntiRecallTrace.h"
+#import "TIMAntiRecallPacketWallet.h"
 #import <UIKit/UIKit.h>
 #include <dlfcn.h>
 #include <stdatomic.h>
@@ -19,6 +24,13 @@ BOOL timantirecall_hasPendingPacketUI(void) {return NO;}
 
 @interface TIMAntiRecallPacketOpenContext : NSObject
 @property(nonatomic,weak) UIWindow *timantirecall_window;
+@property(nonatomic,weak) UIViewController *timantirecall_presenter;
+@property(nonatomic,weak) UIView *timantirecall_page;
+@property(nonatomic,copy) NSString *timantirecall_bill;
+@property(nonatomic,copy) BOOL (^timantirecall_returned)(void);
+@property(nonatomic,copy) BOOL (^timantirecall_failed)(void);
+@property(nonatomic) BOOL timantirecall_slotSeen, timantirecall_scanDone, timantirecall_closing;
+@property(nonatomic) NSTimeInterval timantirecall_pressed;
 @property(nonatomic,strong) NSHashTable<UIView *> *timantirecall_before;
 @property(nonatomic,strong) NSMutableSet<NSString *> *timantirecall_logged;
 @property(nonatomic,copy) BOOL (^timantirecall_valid)(void);
@@ -143,63 +155,77 @@ static BOOL timantirecall_openVisible(UIControl *control, UIWindow *window) {
     return hit && (hit==control || [hit isDescendantOfView:control]);
 }
 
-static UIControl *timantirecall_findCloseControl(TIMAntiRecallPacketOpenContext *context, BOOL last) {
+static void timantirecall_endPacketUI(TIMAntiRecallPacketOpenContext *context) {
+    if(timantirecall_openContext!=context)return;
+    timantirecall_disarmPacketFinish();timantirecall_openContext=nil;
+}
+static BOOL timantirecall_popupAttached(TIMAntiRecallPacketOpenContext *context) {
+    UIView *page=context.timantirecall_page;
+    return page && page.window && page.window==context.timantirecall_window;
+}
+static UIControl *timantirecall_findCloseControl(TIMAntiRecallPacketOpenContext *context) {
     NSArray<UIView *> *views=timantirecall_openViews(context.timantirecall_window);
-    if(!views) {if(last)timantirecall_openLog(context,@"close","tree-incomplete");return nil;}
-    NSUInteger dismissBindings=0,matches=0;UIControl *found=nil;
+    UIControl *candidate=nil;
     for(UIView *view in views) {
         if([context.timantirecall_before containsObject:view] || ![view isKindOfClass:UIControl.class])continue;
         UIControl *control=(UIControl *)view;
         if(!timantirecall_openVisible(control,context.timantirecall_window))continue;
-        for(id target in control.allTargets)for(NSString *name in [control actionsForTarget:target forControlEvent:UIControlEventTouchUpInside]) {
-            SEL action=NSSelectorFromString(name);if(action!=sel_registerName("dismissView"))continue;
-            dismissBindings++;
-            __attribute__((objc_precise_lifetime)) id receiver=timantirecall_openReceiver(target,action);
-            if(receiver && timantirecall_openWalletAction(target,action,context.timantirecall_service)) {matches++;found=control;}
+        NSUInteger bindings=0;id target=nil;SEL action=NULL;
+        for(id item in control.allTargets)for(NSString *name in [control actionsForTarget:item forControlEvent:UIControlEventTouchUpInside]) {
+            bindings++;target=item;action=NSSelectorFromString(name);
         }
+        if(bindings!=1 || action!=sel_registerName("dismissView") ||
+           timantirecall_openReceiver(target,action)!=context.timantirecall_openedReceiver ||
+           !timantirecall_openWalletAction(target,action,context.timantirecall_service))continue;
+        if(candidate)return nil;candidate=control;
     }
-    if(matches==1 && dismissBindings==1)return found;
-    if(last)timantirecall_openLog(context,@"close",dismissBindings==0?"dismiss-control-not-found":(matches>1 || dismissBindings>1)?"dismiss-control-ambiguous":"dismiss-receiver-or-module-mismatch");
-    return nil;
+    return candidate;
 }
-static void timantirecall_closeCheck(TIMAntiRecallPacketOpenContext *context, BOOL last) {
-    if(!timantirecall_openValid(context)) {if(timantirecall_openContext==context)timantirecall_openContext=nil;return;}
-    if(!context.timantirecall_received || !context.timantirecall_received()) {
-        if(last) {timantirecall_openLog(context,@"close","skipped-receipt-unconfirmed");timantirecall_openContext=nil;}
+static void timantirecall_closeCheck(TIMAntiRecallPacketOpenContext *context,BOOL last,BOOL queued) {
+    if(!timantirecall_openValid(context))return;
+    if(!timantirecall_popupAttached(context)) {timantirecall_endPacketUI(context);return;}
+    if(context.timantirecall_closing)return;
+    if(!timantirecall_walletCanAcceptPacket(context.timantirecall_service)) {
+        context.timantirecall_slotSeen=YES;return;
+    }
+    BOOL model=context.timantirecall_received && context.timantirecall_received();
+    id receiver=context.timantirecall_openedReceiver;
+    BOOL native=receiver && object_getClass(receiver)==objc_getClass("QQWalletPreOpenHBView");
+    BOOL released=context.timantirecall_slotSeen || (context.timantirecall_returned && context.timantirecall_returned());
+    // Native success animation dismisses itself. For another waiting packet an idle,
+    // ordinary pre-open sheet may use its own registered X even without a receipt.
+    if(native) {
+        if(!queued || !released || NSProcessInfo.processInfo.systemUptime-context.timantirecall_pressed<0.18 ||
+           !timantirecall_walletPopupCanRetire(receiver))return;
+    }else if(!model) {
+        if(last)timantirecall_openLog(context,@"close","skipped-receipt-unconfirmed");
         return;
     }
-    UIControl *control=timantirecall_findCloseControl(context,last);
-    if(!control) {if(last)timantirecall_openContext=nil;return;}
-    NSUInteger count=0;id selected=nil;SEL action=NULL;
-    for(id target in control.allTargets)for(NSString *name in [control actionsForTarget:target forControlEvent:UIControlEventTouchUpInside]) {
-        count++;selected=target;action=NSSelectorFromString(name);
-    }
-    __attribute__((objc_precise_lifetime)) id receiver=timantirecall_openReceiver(selected,action);
-    if(count!=1 || action!=sel_registerName("dismissView") || !receiver ||
-       !timantirecall_openWalletAction(selected,action,context.timantirecall_service)) {
-        if(last){timantirecall_openLog(context,@"close","skipped-binding-changed");timantirecall_openContext=nil;}
-        return;
-    }
-    timantirecall_openLog(context,@"receipt","model-confirmed");
-    timantirecall_openContext=nil;
-    timantirecall_openLog(context,@"close","dispatched");
-    [control sendActionsForControlEvents:UIControlEventTouchUpInside];
-    timantirecall_openLog(context,@"close","returned");
+    UIControl *control=timantirecall_findCloseControl(context);
+    if(!control || !receiver)return;
+    __attribute__((objc_precise_lifetime)) id keepReceiver=receiver;
+    if(!keepReceiver)return;
+    timantirecall_disarmPacketFinish();
+    context.timantirecall_closing=YES;context.timantirecall_dispatching=YES;
+    timantirecall_openLog(context,@"close",native?"settled-popup-retired":"model-confirmed-dispatched");
+    @try {[control sendActionsForControlEvents:UIControlEventTouchUpInside];}
+    @finally {context.timantirecall_dispatching=NO;}
+    if(!timantirecall_popupAttached(context))timantirecall_endPacketUI(context);
 }
 static void timantirecall_scheduleClose(TIMAntiRecallPacketOpenContext *context) {
-    if(!context.timantirecall_received) {timantirecall_openContext=nil;return;}
+    if(!context.timantirecall_bill.length && !context.timantirecall_received) {timantirecall_endPacketUI(context);return;}
     const double delays[]={0.12,0.25,0.5,0.9,1.6,2.8,5.0,8.0};
     for(unsigned i=0;i<8;i++) {
         BOOL last=i==7;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(delays[i]*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
-            @try {if(timantirecall_openContext==context)timantirecall_closeCheck(context,last);}
-            @catch(__unused NSException *exception) {if(timantirecall_openContext==context)timantirecall_openContext=nil;}
+            @try {if(timantirecall_openContext==context)timantirecall_closeCheck(context,last,NO);}
+            @catch(__unused NSException *exception) {timantirecall_endPacketUI(context);}
         });
     }
 }
 
 static void timantirecall_openScan(TIMAntiRecallPacketOpenContext *context, BOOL last) {
-    if(!timantirecall_openValid(context)) {if(timantirecall_openContext==context)timantirecall_openContext=nil;return;}
+    if(!timantirecall_openValid(context)) {timantirecall_endPacketUI(context);return;}
     NSArray<UIView *> *views=timantirecall_openViews(context.timantirecall_window);
     if(!views) {timantirecall_openLog(context,@"scan","tree-limit");return;}
     if(context.timantirecall_opened)return;
@@ -224,6 +250,10 @@ static void timantirecall_openScan(TIMAntiRecallPacketOpenContext *context, BOOL
         BOOL observedProxyOpen=selectedAction==sel_registerName("openButtonClick") && receiver!=selectedTarget &&
             object_getClass(selectedTarget)==objc_getClass("WeakProxy");
         if(!timantirecall_openLabel(control) && !observedProxyOpen)continue;
+        Class preOpen=objc_getClass("QQWalletPreOpenHBView");
+        if(preOpen && object_getClass(receiver)==preOpen && !timantirecall_walletPopupMatchesBill(receiver,context.timantirecall_bill)) {
+            timantirecall_openLog(context,@"skip","popup-bill-mismatch");continue;
+        }
         if(candidate) {timantirecall_openLog(context,@"skip","ambiguous-buttons");return;}
         candidate=control;candidateReceiver=receiver;
     }
@@ -232,13 +262,32 @@ static void timantirecall_openScan(TIMAntiRecallPacketOpenContext *context, BOOL
         // synthesize a touch, drive a payment prompt, or click twice.
         __attribute__((objc_precise_lifetime)) id keepReceiver=candidateReceiver;
         if(!keepReceiver)return;
+        context.timantirecall_openedReceiver=keepReceiver;
+        UIView *page=candidate;
+        for(NSUInteger depth=0;page.superview && depth<32 && ![context.timantirecall_before containsObject:page.superview];depth++)page=page.superview;
+        context.timantirecall_page=[keepReceiver isKindOfClass:UIView.class]?(UIView *)keepReceiver:page;
+        context.timantirecall_pressed=NSProcessInfo.processInfo.systemUptime;
         context.timantirecall_opened=YES;context.timantirecall_dispatching=YES;
+        __weak TIMAntiRecallPacketOpenContext *weakContext=context;
+        timantirecall_armPacketFinish(keepReceiver,context.timantirecall_bill,^BOOL(void){
+            TIMAntiRecallPacketOpenContext *live=weakContext;
+            return timantirecall_openValid(live) && !(live.timantirecall_failed && live.timantirecall_failed());
+        },^{
+            TIMAntiRecallPacketOpenContext *live=weakContext;
+            if(live && live==timantirecall_openContext) {
+                live.timantirecall_closing=YES;
+                timantirecall_openLog(live,@"close","native-dismiss-complete");
+                timantirecall_endPacketUI(live);
+            }
+        });
         timantirecall_openLog(context,@"button","dispatched");
         @try { [candidate sendActionsForControlEvents:UIControlEventTouchUpInside]; }
         @finally {context.timantirecall_dispatching=NO;}
         timantirecall_openLog(context,@"button","returned");
+        context.timantirecall_slotSeen=!timantirecall_walletCanAcceptPacket(context.timantirecall_service);
         timantirecall_scheduleClose(context);
     }else if(last) {
+        context.timantirecall_scanDone=YES;
         timantirecall_openLog(context,@"button","unresolved-manual-observation-only");
     }
 }
@@ -249,7 +298,7 @@ static void timantirecall_controlAction(id receiver, SEL command, SEL action, id
             if(timantirecall_openValid(context) && ![context.timantirecall_before containsObject:receiver])
                 timantirecall_openBinding(context,receiver,target,action,YES);
             // Any intervening native button action means the user owns the UI.
-            timantirecall_openContext=nil;
+            timantirecall_endPacketUI(context);
         }
     } @catch(__unused NSException *exception) {}
     TIMAntiRecallControlActionIMP original=(TIMAntiRecallControlActionIMP)atomic_load(&timantirecall_controlOriginal);
@@ -268,22 +317,44 @@ static BOOL timantirecall_installOpenObserver(void) {
     return YES;
 }
 BOOL timantirecall_hasPendingPacketUI(void) {
-    return NSThread.isMainThread && timantirecall_openContext.timantirecall_opened && timantirecall_openValid(timantirecall_openContext);
+    if(!NSThread.isMainThread || !timantirecall_openContext)return NO;
+    TIMAntiRecallPacketOpenContext *context=timantirecall_openContext;
+    if(timantirecall_popupAttached(context))return YES;
+    if(context.timantirecall_opened || !timantirecall_openValid(context)) {timantirecall_endPacketUI(context);return NO;}
+    return YES;
 }
-void timantirecall_beginPacketOpen(id presenter, Class walletService, BOOL (^isValid)(void)) {
-    timantirecall_beginPacketOpenWithReceipt(presenter,walletService,isValid,nil);
+void timantirecall_settlePacketUIForNext(void) {
+    TIMAntiRecallPacketOpenContext *context=timantirecall_openContext;
+    if(!NSThread.isMainThread || !timantirecall_openValid(context))return;
+    if(context.timantirecall_opened) {timantirecall_closeCheck(context,NO,YES);return;}
+    if(!context.timantirecall_returned || !context.timantirecall_returned() ||
+       !(context.timantirecall_scanDone || (context.timantirecall_failed && context.timantirecall_failed())))return;
+    if(!timantirecall_walletCanAcceptPacket(context.timantirecall_service))return;
+    UIViewController *origin=context.timantirecall_presenter;
+    if(!origin || origin.viewIfLoaded.window!=context.timantirecall_window || origin.presentedViewController || origin.transitionCoordinator)return;
+    NSArray *views=timantirecall_openViews(context.timantirecall_window);
+    if(!views)return;
+    for(UIView *view in views)if(![context.timantirecall_before containsObject:view] && !view.hidden && view.alpha>=0.05)return;
+    timantirecall_openLog(context,@"route","finished-without-popup");timantirecall_endPacketUI(context);
 }
-void timantirecall_beginPacketOpenWithReceipt(id presenter, Class walletService, BOOL (^isValid)(void), BOOL (^didReceive)(void)) {
-    if(!NSThread.isMainThread)return;
-    timantirecall_openContext=nil;
-    if(![presenter isKindOfClass:UIViewController.class] || !walletService || !isValid || !isValid())return;
+void timantirecall_beginPacketOpen(id presenter,Class service,BOOL (^valid)(void)) {
+    timantirecall_beginPacketOpenWithReceipt(presenter,service,valid,nil);
+}
+void timantirecall_beginPacketOpenWithReceipt(id presenter,Class service,BOOL (^valid)(void),BOOL (^receipt)(void)) {
+    timantirecall_beginPacketOpenForBill(presenter,service,nil,valid,receipt,nil,nil);
+}
+BOOL timantirecall_beginPacketOpenForBill(id presenter,Class walletService,NSString *bill,BOOL (^isValid)(void),BOOL (^didReceive)(void),BOOL (^routeReturned)(void),BOOL (^routeFailed)(void)) {
+    if(!NSThread.isMainThread)return NO;
+    timantirecall_endPacketUI(timantirecall_openContext);
+    if(![presenter isKindOfClass:UIViewController.class] || !walletService || !isValid || !isValid())return NO;
     UIWindow *window=((UIViewController *)presenter).viewIfLoaded.window;
     NSArray<UIView *> *before=timantirecall_openViews(window);
     if(!before || !timantirecall_installOpenObserver()) {
-        timantirecall_traceEvent(@"redpack-open-unavailable-or-tree-limit");return;
+        timantirecall_traceEvent(@"redpack-open-unavailable-or-tree-limit");return NO;
     }
     TIMAntiRecallPacketOpenContext *context=[TIMAntiRecallPacketOpenContext new];
-    context.timantirecall_window=window;context.timantirecall_service=walletService;
+    context.timantirecall_window=window;context.timantirecall_service=walletService;context.timantirecall_presenter=presenter;
+    context.timantirecall_bill=bill;context.timantirecall_returned=routeReturned;context.timantirecall_failed=routeFailed;
     context.timantirecall_valid=isValid;context.timantirecall_received=didReceive;context.timantirecall_deadline=NSProcessInfo.processInfo.systemUptime+30;
     context.timantirecall_before=[NSHashTable weakObjectsHashTable];
     for(UIView *view in before)[context.timantirecall_before addObject:view];
@@ -296,13 +367,15 @@ void timantirecall_beginPacketOpenWithReceipt(id presenter, Class walletService,
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(delays[index]*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
             @try {if(timantirecall_openContext==context)timantirecall_openScan(context,last);}
             @catch(__unused NSException *exception) {
-                if(timantirecall_openContext==context)timantirecall_openContext=nil;
+                timantirecall_endPacketUI(context);
                 timantirecall_openLog(context,@"button","aborted-no-retry");
             }
         });
     }
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC),dispatch_get_main_queue(),^{
-        if(timantirecall_openContext==context)timantirecall_openContext=nil;
+        if(!timantirecall_popupAttached(context))timantirecall_endPacketUI(context);
+        else if(timantirecall_openContext==context)timantirecall_disarmPacketFinish();
     });
+    return YES;
 }
 #endif

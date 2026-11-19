@@ -45,7 +45,7 @@ class PacketOpenTests(unittest.TestCase):
         source=(ROOT/'Sources/TIMAntiRecallPacket.m').read_text()
         start=source.index('static BOOL timantirecall_packetAttempt')
         body=source[start:source.index('static BOOL timantirecall_packetObserve',start)]
-        self.assertLess(body.index('timantirecall_packetReserve('),body.index('timantirecall_beginPacketOpenWithReceipt('))
+        self.assertLess(body.index('timantirecall_packetReserve('),body.index('timantirecall_beginPacketOpenForBill('))
         self.assertIn('timantirecall_packetStillActive(owner,epoch)',body)
         self.assertIn('timantirecall_autoClaimRedPackets',body)
 
@@ -64,11 +64,11 @@ class PacketOpenTests(unittest.TestCase):
             self.assertIn(token,source)
         self.assertNotIn('[target methodSignatureForSelector:',source)
 
-    def test_close_requires_new_visible_control_and_positive_receipt(self):
+    def test_close_requires_exact_bound_visible_owned_control(self):
         source=(ROOT/'Sources/TIMAntiRecallPacketOpen.m').read_text()
         self.assertIn('if([context.timantirecall_before containsObject:view] || ![view isKindOfClass:UIControl.class])continue;',source)
-        self.assertIn('dismissBindings==1',source)
-        self.assertNotIn('receiver!=context.timantirecall_openedReceiver',source)
+        self.assertIn('bindings!=1',source)
+        self.assertIn('timantirecall_openReceiver(target,action)!=context.timantirecall_openedReceiver',source)
         self.assertIn('const double delays[]={0.12,0.25,0.5,0.9,1.6,2.8,5.0,8.0}',source)
         route=(ROOT/'Sources/TIMAntiRecallPacket.m').read_text()
         for token in ('initialAmount==0','nativeFailure=nativeFailure || failed','amountSelector,"Q"','timantirecall_hasPendingPacketUI()','claimOwnRedPackets'):
@@ -82,7 +82,7 @@ class PacketOpenTests(unittest.TestCase):
         self.assertIn('@"claimOwn"',settings)
         self.assertIn('BOOL own = [identity[@"author"] isEqual:owner]',route)
         self.assertIn('if (own && !claimOwn)',route)
-        self.assertIn('(!isOwn || [timantirecall_settings() timantirecall_claimOwnRedPackets])',route)
+        self.assertIn('(!own || [timantirecall_settings() timantirecall_claimOwnRedPackets])',route)
         cases=(ROOT/'tests/ui/TIMAntiRecallPacketOpenCases.h').read_text()
         for token in ('self-sent claims require explicit separate opt-in','self-sent private packet remains skipped while opt-out','own group packet routes with separate opt-in','closes the newly discovered close control'):
             self.assertIn(token,cases)
