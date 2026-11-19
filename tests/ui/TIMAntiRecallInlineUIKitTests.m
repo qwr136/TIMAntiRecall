@@ -504,18 +504,26 @@ static void timantirecall_testGeometry(UIView *root) {
 static void timantirecall_testOuterReuse(UIView *host) {
     __block QQAIOCell *outer;
     __block TIMAntiRecallTestBaseView *inner;
+    __block OCMsgRecord *targetRecord;
     timantirecall_step(^{
         timantirecall_check(timantirecall_installInlineIndicator(),@"outer host reuse hook installs with exact ABI");
         outer=[[QQAIOCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
         inner=[[TIMAntiRecallTestBaseView alloc] initWithFrame:CGRectMake(0,0,240,72)];
         outer.frame=CGRectMake(8,80,260,88);[host addSubview:outer];[outer setNeedsLayout];[outer layoutIfNeeded];
         [outer.contentView addSubview:inner];[outer.contentView layoutIfNeeded];
-        OCMsgRecord *record=timantirecall_record(1,777,@"peer_a",0);
-        [inner bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:record]];
+        targetRecord=timantirecall_record(1,777,@"peer_a",0);
+        [inner bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:targetRecord]];
         timantirecall_check(timantirecall_indicators(outer.contentView).count==0,@"unmarked outer cell is clear");
         timantirecall_mark(timantirecall_private(@"peer_a",@"self_uid",777),@"self_uid");
     });
     timantirecall_step(^{
+        NSDictionary *identity=timantirecall_recordIdentity(targetRecord,@"self_uid");
+        NSDictionary *saved=[timantirecall_sharedMarks() timantirecall_eventForIdentity:identity];
+        NSDictionary *candidate=[timantirecall_sharedMarks() timantirecall_displayCandidateForIdentity:identity];
+        timantirecall_check([identity[@"seq"] isEqual:@777] && [identity[@"peer"] isEqual:@"peer_a"] &&
+                            [saved[@"seq"] isEqual:@777] && candidate!=nil &&
+                            [timantirecall_currentAccount() isEqual:@"self_uid"],
+                            @"outer row fixture resolves to the exact marked message identity");
         timantirecall_check(timantirecall_indicators(outer.contentView).count==1,@"outer cell displays its recalled child");
         [outer prepareForReuse];
         timantirecall_check(outer.timantirecall_reuses==1&&timantirecall_indicators(outer.contentView).count==0,
