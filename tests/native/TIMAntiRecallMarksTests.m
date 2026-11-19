@@ -1,3 +1,4 @@
+#import "TIMAntiRecallRules.h"
 #import <Foundation/Foundation.h>
 #import <objc/message.h>
 #import "TIMAntiRecallMarks.h"
@@ -36,7 +37,34 @@ static Class timantirecall_sessionFixture(const char *name,const char *encoding)
     class_addMethod(cls,sel_registerName("close:"),(IMP)timantirecall_fixtureClose,"v24@0:8@16");
     objc_registerClassPair(cls);return cls;
 }
+static void timantirecall_testRowIsolationAndRules(void) {
+    for(int kind=1;kind<=2;kind++) {
+        TIMAntiRecallMarkStore *store=[TIMAntiRecallMarkStore new];
+        NSDictionary *last=nil;
+        for(int i=0;i<3;i++) {
+            NSNumber *seq=@(100+i);
+            NSDictionary *event=kind==1?@{@"kind":@1,@"seq":seq,@"from":@"peer",@"to":@"owner"}:
+                @{@"kind":@2,@"seq":seq,@"group":@99,@"author":@"peer"};
+            NSMutableDictionary *row=[@{@"owner":@"owner",@"kind":@(kind),@"seq":seq,@"id":@(1000+i),
+                @"random":@(2000+i),@"time":@1700000000,@"author":@"peer"} mutableCopy];
+            if(kind==1)row[@"peer"]=@"peer";else row[@"group"]=@99;
+            [store timantirecall_addEvents:@[event] owner:@"owner"];
+            CHECK([store timantirecall_containsIdentity:row]);last=row.copy;
+        }
+        NSMutableDictionary *fourth=last.mutableCopy;fourth[@"id"]=@1003;
+        CHECK(![store timantirecall_containsIdentity:fourth]);
+        fourth[@"seq"]=@103;CHECK(![store timantirecall_containsIdentity:fourth]);
+        CHECK([store timantirecall_containsIdentity:last]);
+        NSDictionary *policy=@{@"replyEnabled":@YES,@"replyAllChats":@YES,@"replyKeywords":@[@"hello"],@"replyText":@"收到",
+            @"filterEnabled":@YES,@"filterAllChats":@YES,@"filterKeywords":@[@"HELLO"]};
+        CHECK(timantirecall_rulesMatchChat(policy,last,NO) && timantirecall_rulesHideText(policy,@"Hello"));
+        CHECK([timantirecall_rulesReply(policy,last,@"Hello",NO,720) isEqual:@"收到"]);
+        NSMutableDictionary *disabled=policy.mutableCopy;disabled[@"replyEnabled"]=@NO;
+        CHECK(!timantirecall_rulesReply(disabled,last,@"Hello",NO,720) && timantirecall_rulesHideText(disabled,@"Hello"));
+    }
+}
 int main(void) {
+    @autoreleasepool {timantirecall_testRowIsolationAndRules();}
  @autoreleasepool {
     NSString *owner=@"self_uid";
     QQAccountsManager.GetInstance.currentUid=owner;
@@ -50,7 +78,7 @@ int main(void) {
     NSDictionary *event=@{@"kind":@1,@"seq":@42,@"from":@"peer_uid",@"to":owner};
     [store timantirecall_addEvents:@[event] owner:owner];
     CHECK([store timantirecall_containsIdentity:identity]);
-    for(NSString *key in @[@"owner",@"kind",@"seq",@"author",@"peer"]) {
+    for(NSString *key in @[@"owner",@"kind",@"seq",@"author",@"peer",@"id",@"random",@"time"]) {
         NSMutableDictionary *wrong=identity.mutableCopy;
         wrong[key]=([key isEqual:@"kind"]||[key isEqual:@"seq"])?@999:@"different_uid";
         CHECK(![store timantirecall_containsIdentity:wrong]);

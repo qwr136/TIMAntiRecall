@@ -42,14 +42,15 @@ static id timantirecall_convertMessage(id receiver,SEL selector,id record) {
     NSDictionary *identity=timantirecall_recordIdentity(record,owner);
     NSDictionary *fingerprint=timantirecall_legacyFingerprint(result);
     if(identity && fingerprint && [owner isEqual:timantirecall_currentAccount()]) {
+        TIMAntiRecallLegacyRecord *source=[TIMAntiRecallLegacyRecord new];source.timantirecall_record=record;
         objc_setAssociatedObject(result,&timantirecall_legacyIdentityKey,
-            @{@"identity":[identity copy],@"fingerprint":fingerprint},OBJC_ASSOCIATION_RETAIN);
+            @{@"identity":[identity copy],@"fingerprint":fingerprint,@"source":source},OBJC_ASSOCIATION_RETAIN);
     } else if(result && [result isKindOfClass:objc_getClass("QQMessageModel")]) {
         objc_setAssociatedObject(result,&timantirecall_legacyIdentityKey,nil,OBJC_ASSOCIATION_RETAIN);
     }
     return result;
 }
-NSDictionary *timantirecall_legacyRowIdentity(id model,NSString *owner) {
+static NSDictionary *timantirecall_legacyRowSnapshot(id model,NSString *owner) {
     Class cls=objc_getClass("QQAIOMsgModel");
     if(!cls || ![model isKindOfClass:cls] || !owner.length)return nil;
     id message=timantirecall_legacyObject(model,@"msgModel");
@@ -57,7 +58,16 @@ NSDictionary *timantirecall_legacyRowIdentity(id model,NSString *owner) {
     NSDictionary *identity=snapshot[@"identity"];
     if(![identity[@"owner"] isEqual:owner] ||
        ![snapshot[@"fingerprint"] isEqual:timantirecall_legacyFingerprint(message)])return nil;
-    return identity;
+    return snapshot;
+}
+NSDictionary *timantirecall_legacyRowIdentity(id model,NSString *owner) {
+    return timantirecall_legacyRowSnapshot(model,owner)[@"identity"];
+}
+id timantirecall_legacyRowRecord(id model,NSString *owner) {
+    NSDictionary *snapshot=timantirecall_legacyRowSnapshot(model,owner);
+    TIMAntiRecallLegacyRecord *source=snapshot[@"source"];
+    id record=source.timantirecall_record;
+    return [snapshot[@"identity"] isEqual:timantirecall_recordIdentity(record,owner)]?record:nil;
 }
 BOOL timantirecall_installLegacyBridge(void) {
     @synchronized(NSObject.class) {

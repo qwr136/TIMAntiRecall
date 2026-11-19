@@ -1,6 +1,7 @@
 #import "TIMAntiRecallPreferencesUI.h"
 #import "TIMAntiRecallSettings.h"
 #import "TIMAntiRecallMarks.h"
+#import "TIMAntiRecallRules.h"
 @interface TIMAntiRecallSettingsSwitch : UISwitch
 @property(nonatomic,copy) NSDictionary *timantirecall_chat;
 @end
@@ -54,16 +55,16 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     }
     [self.tableView reloadData];
 }
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {(void)tableView;return self.timantirecall_mode?1:2;}
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {(void)tableView;return self.timantirecall_mode?1:3;}
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     (void)tableView;if(self.timantirecall_mode)return (NSInteger)self.timantirecall_items.count;
-    return section==0?3:(self.timantirecall_chat?3:2);
+    return section==0?3:section==2?2:(self.timantirecall_chat?3:2);
 }
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
     (void)tableView;
     if(self.timantirecall_mode==1)return @"已识别的聊天";
     if(self.timantirecall_mode==2)return @"首次拦截时间 · 仅当前账号";
-    return section==0?@"功能":@"聊天与记录";
+    return section==0?@"功能":section==2?@"消息规则":@"聊天与记录";
 }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     (void)tableView;
@@ -72,6 +73,7 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     if(error)return [@"保存/读取失败：" stringByAppendingString:error.localizedDescription];
     if(self.timantirecall_mode==1)return @"先打开目标聊天即可识别。关闭只放行此聊天之后的撤回；不会删除已经保留的消息。总开关关闭时所有聊天均放行。";
     if(self.timantirecall_mode==2)return self.timantirecall_items.count?@"设备本地记录的首次拦截时间，不是原消息发送时间。仅保存身份标识，不保存文字、图片或语音副本。":@"当前没有已保存的拦截记录。只记录启用此版本以后本机实际拦截的撤回。";
+    if(section==2)return @"两个功能可同时使用，默认关闭。屏蔽只改变本机聊天行显示，不删除或保存收到的消息。";
     if(section==0)return @"默认沿用0.80防撤回及红框。标记保存默认开启，最多保留4096条，超限淘汰最早记录。关闭保存会移除已保存的标记文件，本次进程中的标记仍保留。";
     return @"标记与开关保存在TIM沙盒，仅本机有效，不上传；不恢复TIM已删除的原消息。移除插件不会删除TIM聊天记录。";
 }
@@ -111,6 +113,12 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
         NSDateFormatter *format=[NSDateFormatter new];format.dateStyle=NSDateFormatterMediumStyle;format.timeStyle=NSDateFormatterMediumStyle;
         cell.detailTextLabel.text=[NSString stringWithFormat:@"%@ · 消息序号 %@",[format stringFromDate:[NSDate dateWithTimeIntervalSince1970:[e[@"capturedAt"] doubleValue]]],e[@"seq"]];
         [self timantirecall_icon:@"clock.arrow.circlepath" cell:cell];cell.accessoryType=UITableViewCellAccessoryDisclosureIndicator;
+    }else if(path.section==2) {
+        BOOL reply=path.row==0;
+        NSDictionary *policy=active?[timantirecall_rules() timantirecall_policyForOwner:self.timantirecall_owner]:nil;
+        cell.textLabel.text=reply?@"自动回复":@"关键词屏蔽";
+        cell.detailTextLabel.text=reply?@"暂不可用":([policy[@"filterEnabled"] boolValue]?@"已开启":@"已关闭");
+        [self timantirecall_icon:reply?@"arrowshape.turn.up.left":@"eye.slash" cell:cell];cell.accessoryType=UITableViewCellAccessoryDisclosureIndicator;
     }else if(path.section==0) {
         NSDictionary *row=timantirecall_optionRows()[(NSUInteger)path.row];NSString *key=row[@"key"];
         cell.textLabel.text=row[@"title"];[self timantirecall_icon:row[@"icon"] cell:cell];
@@ -163,6 +171,42 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     }
     [self timantirecall_commitSwitch:control];
 }
+- (void)timantirecall_editRule:(BOOL)reply {
+    NSString *prefix=reply?@"reply":@"filter";
+    NSString *enabled=[prefix stringByAppendingString:@"Enabled"], *all=[prefix stringByAppendingString:@"AllChats"], *chats=[prefix stringByAppendingString:@"Chats"], *words=[prefix stringByAppendingString:@"Keywords"];
+    NSDictionary *policy=[timantirecall_rules() timantirecall_policyForOwner:self.timantirecall_owner];
+    UIAlertController *alert=[UIAlertController alertControllerWithTitle:reply?@"自动回复":@"关键词屏蔽" message:@"多个关键词用逗号分隔。" preferredStyle:UIAlertControllerStyleAlert];
+    [alert addTextFieldWithConfigurationHandler:^(UITextField *field){field.placeholder=@"关键词";field.text=[policy[words] componentsJoinedByString:@"，"];}];
+    if(reply)[alert addTextFieldWithConfigurationHandler:^(UITextField *field){field.placeholder=@"回复内容";field.text=policy[@"replyText"];}];
+    NSString *chat=timantirecall_ruleChatKey(self.timantirecall_chat);
+    __weak typeof(self) weakSelf=self;__weak UIAlertController *weakAlert=alert;
+    void (^save)(NSInteger)=^(NSInteger mode){
+        typeof(self) controller=weakSelf;if(!controller)return;
+        if(![controller timantirecall_validOwner]){dispatch_async(dispatch_get_main_queue(),^{[controller timantirecall_error:nil];});return;}
+        NSMutableDictionary *updated=[[timantirecall_rules() timantirecall_policyForOwner:controller.timantirecall_owner] mutableCopy];
+        updated[enabled]=@(mode!=0);
+        if(mode){
+            NSMutableOrderedSet *keywords=[NSMutableOrderedSet orderedSet];
+            NSString *text=weakAlert.textFields.firstObject.text;
+            for(NSString *part in [text componentsSeparatedByCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@",，"]]){
+                NSString *word=[part stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];if(word.length)[keywords addObject:word];
+            }
+            updated[words]=keywords.array;updated[all]=@(mode==1);
+            if(mode==2)updated[chats]=@[chat];
+            if(reply)updated[@"replyText"]=[weakAlert.textFields.lastObject.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]?:@"";
+        }
+        NSError *error=nil;
+        if(![timantirecall_rules() timantirecall_savePolicy:updated owner:controller.timantirecall_owner error:&error])
+            dispatch_async(dispatch_get_main_queue(),^{[controller timantirecall_error:error];});
+        else [NSNotificationCenter.defaultCenter postNotificationName:TIMAntiRecallSettingsChangedNotification object:nil];
+        [controller timantirecall_reload];
+    };
+    [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    if(chat)[alert addAction:[UIAlertAction actionWithTitle:@"仅当前聊天开启" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action){save(2);}]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"所有聊天开启" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action){save(1);}]];
+    if([policy[enabled] boolValue])[alert addAction:[UIAlertAction actionWithTitle:@"关闭" style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *action){save(0);}]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path {
     [tableView deselectRowAtIndexPath:path animated:YES];if(![self timantirecall_validOwner])return;
     if(self.timantirecall_mode==2) {
@@ -173,6 +217,7 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
         UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"拦截时间" message:message preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:@"关闭" style:UIAlertActionStyleCancel handler:nil]];[self presentViewController:alert animated:YES completion:nil];return;
     }
+    if(!self.timantirecall_mode && path.section==2){[self timantirecall_editRule:path.row==0];return;}
     if(self.timantirecall_mode || path.section!=1 || (self.timantirecall_chat && path.row==0))return;
     NSInteger index=path.row-(self.timantirecall_chat?1:0);
     TIMAntiRecallPreferencesController *next=[[TIMAntiRecallPreferencesController alloc] initWithOwner:self.timantirecall_owner chat:self.timantirecall_chat];

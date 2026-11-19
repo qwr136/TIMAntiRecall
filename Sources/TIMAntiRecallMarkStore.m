@@ -7,6 +7,20 @@ static BOOL timantirecall_uintValue(id value,BOOL positive) {
     return [value isKindOfClass:NSNumber.class] && !strchr([value objCType],'d') &&
         !strchr([value objCType],'f') && [value longLongValue]>=(positive?1:0);
 }
+// The wire sequence selects a candidate; it is not the full record identity.
+// Pin the first accepted record's id/random/time, without storing its contents.
+static NSDictionary *timantirecall_recordBinding(NSDictionary *identity) {
+    if(![identity isKindOfClass:NSDictionary.class])return nil;
+    NSMutableDictionary *binding=[NSMutableDictionary dictionary];
+    for(NSString *key in @[@"id",@"random",@"time"]) {
+        id value=identity[key];
+        if(![value isKindOfClass:NSNumber.class] || strchr([value objCType],'d') ||
+           strchr([value objCType],'f') || (CFGetTypeID((__bridge CFTypeRef)value)==CFBooleanGetTypeID()))return nil;
+        binding[key]=@([value longLongValue]);
+    }
+    if(![binding[@"id"] longLongValue])return nil;
+    return [binding copy];
+}
 static NSDictionary *timantirecall_normalizedMark(NSDictionary *input,NSString *owner,NSTimeInterval captured) {
     if(![input isKindOfClass:NSDictionary.class]||!timantirecall_validUID(owner)||
        !timantirecall_uintValue(input[@"seq"],YES)||!isfinite(captured)||captured<=0||captured>4102444800.0)return nil;
@@ -24,10 +38,15 @@ static NSDictionary *timantirecall_normalizedMark(NSDictionary *input,NSString *
             if(input[key])e[key]=input[key];
         }
     }else return nil;
+    if(input[@"binding"]) {
+        NSDictionary *binding=timantirecall_recordBinding(input[@"binding"]);
+        if(!binding)return nil;
+        e[@"binding"]=binding;
+    }
     return [e copy];
 }
 static NSDictionary *timantirecall_markKey(NSDictionary *event) {
-    NSMutableDictionary *key=[event mutableCopy];[key removeObjectForKey:@"capturedAt"];return [key copy];
+    NSMutableDictionary *key=[event mutableCopy];[key removeObjectForKey:@"capturedAt"];[key removeObjectForKey:@"binding"];return [key copy];
 }
 @interface TIMAntiRecallMarkStore ()
 @property(nonatomic,strong) NSMutableSet<NSDictionary *> *timantirecall_keys;
@@ -129,13 +148,23 @@ static NSDictionary *timantirecall_markKey(NSDictionary *event) {
 - (NSDictionary *)timantirecall_eventForIdentity:(NSDictionary *)identity {
     if(![identity isKindOfClass:NSDictionary.class])return nil;
     @synchronized(self) {
-        for(NSDictionary *event in self.timantirecall_events.reverseObjectEnumerator) {
+        for(NSUInteger index=self.timantirecall_events.count;index>0;index--) {
+            NSDictionary *event=self.timantirecall_events[index-1];
             if(![event[@"owner"] isEqual:identity[@"owner"]]||![event[@"kind"] isEqual:identity[@"kind"]]||
                ![event[@"seq"] isEqual:identity[@"seq"]]||![event[@"author"] isEqual:identity[@"author"]])continue;
             NSString *key=[event[@"kind"] intValue]==1?@"peer":@"group";
             if(![event[key] isEqual:identity[key]])continue;
             if(event[@"random"] && ![event[@"random"] isEqual:identity[@"random"]])continue;
             if(event[@"time"] && ![event[@"time"] isEqual:identity[@"time"]])continue;
+            NSDictionary *binding=timantirecall_recordBinding(identity);
+            if(!binding)return nil;
+            if(event[@"binding"]) {
+                if(![event[@"binding"] isEqual:binding])continue;
+            }else {
+                NSMutableDictionary *pinned=[event mutableCopy];pinned[@"binding"]=binding;
+                event=[pinned copy];self.timantirecall_events[index-1]=event;
+                if(self.timantirecall_persistent)[self timantirecall_scheduleWrite];
+            }
             return event;
         }
     }

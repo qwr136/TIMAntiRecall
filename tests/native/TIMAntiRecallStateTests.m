@@ -22,8 +22,8 @@ static NSData *timantirecall_packet(BOOL group,BOOL author){
     NSData *head=timantirecall_join(@[timantirecall_int(1,group?732:528),timantirecall_int(2,group?17:138)]);
     return timantirecall_blob(1,timantirecall_join(@[timantirecall_blob(2,head),timantirecall_blob(3,timantirecall_blob(2,content))]));
 }
-static NSDictionary *timantirecall_private(void){return @{@"owner":@"owner",@"kind":@1,@"seq":@42,@"peer":@"peer",@"from":@"peer",@"to":@"owner",@"author":@"peer",@"text":@"NEVER-SAVE-CONTENT"};}
-static NSDictionary *timantirecall_group(void){return @{@"owner":@"owner",@"kind":@2,@"seq":@43,@"group":@99,@"author":@"member",@"random":@33,@"time":@1700000000};}
+static NSDictionary *timantirecall_private(void){return @{@"owner":@"owner",@"kind":@1,@"seq":@42,@"id":@9001,@"random":@123,@"time":@1700000000,@"peer":@"peer",@"from":@"peer",@"to":@"owner",@"author":@"peer",@"text":@"NEVER-SAVE-CONTENT"};}
+static NSDictionary *timantirecall_group(void){return @{@"owner":@"owner",@"kind":@2,@"seq":@43,@"id":@9002,@"group":@99,@"author":@"member",@"random":@33,@"time":@1700000000};}
 int main(int argc,const char **argv){@autoreleasepool {
     CHECK(argc==2);NSString *mode=@(argv[1]);NSError *error=nil;
     NSURL *settingsURL=timantirecall_stateURL(@"preferences.plist"),*marksURL=timantirecall_stateURL(@"marks.plist");

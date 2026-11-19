@@ -108,7 +108,7 @@ static void timantirecall_testPreferencesPanel(void) {
         timantirecall_check([presented isKindOfClass:UINavigationController.class],@"real settings navigation entry presents panel");
         panel=(TIMAntiRecallPreferencesController *)presented.topViewController;
         [panel loadViewIfNeeded];[panel.tableView reloadData];[panel.tableView layoutIfNeeded];
-        timantirecall_check([panel isKindOfClass:TIMAntiRecallPreferencesController.class] && [panel numberOfSectionsInTableView:panel.tableView]==2,@"real production card preferences has required sections");
+        timantirecall_check([panel isKindOfClass:TIMAntiRecallPreferencesController.class] && [panel numberOfSectionsInTableView:panel.tableView]==3,@"real production card preferences has required sections");
         timantirecall_check(panel.view.window==timantirecall_window && !panel.view.hidden && panel.tableView.visibleCells.count>=3,
                            @"settings panel and actual table cells are visible in active window");
         UITableViewCell *cell=[panel.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:2 inSection:0]];

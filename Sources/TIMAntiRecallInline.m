@@ -1,4 +1,5 @@
 #import "TIMAntiRecallMarks.h"
+#import "TIMAntiRecallRules.h"
 #import "TIMAntiRecallSettings.h"
 #import "TIMAntiRecallBootstrap.h"
 #import "TIMAntiRecallIndicatorView.h"
@@ -13,9 +14,13 @@
 @property(nonatomic,weak) id timantirecall_model;
 @property(nonatomic,copy) NSString *timantirecall_owner;
 @property(nonatomic,strong) TIMAntiRecallIndicatorView *timantirecall_indicator;
+@property(nonatomic,strong) UILabel *timantirecall_filter;
 @end
 @implementation TIMAntiRecallRowContext
 - (void)dealloc {
+    UILabel *filter=_timantirecall_filter;
+    if(NSThread.isMainThread)[filter removeFromSuperview];
+    else if(filter)dispatch_async(dispatch_get_main_queue(),^{[filter removeFromSuperview];});
     TIMAntiRecallIndicatorView *indicator=_timantirecall_indicator;
     if(NSThread.isMainThread)[indicator removeFromSuperview];
     else if(indicator)dispatch_async(dispatch_get_main_queue(),^{[indicator removeFromSuperview];});
@@ -35,8 +40,12 @@ static BOOL timantirecall_hasEvents;
 static BOOL timantirecall_inlineInstalled;
 static void timantirecall_refreshRow(TIMAntiRecallRowContext *context);
 
-static void timantirecall_clearVisual(TIMAntiRecallRowContext *context) {
+static void timantirecall_clearMark(TIMAntiRecallRowContext *context) {
     [context.timantirecall_indicator removeFromSuperview];context.timantirecall_indicator=nil;
+}
+static void timantirecall_clearVisual(TIMAntiRecallRowContext *context) {
+    timantirecall_clearMark(context);
+    [context.timantirecall_filter removeFromSuperview];context.timantirecall_filter=nil;
 }
 static void timantirecall_resetRow(UIView *view) {
     TIMAntiRecallRowContext *context=objc_getAssociatedObject(view,&timantirecall_contextKey);
@@ -96,15 +105,33 @@ static void timantirecall_refreshRow(TIMAntiRecallRowContext *context) {
     id model=timantirecall_boundModel(view);
     if(!model || model!=context.timantirecall_model) {timantirecall_syncRow(view);return;}
     BOOL legacy=timantirecall_legacyClass && [view isKindOfClass:timantirecall_legacyClass];
-    id record=legacy?nil:[TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model];
+    id record=legacy?timantirecall_legacyRowRecord(model,owner):[TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model];
     NSDictionary *identity=legacy?timantirecall_legacyRowIdentity(model,owner):timantirecall_recordIdentity(record,owner);
     [timantirecall_settings() timantirecall_observeChat:identity];
     NSDictionary *event=[timantirecall_marks timantirecall_eventForIdentity:identity];
-    if(![timantirecall_settings() timantirecall_enabled] || !event) {timantirecall_clearVisual(context);return;}
     UIView *host=timantirecall_rowHost(view);
     CGRect bounds=host.bounds;
     if(host.window!=view.window || bounds.size.width<120 || bounds.size.height<32 ||
        !isfinite(bounds.size.width) || !isfinite(bounds.size.height)) {timantirecall_clearVisual(context);return;}
+    NSDictionary *policy=identity ? [timantirecall_rules() timantirecall_policyForOwner:owner] : nil;
+    BOOL filtered=[policy[@"filterEnabled"] boolValue] && timantirecall_rulesMatchChat(policy,identity,NO) &&
+        timantirecall_rulesHideText(policy,timantirecall_plainRecordText(record,owner,NULL));
+    if(filtered) {
+        if(!context.timantirecall_filter) {
+            UILabel *label=[UILabel new];label.text=@"已屏蔽消息";
+            label.textColor=UIColor.secondaryLabelColor;label.backgroundColor=UIColor.systemBackgroundColor;
+            label.textAlignment=NSTextAlignmentCenter;label.userInteractionEnabled=NO;
+            label.autoresizingMask=UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+            label.accessibilityIdentifier=@"TIMAntiRecall.filtered-row";
+            context.timantirecall_filter=label;
+        }
+        UILabel *label=context.timantirecall_filter;
+        if(label.superview!=host){[label removeFromSuperview];[host addSubview:label];}
+        label.frame=bounds;[host bringSubviewToFront:label];
+    }else {
+        [context.timantirecall_filter removeFromSuperview];context.timantirecall_filter=nil;
+    }
+    if(![timantirecall_settings() timantirecall_enabled] || !event) {timantirecall_clearMark(context);return;}
     if(!context.timantirecall_indicator) {
         context.timantirecall_indicator=[[TIMAntiRecallIndicatorView alloc] initWithFrame:CGRectZero];
         static unsigned matched=0;if(matched++<8)timantirecall_bootstrapEvent("inline-exact-account-peer-seq-match");
@@ -112,6 +139,7 @@ static void timantirecall_refreshRow(TIMAntiRecallRowContext *context) {
     if(context.timantirecall_indicator.superview!=host) {
         [context.timantirecall_indicator removeFromSuperview];[host addSubview:context.timantirecall_indicator];
     }
+    if(filtered)[host bringSubviewToFront:context.timantirecall_indicator];
     [context.timantirecall_indicator timantirecall_setCaptureTime:[event[@"capturedAt"] doubleValue]
                                                       showTime:[timantirecall_settings() timantirecall_showTime]];
     [context.timantirecall_indicator timantirecall_fitToBounds:bounds];
