@@ -54,7 +54,7 @@ static NSString *timantirecall_openIdentifier(const char *raw) {
     for(NSUInteger i=0;i<MIN(input.length,(NSUInteger)100);i++) {
         unichar ch=[input characterAtIndex:i];
         BOOL allowed=(ch>='a'&&ch<='z')||(ch>='A'&&ch<='Z')||(ch>='0'&&ch<='9')||strchr("_-.:@?",(int)ch)!=NULL;
-        [safe appendFormat:@"%C",allowed?ch:(unichar)'_'];
+        [safe appendFormat:@"%C",(unichar)(allowed?ch:'_')];
     }
     return safe;
 }

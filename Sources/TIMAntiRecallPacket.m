@@ -142,7 +142,7 @@ static BOOL timantirecall_packetAttempt(id record, id wallet, NSString *owner, u
                 timantirecall_traceEvent(failed ? @"redpack-native-route-error" : @"redpack-native-route-callback");
         });
     };
-    timantirecall_beginPacketOpen(presenter,objc_getClass("QQWalletRedPacketMsgService"),^{
+    timantirecall_beginPacketOpen(presenter,objc_getClass("QQWalletRedPacketMsgService"),^BOOL(void){
         return timantirecall_packetStillActive(owner,epoch) && [timantirecall_settings() timantirecall_autoClaimRedPackets];
     });
     ((TIMAntiRecallPacketRoute)method_getImplementation(route))(router, handle, presenter, record, nil, completion);
