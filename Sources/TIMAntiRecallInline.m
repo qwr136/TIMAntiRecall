@@ -257,7 +257,7 @@ static BOOL timantirecall_installOuterReuse(void) {
     if(timantirecall_outerCellClass)return YES;
     Class cls=nil;
 #ifdef TIMANTIRECALL_UI_TEST
-    cls=objc_getClass("QQAIOCell");
+    cls=objc_getClass("TIMAntiRecallTestOuterReuseCell");
 #else
     cls=objc_getClass("_TtC6AIOLib14AIOContentCell");
 #endif

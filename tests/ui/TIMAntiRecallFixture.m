@@ -18,6 +18,9 @@
     return model;
 }
 @end
+@implementation TIMAntiRecallTestOuterReuseCell
+- (void)prepareForReuse {[super prepareForReuse];self.timantirecall_reuses++;}
+@end
 @implementation QQAIOCell
 - (void)setAioModel:(QQAIOModel *)model {
     self.timantirecall_sets++;self.timantirecall_lastModel=model;_aioModel=model;
