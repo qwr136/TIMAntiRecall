@@ -78,7 +78,7 @@ class ResultGateTests(unittest.TestCase):
             self.assertEqual(run.call_count, 3)
 
     def test_stalled_app_has_deadline(self):
-        with tempfile.TemporaryDirectory() as directory, mock.patch.object(DRIVER.time, "monotonic", side_effect=[0, 121]):
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(DRIVER.time, "monotonic", side_effect=[0, 241]):
             with self.assertRaises(TimeoutError):
                 DRIVER.wait_for_result("device", Path(directory), "token", {"sourceDigest": "source"})
 

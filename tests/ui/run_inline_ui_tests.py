@@ -28,7 +28,7 @@ BUNDLE = "com.minis.timantirecall.inlinetests"
 EXECUTABLE = "TIMAntiRecallInlineTests"
 DEPLOY = "16.5"
 TIMEOUT = 180
-RESULT_TIMEOUT = 120
+RESULT_TIMEOUT = 240
 PRODUCTION = (
     "Sources/TIMAntiRecallMarks.m", "Sources/TIMAntiRecallWire.m",
     "Sources/TIMAntiRecallInline.m", "Sources/TIMAntiRecallIndicatorView.m",

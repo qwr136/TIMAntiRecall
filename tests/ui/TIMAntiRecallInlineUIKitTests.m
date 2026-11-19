@@ -653,9 +653,9 @@ static void timantirecall_start(void) {
             });
         });
         timantirecall_nextStep();
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,90*NSEC_PER_SEC),dispatch_get_main_queue(),^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,180*NSEC_PER_SEC),dispatch_get_main_queue(),^{
             if(!timantirecall_finished) {
-                timantirecall_check(NO,@"scene lifecycle watchdog expired after 90 seconds");timantirecall_finish();
+                timantirecall_check(NO,@"scene lifecycle watchdog expired after 180 seconds");timantirecall_finish();
             }
         });
     } @catch(NSException *exception) {

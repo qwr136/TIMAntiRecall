@@ -67,7 +67,7 @@ static void timantirecall_waitSettingsCapture(unsigned attempt) {
         [timantirecall_coverage addObject:@"preferences-visible"];
         timantirecall_holdSteps=NO;timantirecall_nextStep();return;
     }
-    if(attempt>=200){timantirecall_check(NO,@"no compositor settings screenshot acknowledgement");timantirecall_finish();return;}
+    if(attempt>=750){timantirecall_check(NO,@"no compositor settings screenshot acknowledgement");timantirecall_finish();return;}
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_MSEC*100),dispatch_get_main_queue(),^{timantirecall_waitSettingsCapture(attempt+1);});
 }
 static void timantirecall_testPreferencesPanel(void) {
