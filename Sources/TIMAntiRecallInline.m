@@ -30,8 +30,6 @@ static _Atomic(IMP) timantirecall_legacySetOriginal, timantirecall_legacyUpdateO
     timantirecall_legacyReuseOriginal, timantirecall_legacyLayoutOriginal, timantirecall_legacyWindowOriginal;
 static _Atomic(IMP) timantirecall_bindOriginal, timantirecall_unbindOriginal,
     timantirecall_reuseOriginal, timantirecall_layoutOriginal, timantirecall_windowOriginal;
-static _Atomic(IMP) timantirecall_outerReuseOriginal;
-static Class timantirecall_outerCellClass;
 static BOOL timantirecall_inlinePaused;
 static BOOL timantirecall_hasEvents;
 static BOOL timantirecall_inlineInstalled;
@@ -235,41 +233,6 @@ static void timantirecall_unbindRow(id receiver,SEL selector) {
     IMP original=atomic_load_explicit(&timantirecall_unbindOriginal,memory_order_acquire);
     if(original)((void(*)(id,SEL))original)(receiver,selector);
 }
-static Method timantirecall_inlineOwn(Class cls,SEL selector);
-static void timantirecall_clearDescendantRows(UIView *view,unsigned depth,unsigned *budget) {
-    if(!view||depth>24||!*budget)return;
-    (*budget)--;
-    if((timantirecall_inlineClass&&[view isKindOfClass:timantirecall_inlineClass])||
-       (timantirecall_legacyClass&&[view isKindOfClass:timantirecall_legacyClass]))timantirecall_resetRow(view);
-    for(UIView *child in view.subviews){if(!*budget)break;timantirecall_clearDescendantRows(child,depth+1,budget);}
-}
-static void timantirecall_outerReuse(id receiver,SEL selector) {
-    if(NSThread.isMainThread&&[receiver isKindOfClass:UIView.class]) {
-        unsigned before=2048;timantirecall_clearDescendantRows(receiver,0,&before);
-    }
-    IMP original=atomic_load_explicit(&timantirecall_outerReuseOriginal,memory_order_acquire);
-    if(original)((void(*)(id,SEL))original)(receiver,selector);
-    if(NSThread.isMainThread&&[receiver isKindOfClass:UIView.class]) {
-        unsigned after=2048;timantirecall_clearDescendantRows(receiver,0,&after);
-    }
-}
-static BOOL timantirecall_installOuterReuse(void) {
-    if(timantirecall_outerCellClass)return YES;
-    Class cls=nil;
-#ifdef TIMANTIRECALL_UI_TEST
-    cls=objc_getClass("TIMAntiRecallTestOuterReuseCell");
-#else
-    cls=objc_getClass("_TtC6AIOLib14AIOContentCell");
-#endif
-    if(!cls||![cls isSubclassOfClass:UITableViewCell.class])return NO;
-    SEL selector=sel_registerName("prepareForReuse");Method method=timantirecall_inlineOwn(cls,selector);
-    const char *args[]={"@",":"};
-    if(!timantirecall_methodTypes(method,"v",2,args))return NO;
-    IMP original=method_getImplementation(method);if(!original)return NO;
-    atomic_store_explicit(&timantirecall_outerReuseOriginal,original,memory_order_release);
-    method_setImplementation(method,(IMP)timantirecall_outerReuse);
-    timantirecall_outerCellClass=cls;return YES;
-}
 static void timantirecall_reuseRow(id receiver,SEL selector) {
     if(NSThread.isMainThread)timantirecall_resetRow(receiver);
     IMP original=atomic_load_explicit(&timantirecall_reuseOriginal,memory_order_acquire);
@@ -399,5 +362,8 @@ void timantirecall_markIntercepted(NSData *data,NSString *owner) {
         [timantirecall_marks timantirecall_addEvents:events owner:account capturedAt:captured];
         timantirecall_hasEvents=YES;
         timantirecall_refreshRows();
+    });
+}
+freshRows();
     });
 }

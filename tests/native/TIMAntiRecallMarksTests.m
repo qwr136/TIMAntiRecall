@@ -65,9 +65,11 @@ static void timantirecall_testRowIsolation(void) {
     CHECK([collisionStore timantirecall_displayCandidateForIdentity:other]!=nil);
     [collisionStore timantirecall_suppressDisplayForEvent:[collisionStore timantirecall_eventForIdentity:same]];
     CHECK([collisionStore timantirecall_displayCandidateForIdentity:same]==nil);
+    NSDictionary *ambiguousStored=[collisionStore.timantirecall_eventsForOwner:@"owner"].firstObject;
+    CHECK([ambiguousStored[@"displayAmbiguous"] boolValue]);
+    CHECK([collisionStore timantirecall_eventForIdentity:same]==nil);
     [collisionStore timantirecall_addEvents:@[@{@"kind":@1,@"seq":@501,@"from":@"owner",@"to":@"peer"}] owner:@"owner"];
-    CHECK([collisionStore timantirecall_eventForIdentity:same]!=nil);
-    CHECK([collisionStore timantirecall_displayCandidateForIdentity:same]==nil);
+    CHECK([collisionStore timantirecall_eventForIdentity:same]==nil);
 }
 int main(void) {
     @autoreleasepool {timantirecall_testRowIsolation();}

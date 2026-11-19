@@ -48,9 +48,6 @@ NS_ASSUME_NONNULL_BEGIN
 @interface NTRecordConverter : NSObject
 + (nullable QQMessageModel *)recordConvertMessageModel:(nullable OCMsgRecord *)record;
 @end
-@interface TIMAntiRecallTestOuterReuseCell : UITableViewCell
-@property(nonatomic) NSUInteger timantirecall_reuses;
-@end
 @interface QQAIOCell : UITableViewCell
 @property(nonatomic,strong,nullable) QQAIOModel *aioModel;
 @property(nonatomic) NSUInteger timantirecall_sets,timantirecall_updates,timantirecall_reuses;

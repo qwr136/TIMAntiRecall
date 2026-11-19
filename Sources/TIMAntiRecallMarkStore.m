@@ -192,6 +192,7 @@ BOOL timantirecall_recallEventMatchesIdentity(NSDictionary *event,NSDictionary *
         for(NSUInteger index=self.timantirecall_events.count;index>0;index--) {
             NSDictionary *event=self.timantirecall_events[index-1];
             if(!timantirecall_recallEventMatchesIdentity(event,identity))continue;
+            if([event[@"displayAmbiguous"] boolValue])return nil;
             NSDictionary *binding=timantirecall_recordBinding(identity);
             if(!binding)return nil;
             if(event[@"binding"]) {
