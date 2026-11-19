@@ -118,6 +118,17 @@ static void timantirecall_testPreferencesPanel(void) {
         control.on=YES;[control sendActionsForControlEvents:UIControlEventValueChanged];
         timantirecall_check([timantirecall_settings() timantirecall_showTime],@"actual settings switch commits configuration");
         control.on=NO;[control sendActionsForControlEvents:UIControlEventValueChanged];
+        for(NSInteger row=3;row<=4;row++) {
+            NSIndexPath *path=[NSIndexPath indexPathForRow:row inSection:0];
+            [panel.tableView scrollToRowAtIndexPath:path atScrollPosition:UITableViewScrollPositionMiddle animated:NO];
+            [panel.tableView layoutIfNeeded];
+            UISwitch *packet=(UISwitch *)[panel.tableView cellForRowAtIndexPath:path].accessoryView;
+            NSString *key=row==3?@"packetDiagnostics":@"autoClaimRedPackets";
+            timantirecall_check(packet.window==timantirecall_window && [packet.accessibilityIdentifier isEqual:key] && !packet.isOn,@"packet switch is visible on same panel and defaults off");
+            packet.on=YES;[packet sendActionsForControlEvents:UIControlEventValueChanged];
+            timantirecall_check(row==3?[timantirecall_settings() timantirecall_packetDiagnostics]:[timantirecall_settings() timantirecall_autoClaimRedPackets],@"packet switch commits option");
+            packet.on=NO;[packet sendActionsForControlEvents:UIControlEventValueChanged];
+        }
         timantirecall_stepDelay=0.4;
     });
     timantirecall_step(^{

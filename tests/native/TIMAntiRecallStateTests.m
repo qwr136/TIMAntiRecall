@@ -5,6 +5,16 @@
 #import "TIMAntiRecallWire.h"
 #include <stdlib.h>
 static unsigned timantirecall_checks;
+@interface QQAccountsManager:NSObject
+@property(nonatomic,copy) NSString *currentUid;
++ (instancetype)GetInstance;
+@end
+@implementation QQAccountsManager
++ (instancetype)GetInstance {
+    static QQAccountsManager *manager;static dispatch_once_t once;
+    dispatch_once(&once,^{manager=[self new];});return manager;
+}
+@end
 #define CHECK(...) do{timantirecall_checks++;if(!(__VA_ARGS__)){NSLog(@"FAIL state line%d %s",__LINE__,#__VA_ARGS__);exit(1);}}while(0)
 static NSData *timantirecall_var(uint64_t n){NSMutableData *d=[NSMutableData data];do{uint8_t b=n&127;n>>=7;if(n)b|=128;[d appendBytes:&b length:1];}while(n);return d;}
 static NSData *timantirecall_int(unsigned f,uint64_t n){NSMutableData *d=[timantirecall_var((uint64_t)f<<3) mutableCopy];[d appendData:timantirecall_var(n)];return d;}
@@ -29,9 +39,15 @@ int main(int argc,const char **argv){@autoreleasepool {
     NSURL *settingsURL=timantirecall_stateURL(@"preferences.plist"),*marksURL=timantirecall_stateURL(@"marks.plist");
     TIMAntiRecallSettings *settings=[[TIMAntiRecallSettings alloc] initWithURL:settingsURL];
     TIMAntiRecallMarkStore *store=[[TIMAntiRecallMarkStore alloc] initWithURL:marksURL persistent:YES];
+    QQAccountsManager.GetInstance.currentUid=@"owner";
     if([mode isEqual:@"seed"]){
         CHECK([settings timantirecall_enabled] && [settings timantirecall_persistMarks] && ![settings timantirecall_showTime]);
+        CHECK(![settings timantirecall_autoClaimRedPackets] && ![settings timantirecall_packetDiagnostics]);
         CHECK(![NSFileManager.defaultManager fileExistsAtPath:settingsURL.path]);
+        CHECK([settings timantirecall_setPacketOption:@"diagnostics" enabled:YES owner:@"owner" error:&error]);
+        CHECK([settings timantirecall_packetDiagnostics] && ![settings timantirecall_autoClaimRedPackets]);
+        CHECK([settings timantirecall_setPacketOption:@"autoClaim" enabled:YES owner:@"owner" error:&error]);
+        CHECK([settings timantirecall_autoClaimRedPackets]);
         CHECK([settings timantirecall_setChat:timantirecall_private() enabled:NO error:&error]);CHECK(!error);
         CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(NO,YES) owner:@"owner"]);
         CHECK([settings timantirecall_shouldBlockData:timantirecall_packet(NO,YES) owner:@"other"]);
@@ -58,6 +74,12 @@ int main(int argc,const char **argv){@autoreleasepool {
     }
     if([mode isEqual:@"restore"]){
         CHECK(![settings timantirecall_lastError] && ![store timantirecall_lastError]);
+        CHECK([settings timantirecall_autoClaimRedPackets] && [settings timantirecall_packetDiagnostics]);
+        QQAccountsManager.GetInstance.currentUid=@"other";
+        CHECK(![settings timantirecall_autoClaimRedPackets] && ![settings timantirecall_packetDiagnostics]);
+        CHECK(![settings timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:@"owner" error:&error]);
+        QQAccountsManager.GetInstance.currentUid=@"owner";
+        CHECK([settings timantirecall_autoClaimRedPackets]);
         CHECK([settings timantirecall_showTime]);CHECK(![settings timantirecall_enabledForChat:timantirecall_private()]);
         CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(NO,YES) owner:@"owner"]);
         CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(YES,NO) owner:@"owner"]);

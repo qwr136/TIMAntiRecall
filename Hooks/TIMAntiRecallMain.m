@@ -3,6 +3,7 @@
 #import "TIMAntiRecallImage.h"
 #import "TIMAntiRecallMarks.h"
 #import "TIMAntiRecallPreferencesEntry.h"
+#import "TIMAntiRecallPacket.h"
 #import <mach-o/dyld.h>
 #import <crt_externs.h>
 #import <mach-o/loader.h>
@@ -29,6 +30,13 @@ static void timantirecall_attemptUIInstall(unsigned attempt) {
         timantirecall_attemptUIInstall(attempt+1);
     });
 }
+#if !defined(TIMANTIRECALL_NATIVE_TEST)
+static void timantirecall_attemptPacketInstall(unsigned attempt) {
+    if(timantirecall_installPacketMonitor())return;
+    if(attempt>=10){timantirecall_bootstrapEvent("redpack-monitor-install-failed");return;}
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(),^{timantirecall_attemptPacketInstall(attempt+1);});
+}
+#endif
 static void timantirecall_attemptColdInstall(unsigned attempt) {
     if(timantirecall_installColdRecallProtection())return;
     if(attempt>=30){timantirecall_bootstrapEvent("cold-recall-hook-install-failed");return;}
@@ -74,6 +82,9 @@ __attribute__((constructor)) static void timantirecall_initialize(void) {
         NSBundle *bundle = NSBundle.mainBundle;
         timantirecall_startupWithIdentity(bundle.infoDictionary, timantirecall_mainUUID(), ^{
             timantirecall_attemptInstall(0);
+#if !defined(TIMANTIRECALL_NATIVE_TEST)
+            dispatch_async(dispatch_get_main_queue(),^{timantirecall_attemptPacketInstall(0);});
+#endif
         });
     }
 }

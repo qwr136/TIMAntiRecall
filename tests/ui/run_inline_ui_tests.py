@@ -36,6 +36,7 @@ PRODUCTION = (
     "Sources/TIMAntiRecallRuntime.m", "Sources/TIMAntiRecallColdSync.m", "Sources/TIMAntiRecallSettings.m",
     "Sources/TIMAntiRecallStorage.m", "Sources/TIMAntiRecallMarkStore.m",
     "Sources/TIMAntiRecallPreferencesUI.m", "Sources/TIMAntiRecallPreferencesEntry.m",
+    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m",
 )
 SWIFT = ("Sources/TIMAntiRecallRecordBridge.swift",
          "tests/ui/TIMAntiRecallSwiftFixture.swift")
@@ -47,6 +48,7 @@ REQUIRED_COVERAGE = {
     "touch-routing", "weak-release", "real-scene-background", "real-scene-resume",
     "swift-direct-binding", "legacy-conversion-binding", "push-to-row", "startup-owner",
     "chat-forwarding", "captured-time", "persist-ui", "preferences-entry", "preferences-controls", "preferences-visible",
+    "packet-monitor",
 }
 COMMANDS: list[list[str]] = []
 TRANSCRIPT: list[str] = []

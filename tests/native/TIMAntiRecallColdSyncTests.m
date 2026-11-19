@@ -38,6 +38,12 @@ int main(void){@autoreleasepool {
     CHECK([store timantirecall_containsIdentity:markedIdentity]);
     [marked setRecallTime:1700000000];
     CHECK(marked.recallTime==0 && marked.setterCalls==0);
+    // A cold conversion can change its record binding without changing the wire identity.
+    marked.msgId=9201;
+    [marked setRecallTime:1700000001];
+    CHECK(marked.recallTime==0 && marked.setterCalls==0);
+    CHECK([store timantirecall_eventForIdentity:markedIdentity]==nil);
+    CHECK([[[store timantirecall_eventsForOwner:owner] firstObject][@"binding"] isEqual:matchedEvent[@"binding"]]);
     NSDictionary *groupEvent=@{@"kind":@2,@"group":@5566,@"seq":@77,@"author":@"member_uid"};
     [store timantirecall_addEvents:@[groupEvent] owner:owner capturedAt:1700000000];
     OCMsgRecord *markedGroup=[OCMsgRecord new];markedGroup.chatType=2;markedGroup.msgId=9077;markedGroup.msgSeq=77;markedGroup.msgRandom=123;markedGroup.msgTime=1700000000;markedGroup.peerUin=5566;markedGroup.peerUid=@"group_uid";markedGroup.senderUid=@"member_uid";

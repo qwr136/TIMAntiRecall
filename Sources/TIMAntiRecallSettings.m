@@ -1,4 +1,5 @@
 #import "TIMAntiRecallSettings.h"
+#import "TIMAntiRecallMarks.h"
 #import "TIMAntiRecallStorage.h"
 #import "TIMAntiRecallWire.h"
 #import <CoreFoundation/CoreFoundation.h>
@@ -83,6 +84,14 @@ static NSString *timantirecall_accountScope(NSDictionary *chat) {
     if(![state[@"schema"] isEqual:@1])return NO;
     for(NSString *key in @[@"enabled",@"persistMarks",@"showTime"])
         if(state[key] && !timantirecall_boolean(state[key]))return NO;
+    id packetAccounts=state[@"packetAccounts"]?:@{};
+    if(![packetAccounts isKindOfClass:NSDictionary.class] || [packetAccounts count]>64)return NO;
+    for(id owner in packetAccounts) {
+        id options=packetAccounts[owner];
+        if(!timantirecall_validUID(owner) || ![options isKindOfClass:NSDictionary.class])return NO;
+        for(id key in options)
+            if(![@[@"autoClaim",@"diagnostics"] containsObject:key] || !timantirecall_boolean(options[key]))return NO;
+    }
     id chats=state[@"chats"]?:@[];
     if(![chats isKindOfClass:NSArray.class]||[chats count]>1024)return NO;
     NSMutableDictionary *overrides=[NSMutableDictionary dictionary];
@@ -97,6 +106,32 @@ static NSString *timantirecall_accountScope(NSDictionary *chat) {
 - (BOOL)timantirecall_enabled {@synchronized(self){return self.timantirecall_snapshot[@"enabled"]?[self.timantirecall_snapshot[@"enabled"] boolValue]:YES;}}
 - (BOOL)timantirecall_persistMarks {@synchronized(self){return self.timantirecall_snapshot[@"persistMarks"]?[self.timantirecall_snapshot[@"persistMarks"] boolValue]:YES;}}
 - (BOOL)timantirecall_showTime {@synchronized(self){return [self.timantirecall_snapshot[@"showTime"] boolValue];}}
+- (BOOL)timantirecall_packetOption:(NSString *)key {
+    NSString *owner=timantirecall_currentAccount();
+    if(!timantirecall_validUID(owner))return NO;
+    @synchronized(self) {
+        return !self.timantirecall_error && [self.timantirecall_snapshot[@"packetAccounts"][owner][key] boolValue];
+    }
+}
+- (BOOL)timantirecall_autoClaimRedPackets {return [self timantirecall_packetOption:@"autoClaim"];}
+- (BOOL)timantirecall_packetDiagnostics {return [self timantirecall_packetOption:@"diagnostics"];}
+- (BOOL)timantirecall_setPacketOption:(NSString *)key enabled:(BOOL)enabled owner:(NSString *)owner error:(NSError **)error {
+    if(!timantirecall_validUID(owner) || ![owner isEqual:timantirecall_currentAccount()] ||
+       ![@[@"autoClaim",@"diagnostics"] containsObject:key]) {
+        if(error)*error=timantirecall_storageError(@"账号已变化或设置项无效");return NO;
+    }
+    @synchronized(self) {
+        NSMutableDictionary *state=self.timantirecall_snapshot.mutableCopy;
+        NSMutableDictionary *accounts=[state[@"packetAccounts"] mutableCopy]?:[NSMutableDictionary dictionary];
+        if(!accounts[owner] && accounts.count>=64) {
+            if(error)*error=timantirecall_storageError(@"红包设置账号数量已达到64项上限");return NO;
+        }
+        NSMutableDictionary *options=[accounts[owner] mutableCopy]?:[NSMutableDictionary dictionary];
+        options[key]=@(enabled);accounts[owner]=options.copy;
+        state[@"schema"]=@1;state[@"packetAccounts"]=accounts.copy;
+        return [self timantirecall_commit:state error:error];
+    }
+}
 - (NSError *)timantirecall_lastError {@synchronized(self){return self.timantirecall_error;}}
 - (BOOL)timantirecall_enabledForChat:(NSDictionary *)chat {
     NSString *key=timantirecall_accountScope(chat);

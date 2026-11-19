@@ -210,23 +210,12 @@ BOOL timantirecall_recallEventMatchesIdentity(NSDictionary *event,NSDictionary *
     return nil;
 }
 - (BOOL)timantirecall_containsIdentity:(NSDictionary *)identity {
-    if(![identity isKindOfClass:NSDictionary.class])return NO;
-    NSDictionary *binding=timantirecall_recordBinding(identity);
-    if(!binding)return NO;
+    if(!timantirecall_recordBinding(identity))return NO;
     @synchronized(self) {
-        for(NSUInteger index=self.timantirecall_events.count;index>0;index--) {
-            NSDictionary *event=self.timantirecall_events[index-1];
-            if(!timantirecall_recallEventMatchesIdentity(event,identity))continue;
-            NSDictionary *stored=event[@"binding"];
-            // Display ambiguity suppresses only the red frame. Cold-sync
-            // protection remains valid when this exact message was already pinned.
-            if(stored)return [stored isEqual:binding];
-            if([event[@"displayAmbiguous"] boolValue])return NO;
-            NSMutableDictionary *pinned=event.mutableCopy;pinned[@"binding"]=binding;
-            self.timantirecall_events[index-1]=pinned.copy;
-            if(self.timantirecall_persistent)[self timantirecall_scheduleWrite];
-            return YES;
-        }
+        // Cold sync uses the accepted wire event, not the display-time record binding.
+        // In particular, materializing a record during startup must not pin a row.
+        for(NSDictionary *event in self.timantirecall_events.reverseObjectEnumerator)
+            if(timantirecall_recallEventMatchesIdentity(event,identity))return YES;
     }
     return NO;
 }
