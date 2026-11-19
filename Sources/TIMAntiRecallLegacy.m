@@ -2,6 +2,12 @@
 #include <stdatomic.h>
 #include <stdlib.h>
 
+@interface TIMAntiRecallLegacyRecord : NSObject
+@property(nonatomic,weak) id timantirecall_record;
+@end
+@implementation TIMAntiRecallLegacyRecord
+@end
+
 static char timantirecall_legacyIdentityKey;
 static _Atomic(IMP) timantirecall_convertOriginal;
 static BOOL timantirecall_converterInstalled;
