@@ -508,7 +508,8 @@ static void timantirecall_testOuterReuse(UIView *host) {
         timantirecall_check(timantirecall_installInlineIndicator(),@"outer host reuse hook installs with exact ABI");
         outer=[[QQAIOCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
         inner=[[TIMAntiRecallTestBaseView alloc] initWithFrame:CGRectMake(0,0,240,72)];
-        outer.frame=CGRectMake(8,80,260,88);[outer.contentView addSubview:inner];[host addSubview:outer];
+        outer.frame=CGRectMake(8,80,260,88);[host addSubview:outer];[outer setNeedsLayout];[outer layoutIfNeeded];
+        [outer.contentView addSubview:inner];[outer.contentView layoutIfNeeded];
         OCMsgRecord *record=timantirecall_record(1,777,@"peer_a",0);
         [inner bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:record]];
         timantirecall_check(timantirecall_indicators(outer.contentView).count==0,@"unmarked outer cell is clear");
