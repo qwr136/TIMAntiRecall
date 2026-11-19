@@ -347,7 +347,6 @@ BOOL timantirecall_installInlineIndicator(void) {
     if(!NSThread.isMainThread) {dispatch_async(dispatch_get_main_queue(),^{timantirecall_installInlineIndicator();});return NO;}
     BOOL nt=timantirecall_installNTRows();
     BOOL legacy=timantirecall_installLegacyRows();
-    if(timantirecall_inlineClass)(void)timantirecall_installOuterReuse();
     return nt && legacy;
 }
 void timantirecall_markIntercepted(NSData *data,NSString *owner) {
@@ -362,8 +361,5 @@ void timantirecall_markIntercepted(NSData *data,NSString *owner) {
         [timantirecall_marks timantirecall_addEvents:events owner:account capturedAt:captured];
         timantirecall_hasEvents=YES;
         timantirecall_refreshRows();
-    });
-}
-freshRows();
     });
 }
