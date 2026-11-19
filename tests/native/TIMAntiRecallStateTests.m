@@ -136,6 +136,3 @@ int main(int argc,const char **argv){@autoreleasepool {
     NSLog(@"PASS %u corrupted-file/symlink/bounds checks",timantirecall_checks);
     return 0;
 }}
- checks",timantirecall_checks);
-    return 0;
-}}
