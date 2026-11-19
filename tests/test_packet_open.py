@@ -45,7 +45,7 @@ class PacketOpenTests(unittest.TestCase):
         source=(ROOT/'Sources/TIMAntiRecallPacket.m').read_text()
         start=source.index('static BOOL timantirecall_packetAttempt')
         body=source[start:source.index('static BOOL timantirecall_packetObserve',start)]
-        self.assertLess(body.index('timantirecall_packetReserve('),body.index('timantirecall_beginPacketOpenWithReceipt('))
+        self.assertLess(body.index('timantirecall_packetReserve('),body.index('timantirecall_beginPacketOpenWithFailure('))
         self.assertIn('timantirecall_packetStillActive(owner,epoch)',body)
         self.assertIn('timantirecall_autoClaimRedPackets',body)
 

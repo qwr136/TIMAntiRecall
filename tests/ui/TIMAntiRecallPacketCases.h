@@ -1,4 +1,5 @@
 #import "TIMAntiRecallPacket.h"
+#import "TIMAntiRecallWalletNativeFixture.h"
 
 @interface OCWalletElement : NSObject
 @property(nonatomic) int32_t msgType;
@@ -16,7 +17,8 @@ static NSUInteger timantirecall_ingressCalls, timantirecall_walletCalls;
 static NSArray *timantirecall_forwardedRecords;
 static OCMsgRecord *timantirecall_walletRecord;
 static NSUInteger timantirecall_openButtonCalls, timantirecall_closeButtonCalls;
-static int timantirecall_receiptMode; // 0=model receipt; 1=no receipt; 2=native error
+static int timantirecall_receiptMode; // 0=model,1=unknown,2=error,3=native success,4=error,5=wrong bill,6=no amount,7=push
+static __weak CFT_UIRedGiftDetailBaseViewController *timantirecall_resultController;
 // Mirror the exact locked binary's weak forwarding boundary, not a direct target.
 @interface WeakProxy : NSObject
 @property(nonatomic,weak) id target;
@@ -28,6 +30,7 @@ static int timantirecall_receiptMode; // 0=model receipt; 1=no receipt; 2=native
 @end
 @interface TIMAntiRecallPacketOpenFixture : NSObject
 @property(nonatomic,strong) UIView *timantirecall_overlay;
+@property(nonatomic,weak) UIViewController *timantirecall_presenter;
 @property(nonatomic,strong) OCWalletElement *timantirecall_wallet;
 @property(nonatomic,strong) NSArray *timantirecall_proxies;
 @property(nonatomic,weak) UIButton *timantirecall_closeButton;
@@ -44,6 +47,29 @@ static int timantirecall_receiptMode; // 0=model receipt; 1=no receipt; 2=native
 }
 - (void)openButtonClick {
     timantirecall_openButtonCalls++;
+    if(timantirecall_receiptMode>=3) {
+        [self.timantirecall_overlay removeFromSuperview];
+        QQWalletPreGrapHBResultViewController *consumer=[QQWalletPreGrapHBResultViewController new];
+        QQWalletGrapHBData *data=[QQWalletGrapHBData new];data.aioData=[QQWalletGrapHBAIOData new];
+        data.aioData.listId=self.timantirecall_wallet.billNo;consumer.grapHBData=data;
+        NSDictionary *response=@{@"state":timantirecall_receiptMode==4?@6:@0,
+            @"recv_object":timantirecall_receiptMode==6?@{}:@{@"amount":@"1"}};
+        NSUInteger forwards=timantirecall_nativeResultForwards;
+        [consumer handleHBGrapResult:response];
+        timantirecall_check(timantirecall_nativeResultForwards==forwards+1 && consumer.grapHBData.grapResultData==response,@"native response hook preserves one consumer and exact dictionary");
+        CFT_UIRedGiftDetailBaseViewController *result=[CFT_UIRedGiftDetailBaseViewController new];
+        result.listid=timantirecall_receiptMode==5?@"wrong-bill":self.timantirecall_wallet.billNo;
+        result.title=@"QQ红包";
+        timantirecall_resultController=result;
+        if(timantirecall_receiptMode==7)[self.timantirecall_presenter.navigationController pushViewController:result animated:NO];
+        else {
+            result.modalPresentationStyle=UIModalPresentationFullScreen;
+            [self.timantirecall_presenter presentViewController:result animated:NO completion:nil];
+        }
+        NSError *error=timantirecall_receiptMode==4?[NSError errorWithDomain:@"native-fixture" code:2 userInfo:nil]:nil;
+        if(self.timantirecall_completion)self.timantirecall_completion(@{},error);
+        return;
+    }
     if(timantirecall_receiptMode!=1)self.timantirecall_wallet.grabbedAmount=1;
     // TIM may rebuild the received page after the open action. Replace the
     // close control to require the production code to find it after receipt.
@@ -81,7 +107,7 @@ static TIMAntiRecallPacketOpenFixture *timantirecall_openFixture;
     timantirecall_check(NSThread.isMainThread && controller.view.window==timantirecall_window,@"native route receives visible controller on main queue");
     timantirecall_walletRecord=record;timantirecall_walletCalls++;
     TIMAntiRecallPacketOpenFixture *fixture=[TIMAntiRecallPacketOpenFixture new];
-    fixture.timantirecall_completion=completion;
+    fixture.timantirecall_completion=completion;fixture.timantirecall_presenter=controller;
     UIView *overlay=[[UIView alloc] initWithFrame:controller.view.bounds];
     fixture.timantirecall_overlay=overlay;
     UIButton *open=[UIButton buttonWithType:UIButtonTypeSystem];open.frame=CGRectMake(80,160,120,80);

@@ -36,7 +36,7 @@ PRODUCTION = (
     "Sources/TIMAntiRecallRuntime.m", "Sources/TIMAntiRecallColdSync.m", "Sources/TIMAntiRecallSettings.m",
     "Sources/TIMAntiRecallStorage.m", "Sources/TIMAntiRecallMarkStore.m",
     "Sources/TIMAntiRecallPreferencesUI.m", "Sources/TIMAntiRecallPreferencesEntry.m",
-    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m", "Sources/TIMAntiRecallPacketOpen.m",
+    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m", "Sources/TIMAntiRecallPacketOpen.m", "Sources/TIMAntiRecallPacketResult.m", "Sources/TIMAntiRecallPacketReceipt.m",
 )
 SWIFT = ("Sources/TIMAntiRecallRecordBridge.swift",
          "tests/ui/TIMAntiRecallSwiftFixture.swift")
@@ -50,6 +50,7 @@ REQUIRED_COVERAGE = {
     "chat-forwarding", "captured-time", "persist-ui", "preferences-entry", "preferences-controls", "preferences-visible",
     "packet-monitor", "packet-open-action", "packet-open-guards",
     "packet-proxy-forwarding", "packet-receipt-close", "packet-close-confirmation", "packet-proxy-rejections", "packet-own-claim",
+    "packet-result-return", "packet-native-response", "packet-queue-batch", "packet-queue-busy", "packet-queue-manual",
 }
 COMMANDS: list[list[str]] = []
 TRANSCRIPT: list[str] = []
