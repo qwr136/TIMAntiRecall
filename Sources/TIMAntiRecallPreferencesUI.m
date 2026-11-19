@@ -17,7 +17,8 @@ static NSArray<NSDictionary *> *timantirecall_optionRows(void) {
              @{@"key":@"persistMarks",@"title":@"重启后保留撤回标记",@"icon":@"externaldrive"},
              @{@"key":@"showTime",@"title":@"标记旁显示拦截时间",@"icon":@"clock"},
              @{@"key":@"packetDiagnostics",@"title":@"红包诊断日志",@"icon":@"doc.text.magnifyingglass"},
-             @{@"key":@"autoClaimRedPackets",@"title":@"自动领取红包",@"icon":@"gift"}];
+             @{@"key":@"autoClaimRedPackets",@"title":@"自动领取红包",@"icon":@"gift"},
+              @{ @"key":@"claimOwnRedPackets",@"title":@"自动领取自己发的红包",@"icon":@"person.crop.circle.badge.checkmark"}];
 }
 static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     BOOL group=[chat[@"kind"] intValue]==2;
@@ -66,7 +67,7 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     NSError *error=[timantirecall_settings() timantirecall_lastError]?:[timantirecall_sharedMarks() timantirecall_lastError];
     if(error)return [@"保存/读取失败：" stringByAppendingString:error.localizedDescription];
     if(self.timantirecall_mode==1)return @"先打开目标聊天即可识别。关闭只放行此聊天之后的撤回；不会删除已经保留的消息。总开关关闭时所有聊天均放行。";
-    if(section==0)return @"自动领取为试用功能，仅在 TIM 前台处理新到的群聊和私聊红包；原生弹窗或二次确认仍由 TIM 处理。两个红包开关均默认关闭。";
+    if(section==0)return @"自动领取仅处理 TIM 前台新到的群聊和私聊红包；领取资格仍由 TIM 原生流程判定。本人发送红包只有同时开启两个领取开关才会尝试；两个领取开关及诊断日志均默认关闭。";
     return @"标记与开关保存在TIM沙盒，仅本机有效，不上传；不恢复TIM已删除的原消息。移除插件不会删除TIM聊天记录。";
 }
 - (void)timantirecall_icon:(NSString *)name cell:(UITableViewCell *)cell {
@@ -103,7 +104,7 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     }else if(path.section==0) {
         NSDictionary *row=timantirecall_optionRows()[(NSUInteger)path.row];NSString *key=row[@"key"];
         cell.textLabel.text=row[@"title"];[self timantirecall_icon:row[@"icon"] cell:cell];
-        BOOL value=path.row==0?enabled:path.row==1?[timantirecall_settings() timantirecall_persistMarks]:path.row==2?[timantirecall_settings() timantirecall_showTime]:path.row==3?[timantirecall_settings() timantirecall_packetDiagnostics]:[timantirecall_settings() timantirecall_autoClaimRedPackets];
+        BOOL value=path.row==0?enabled:path.row==1?[timantirecall_settings() timantirecall_persistMarks]:path.row==2?[timantirecall_settings() timantirecall_showTime]:path.row==3?[timantirecall_settings() timantirecall_packetDiagnostics]:path.row==4?[timantirecall_settings() timantirecall_autoClaimRedPackets]:[timantirecall_settings() timantirecall_claimOwnRedPackets];
         cell.accessoryView=[self timantirecall_switch:key value:(path.row<3||active)&&value enabled:active&&(path.row==0||path.row>=3||enabled) index:path.row];
     }else {
         if(self.timantirecall_chat && path.row==0) {
@@ -135,8 +136,8 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
             NSString *key=timantirecall_optionRows()[(NSUInteger)control.tag][@"key"];
             ok=[timantirecall_settings() timantirecall_updateOptions:@{key:@(control.isOn)} error:&error];
             if(ok && control.tag==1)[timantirecall_sharedMarks() timantirecall_setPersistent:control.isOn];
-        }else if(control.tag==3 || control.tag==4) {
-            NSString *key=control.tag==3?@"diagnostics":@"autoClaim";
+        }else if(control.tag>=3 && control.tag<=5) {
+            NSString *key=@[@"diagnostics",@"autoClaim",@"claimOwn"][(NSUInteger)control.tag-3];
             ok=[timantirecall_settings() timantirecall_setPacketOption:key enabled:control.isOn owner:self.timantirecall_owner error:&error];
         }
     }

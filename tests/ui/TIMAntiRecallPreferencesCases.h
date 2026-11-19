@@ -118,15 +118,17 @@ static void timantirecall_testPreferencesPanel(void) {
         control.on=YES;[control sendActionsForControlEvents:UIControlEventValueChanged];
         timantirecall_check([timantirecall_settings() timantirecall_showTime],@"actual settings switch commits configuration");
         control.on=NO;[control sendActionsForControlEvents:UIControlEventValueChanged];
-        for(NSInteger row=3;row<=4;row++) {
+        for(NSInteger row=3;row<=5;row++) {
             NSIndexPath *path=[NSIndexPath indexPathForRow:row inSection:0];
             [panel.tableView scrollToRowAtIndexPath:path atScrollPosition:UITableViewScrollPositionMiddle animated:NO];
             [panel.tableView layoutIfNeeded];
             UISwitch *packet=(UISwitch *)[panel.tableView cellForRowAtIndexPath:path].accessoryView;
-            NSString *key=row==3?@"packetDiagnostics":@"autoClaimRedPackets";
-            timantirecall_check(packet.window==timantirecall_window && [packet.accessibilityIdentifier isEqual:key] && !packet.isOn,@"packet switch is visible on same panel and defaults off");
+            NSString *key=row==3?@"packetDiagnostics":row==4?@"autoClaimRedPackets":@"claimOwnRedPackets";
+            BOOL value=row==3?[timantirecall_settings() timantirecall_packetDiagnostics]:row==4?[timantirecall_settings() timantirecall_autoClaimRedPackets]:[timantirecall_settings() timantirecall_claimOwnRedPackets];
+            timantirecall_check(packet.window==timantirecall_window && [packet.accessibilityIdentifier isEqual:key] && !packet.isOn,row==5?@"self-sent switch starts disabled":@"packet option starts disabled");
             packet.on=YES;[packet sendActionsForControlEvents:UIControlEventValueChanged];
-            timantirecall_check(row==3?[timantirecall_settings() timantirecall_packetDiagnostics]:[timantirecall_settings() timantirecall_autoClaimRedPackets],@"packet switch commits option");
+            BOOL saved=row==3?[timantirecall_settings() timantirecall_packetDiagnostics]:row==4?[timantirecall_settings() timantirecall_autoClaimRedPackets]:[timantirecall_settings() timantirecall_claimOwnRedPackets];
+            timantirecall_check(saved && !value,@"packet option commits on the same panel");
             packet.on=NO;[packet sendActionsForControlEvents:UIControlEventValueChanged];
         }
         timantirecall_stepDelay=0.4;

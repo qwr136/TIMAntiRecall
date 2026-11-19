@@ -638,6 +638,7 @@ static void timantirecall_start(void) {
         timantirecall_testRecallSettings(root);
         timantirecall_testPreferencesPanel();
         timantirecall_testPacketMonitor();
+        timantirecall_testSelfSentPackets();
         timantirecall_testPacketOpenGuards();
         timantirecall_testReceiptCloseGuards();
         timantirecall_testProxyRejections();

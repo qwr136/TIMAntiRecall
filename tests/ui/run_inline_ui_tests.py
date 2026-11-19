@@ -49,7 +49,7 @@ REQUIRED_COVERAGE = {
     "swift-direct-binding", "legacy-conversion-binding", "push-to-row", "startup-owner",
     "chat-forwarding", "captured-time", "persist-ui", "preferences-entry", "preferences-controls", "preferences-visible",
     "packet-monitor", "packet-open-action", "packet-open-guards",
-    "packet-proxy-forwarding", "packet-receipt-close", "packet-close-confirmation", "packet-proxy-rejections",
+    "packet-proxy-forwarding", "packet-receipt-close", "packet-close-confirmation", "packet-proxy-rejections", "packet-own-claim",
 }
 COMMANDS: list[list[str]] = []
 TRANSCRIPT: list[str] = []

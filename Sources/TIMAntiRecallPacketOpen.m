@@ -23,8 +23,8 @@ BOOL timantirecall_hasPendingPacketUI(void) {return NO;}
 @property(nonatomic,strong) NSMutableSet<NSString *> *timantirecall_logged;
 @property(nonatomic,copy) BOOL (^timantirecall_valid)(void);
 @property(nonatomic,copy) BOOL (^timantirecall_received)(void);
-@property(nonatomic,weak) UIControl *timantirecall_closeControl;
 @property(nonatomic,weak) id timantirecall_openedReceiver;
+
 @property(nonatomic) BOOL timantirecall_opened, timantirecall_dispatching;
 @property(nonatomic) Class timantirecall_service;
 @property(nonatomic) NSTimeInterval timantirecall_deadline;
@@ -143,22 +143,39 @@ static BOOL timantirecall_openVisible(UIControl *control, UIWindow *window) {
     return hit && (hit==control || [hit isDescendantOfView:control]);
 }
 
+static UIControl *timantirecall_findCloseControl(TIMAntiRecallPacketOpenContext *context, BOOL last) {
+    NSArray<UIView *> *views=timantirecall_openViews(context.timantirecall_window);
+    if(!views) {if(last)timantirecall_openLog(context,@"close","tree-incomplete");return nil;}
+    NSUInteger dismissBindings=0,matches=0;UIControl *found=nil;
+    for(UIView *view in views) {
+        if([context.timantirecall_before containsObject:view] || ![view isKindOfClass:UIControl.class])continue;
+        UIControl *control=(UIControl *)view;
+        if(!timantirecall_openVisible(control,context.timantirecall_window))continue;
+        for(id target in control.allTargets)for(NSString *name in [control actionsForTarget:target forControlEvent:UIControlEventTouchUpInside]) {
+            SEL action=NSSelectorFromString(name);if(action!=sel_registerName("dismissView"))continue;
+            dismissBindings++;
+            __attribute__((objc_precise_lifetime)) id receiver=timantirecall_openReceiver(target,action);
+            if(receiver && timantirecall_openWalletAction(target,action,context.timantirecall_service)) {matches++;found=control;}
+        }
+    }
+    if(matches==1 && dismissBindings==1)return found;
+    if(last)timantirecall_openLog(context,@"close",dismissBindings==0?"dismiss-control-not-found":(matches>1 || dismissBindings>1)?"dismiss-control-ambiguous":"dismiss-receiver-or-module-mismatch");
+    return nil;
+}
 static void timantirecall_closeCheck(TIMAntiRecallPacketOpenContext *context, BOOL last) {
     if(!timantirecall_openValid(context)) {if(timantirecall_openContext==context)timantirecall_openContext=nil;return;}
     if(!context.timantirecall_received || !context.timantirecall_received()) {
         if(last) {timantirecall_openLog(context,@"close","skipped-receipt-unconfirmed");timantirecall_openContext=nil;}
         return;
     }
-    UIControl *control=context.timantirecall_closeControl;
-    if(!control) {timantirecall_openLog(context,@"close","skipped-no-unique-control");timantirecall_openContext=nil;return;}
-    if(!control.window) {timantirecall_openLog(context,@"close","owned-view-already-gone");timantirecall_openContext=nil;return;}
-    if(!timantirecall_openVisible(control,context.timantirecall_window))return;
+    UIControl *control=timantirecall_findCloseControl(context,last);
+    if(!control) {if(last)timantirecall_openContext=nil;return;}
     NSUInteger count=0;id selected=nil;SEL action=NULL;
     for(id target in control.allTargets)for(NSString *name in [control actionsForTarget:target forControlEvent:UIControlEventTouchUpInside]) {
         count++;selected=target;action=NSSelectorFromString(name);
     }
     __attribute__((objc_precise_lifetime)) id receiver=timantirecall_openReceiver(selected,action);
-    if(count!=1 || action!=sel_registerName("dismissView") || !receiver || receiver!=context.timantirecall_openedReceiver ||
+    if(count!=1 || action!=sel_registerName("dismissView") || !receiver ||
        !timantirecall_openWalletAction(selected,action,context.timantirecall_service)) {
         if(last){timantirecall_openLog(context,@"close","skipped-binding-changed");timantirecall_openContext=nil;}
         return;
@@ -171,9 +188,9 @@ static void timantirecall_closeCheck(TIMAntiRecallPacketOpenContext *context, BO
 }
 static void timantirecall_scheduleClose(TIMAntiRecallPacketOpenContext *context) {
     if(!context.timantirecall_received) {timantirecall_openContext=nil;return;}
-    const double delays[]={0.3,0.7,1.4,2.8,5.5,9.5};
-    for(unsigned i=0;i<6;i++) {
-        BOOL last=i==5;
+    const double delays[]={0.12,0.25,0.5,0.9,1.6,2.8,5.0,8.0};
+    for(unsigned i=0;i<8;i++) {
+        BOOL last=i==7;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(delays[i]*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
             @try {if(timantirecall_openContext==context)timantirecall_closeCheck(context,last);}
             @catch(__unused NSException *exception) {if(timantirecall_openContext==context)timantirecall_openContext=nil;}
@@ -187,8 +204,6 @@ static void timantirecall_openScan(TIMAntiRecallPacketOpenContext *context, BOOL
     if(!views) {timantirecall_openLog(context,@"scan","tree-limit");return;}
     if(context.timantirecall_opened)return;
     UIControl *candidate=nil;id candidateReceiver=nil;
-    NSMutableArray<UIControl *> *closers=[NSMutableArray array];
-    NSMutableArray *closeReceivers=[NSMutableArray array];
     for(UIView *view in views) {
         if(![view isKindOfClass:UIControl.class] || [context.timantirecall_before containsObject:view])continue;
         UIControl *control=(UIControl *)view;
@@ -204,7 +219,7 @@ static void timantirecall_openScan(TIMAntiRecallPacketOpenContext *context, BOOL
         if(bindings!=1)continue;
         id receiver=timantirecall_openReceiver(selectedTarget,selectedAction);
         if(!receiver || !timantirecall_openWalletAction(selectedTarget,selectedAction,context.timantirecall_service))continue;
-        if(selectedAction==sel_registerName("dismissView")) { [closers addObject:control];[closeReceivers addObject:receiver];continue; }
+        if(selectedAction==sel_registerName("dismissView"))continue;
         // This exact image-button binding was observed in the user's TIM trace.
         BOOL observedProxyOpen=selectedAction==sel_registerName("openButtonClick") && receiver!=selectedTarget &&
             object_getClass(selectedTarget)==objc_getClass("WeakProxy");
@@ -216,12 +231,7 @@ static void timantirecall_openScan(TIMAntiRecallPacketOpenContext *context, BOOL
         // Exactly one native control event. Never guess a private selector,
         // synthesize a touch, drive a payment prompt, or click twice.
         __attribute__((objc_precise_lifetime)) id keepReceiver=candidateReceiver;
-        context.timantirecall_openedReceiver=keepReceiver;
-        NSUInteger closeCount=0;
-        for(NSUInteger i=0;i<closers.count;i++)if(closeReceivers[i]==keepReceiver) {
-            closeCount++;context.timantirecall_closeControl=closers[i];
-        }
-        if(closeCount!=1)context.timantirecall_closeControl=nil;
+        if(!keepReceiver)return;
         context.timantirecall_opened=YES;context.timantirecall_dispatching=YES;
         timantirecall_openLog(context,@"button","dispatched");
         @try { [candidate sendActionsForControlEvents:UIControlEventTouchUpInside]; }
@@ -280,9 +290,9 @@ void timantirecall_beginPacketOpenWithReceipt(id presenter, Class walletService,
     context.timantirecall_logged=[NSMutableSet set];context.timantirecall_serial=++timantirecall_openSerial;
     timantirecall_openContext=context;
     timantirecall_openLog(context,@"button","armed");
-    const double delays[]={0.15,0.4,0.8,1.4,2.4,4.0};
-    for(unsigned index=0;index<6;index++) {
-        BOOL last=index==5;
+    const double delays[]={0.08,0.18,0.32,0.52,0.8,1.2,1.8,2.8};
+    for(unsigned index=0;index<8;index++) {
+        BOOL last=index==7;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(delays[index]*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
             @try {if(timantirecall_openContext==context)timantirecall_openScan(context,last);}
             @catch(__unused NSException *exception) {

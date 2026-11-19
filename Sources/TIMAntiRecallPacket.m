@@ -106,7 +106,7 @@ static Method timantirecall_packetRoute(Class router, SEL handle) {
         !timantirecall_methodTypes(class_getInstanceMethod(model, sel_registerName("initWithOCMsgRecord:")), "@", 3, initTypes)) return NULL;
     return route;
 }
-static BOOL timantirecall_packetAttempt(id record, id wallet, NSString *owner, unsigned epoch, BOOL autoClaim, BOOL diagnose) {
+static BOOL timantirecall_packetAttempt(id record, id wallet, NSString *owner, unsigned epoch, BOOL autoClaim, BOOL claimOwn, BOOL isOwn, BOOL diagnose) {
     Class router = objc_getClass("NTRedPackRouterService");
     SEL handle = sel_registerName("handleRedPackViewClickWithRootVC:msgRecord:gesture:completion:");
     Method route = timantirecall_packetRoute(router, handle);
@@ -127,7 +127,7 @@ static BOOL timantirecall_packetAttempt(id record, id wallet, NSString *owner, u
     NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
     UIViewController *presenter = timantirecall_packetPresenter();
     if (!presenter || timantirecall_hasPendingPacketUI() || now < timantirecall_packetBusyUntil || !timantirecall_packetStillActive(owner, epoch) ||
-        ![timantirecall_settings() timantirecall_autoClaimRedPackets]) return NO;
+        ![timantirecall_settings() timantirecall_autoClaimRedPackets] || (isOwn && (!claimOwn || ![timantirecall_settings() timantirecall_claimOwnRedPackets]))) return NO;
     if (!timantirecall_packetReserve(owner, timantirecall_packetObject(wallet, sel_registerName("billNo")), now)) return NO;
     timantirecall_packetBusyUntil = now + 15;
     NSUInteger serial = ++timantirecall_packetSerial;
@@ -148,18 +148,21 @@ static BOOL timantirecall_packetAttempt(id record, id wallet, NSString *owner, u
         });
     };
     timantirecall_beginPacketOpenWithReceipt(presenter,objc_getClass("QQWalletRedPacketMsgService"),^BOOL(void){
-        return timantirecall_packetStillActive(owner,epoch) && [timantirecall_settings() timantirecall_autoClaimRedPackets];
+        return timantirecall_packetStillActive(owner,epoch) && [timantirecall_settings() timantirecall_autoClaimRedPackets] &&
+            (!isOwn || [timantirecall_settings() timantirecall_claimOwnRedPackets]);
     },^BOOL(void){
         // Same native wallet record must transition from no receipt to a positive
         // received amount. Never invent grabState enums or treat a callback as credit.
         IMP getter=timantirecall_packetGetter(wallet,amountSelector,"Q");
-        return !nativeFailure && initialAmount==0 && getter && ((uint64_t(*)(id,SEL))getter)(wallet,amountSelector)>0;
+        return !nativeFailure && initialAmount==0 && getter && ((uint64_t(*)(id,SEL))getter)(wallet,amountSelector)>0 &&
+            timantirecall_packetStillActive(owner,epoch) && [timantirecall_settings() timantirecall_autoClaimRedPackets] &&
+            (!isOwn || [timantirecall_settings() timantirecall_claimOwnRedPackets]);
     });
     ((TIMAntiRecallPacketRoute)method_getImplementation(route))(router, handle, presenter, record, nil, completion);
     return YES;
 }
 
-static BOOL timantirecall_packetObserve(id record, NSString *owner, unsigned epoch, BOOL autoClaim, BOOL diagnose) {
+static BOOL timantirecall_packetObserve(id record, NSString *owner, unsigned epoch, BOOL autoClaim, BOOL claimOwn, BOOL diagnose) {
     Class recordClass = objc_getClass("OCMsgRecord");
     Class elementClass = objc_getClass("OCMsgElement"), walletClass = objc_getClass("OCWalletElement");
     if (!recordClass || !elementClass || !walletClass || ![record isKindOfClass:recordClass]) return NO;
@@ -178,8 +181,10 @@ static BOOL timantirecall_packetObserve(id record, NSString *owner, unsigned epo
     }
     if (!wallet) return NO;
     NSDictionary *identity = timantirecall_recordIdentity(record, owner);
-    if (!identity || [identity[@"author"] isEqual:owner]) return NO;
-    if (diagnose) timantirecall_traceEvent(chat == 1 ? @"redpack-private-observed" : @"redpack-group-observed");
+    if (!identity) return NO;
+    BOOL own = [identity[@"author"] isEqual:owner];
+    if (own && !claimOwn) {if (diagnose) timantirecall_traceEvent(@"redpack-own-sender-skipped");return NO;}
+    if (diagnose) timantirecall_traceEvent(own ? @"redpack-own-sender-enabled" : (chat == 1 ? @"redpack-private-observed" : @"redpack-group-observed"));
     NSTimeInterval age = NSDate.date.timeIntervalSince1970 - [identity[@"time"] doubleValue];
     BOOL fresh = age >= -4 && age <= 30 &&
         timantirecall_packetFlag(record, sel_registerName("isOnlineMsg"), YES) &&
@@ -188,18 +193,19 @@ static BOOL timantirecall_packetObserve(id record, NSString *owner, unsigned epo
         if (diagnose) timantirecall_traceEvent(@"redpack-not-confirmed-live");
         return NO;
     }
-    return timantirecall_packetAttempt(record, wallet, owner, epoch, autoClaim, diagnose);
+    return timantirecall_packetAttempt(record, wallet, owner, epoch, autoClaim, claimOwn, own, diagnose);
 }
 
 static void timantirecall_packetReceive(id target, SEL selector, NSArray *records) {
     TIMAntiRecallPacketIngress original = (TIMAntiRecallPacketIngress)atomic_load(&timantirecall_packetOriginal);
     unsigned epoch = atomic_load(&timantirecall_packetEpoch);
     NSString *owner = nil;
-    BOOL autoClaim = NO, diagnose = NO;
+    BOOL autoClaim = NO, claimOwn = NO, diagnose = NO;
     if (epoch & 1) {
         @try {
             owner = timantirecall_currentAccount();
             autoClaim = owner && [timantirecall_settings() timantirecall_autoClaimRedPackets];
+            claimOwn = autoClaim && [timantirecall_settings() timantirecall_claimOwnRedPackets];
             diagnose = owner && [timantirecall_settings() timantirecall_packetDiagnostics];
         } @catch (__unused NSException *exception) {
             autoClaim = diagnose = NO;
@@ -224,10 +230,11 @@ static void timantirecall_packetReceive(id target, SEL selector, NSArray *record
         @try {
             if (!timantirecall_packetStillActive(owner, epoch)) return;
             BOOL claim = autoClaim && [timantirecall_settings() timantirecall_autoClaimRedPackets];
+            BOOL allowOwn = claim && claimOwn && [timantirecall_settings() timantirecall_claimOwnRedPackets];
             BOOL log = diagnose && [timantirecall_settings() timantirecall_packetDiagnostics];
             if (!log && !claim) return;
             for (id record in snapshot)
-                if (timantirecall_packetObserve(record, owner, epoch, claim, log)) claim = NO;
+                if (timantirecall_packetObserve(record, owner, epoch, claim, allowOwn, log)) claim = NO;
         } @catch (__unused NSException *exception) {
             // Private observer or presentation failures must not interrupt delivery.
             timantirecall_traceEvent(@"redpack-native-route-aborted");

@@ -42,12 +42,14 @@ int main(int argc,const char **argv){@autoreleasepool {
     QQAccountsManager.GetInstance.currentUid=@"owner";
     if([mode isEqual:@"seed"]){
         CHECK([settings timantirecall_enabled] && [settings timantirecall_persistMarks] && ![settings timantirecall_showTime]);
-        CHECK(![settings timantirecall_autoClaimRedPackets] && ![settings timantirecall_packetDiagnostics]);
+        CHECK(![settings timantirecall_autoClaimRedPackets] && ![settings timantirecall_packetDiagnostics] && ![settings timantirecall_claimOwnRedPackets]);
         CHECK(![NSFileManager.defaultManager fileExistsAtPath:settingsURL.path]);
         CHECK([settings timantirecall_setPacketOption:@"diagnostics" enabled:YES owner:@"owner" error:&error]);
         CHECK([settings timantirecall_packetDiagnostics] && ![settings timantirecall_autoClaimRedPackets]);
         CHECK([settings timantirecall_setPacketOption:@"autoClaim" enabled:YES owner:@"owner" error:&error]);
         CHECK([settings timantirecall_autoClaimRedPackets]);
+        CHECK([settings timantirecall_setPacketOption:@"claimOwn" enabled:YES owner:@"owner" error:&error]);
+        CHECK([settings timantirecall_claimOwnRedPackets]);
         CHECK([settings timantirecall_setChat:timantirecall_private() enabled:NO error:&error]);CHECK(!error);
         CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(NO,YES) owner:@"owner"]);
         CHECK([settings timantirecall_shouldBlockData:timantirecall_packet(NO,YES) owner:@"other"]);
@@ -74,9 +76,9 @@ int main(int argc,const char **argv){@autoreleasepool {
     }
     if([mode isEqual:@"restore"]){
         CHECK(![settings timantirecall_lastError] && ![store timantirecall_lastError]);
-        CHECK([settings timantirecall_autoClaimRedPackets] && [settings timantirecall_packetDiagnostics]);
+        CHECK([settings timantirecall_autoClaimRedPackets] && [settings timantirecall_packetDiagnostics] && [settings timantirecall_claimOwnRedPackets]);
         QQAccountsManager.GetInstance.currentUid=@"other";
-        CHECK(![settings timantirecall_autoClaimRedPackets] && ![settings timantirecall_packetDiagnostics]);
+        CHECK(![settings timantirecall_autoClaimRedPackets] && ![settings timantirecall_packetDiagnostics] && ![settings timantirecall_claimOwnRedPackets]);
         CHECK(![settings timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:@"owner" error:&error]);
         QQAccountsManager.GetInstance.currentUid=@"owner";
         CHECK([settings timantirecall_autoClaimRedPackets]);
@@ -132,5 +134,8 @@ int main(int argc,const char **argv){@autoreleasepool {
     CHECK([memory timantirecall_eventsForOwner:@"owner"].count==4096);
     CHECK(![memory timantirecall_containsIdentity:@{@"owner":@"owner",@"kind":@2,@"group":@99,@"seq":@1,@"author":@"member"}]);
     NSLog(@"PASS %u corrupted-file/symlink/bounds checks",timantirecall_checks);
+    return 0;
+}}
+ checks",timantirecall_checks);
     return 0;
 }}

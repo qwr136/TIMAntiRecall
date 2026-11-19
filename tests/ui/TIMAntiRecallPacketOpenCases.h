@@ -73,6 +73,41 @@ static void timantirecall_testReceiptCloseGuards(void) {
     timantirecall_step(^{[timantirecall_coverage addObject:@"packet-close-confirmation"];});
 }
 
+static OCMsgRecord *timantirecall_selfSentPacket(int chat,int64_t sequence,int32_t type,NSString *bill) {
+    OCMsgRecord *record=timantirecall_testPacket(chat,sequence,type,bill);record.senderUid=@"self_uid";return record;
+}
+static void timantirecall_testSelfSentPackets(void) {
+    __block NSUInteger walletBefore,openBefore,closeBefore;
+    timantirecall_step(^{
+        walletBefore=timantirecall_walletCalls;openBefore=timantirecall_openButtonCalls;closeBefore=timantirecall_closeButtonCalls;
+        QQAccountsManager.GetInstance.currentUid=@"self_uid";
+        [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:YES owner:@"self_uid" error:NULL];
+        [timantirecall_settings() timantirecall_setPacketOption:@"claimOwn" enabled:NO owner:@"self_uid" error:NULL];
+        timantirecall_check(![timantirecall_settings() timantirecall_claimOwnRedPackets],@"self-sent claims require explicit separate opt-in");
+        [NTMsgPushMonitorService recvMsgsWithRecords:@[timantirecall_selfSentPacket(1,8301,2,@"self-off")]];
+        timantirecall_stepDelay=0.45;
+    });
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_walletCalls==walletBefore,@"self-sent private packet remains skipped while opt-out");
+        [timantirecall_settings() timantirecall_setPacketOption:@"claimOwn" enabled:YES owner:@"self_uid" error:NULL];
+        [NTMsgPushMonitorService recvMsgsWithRecords:@[timantirecall_selfSentPacket(1,8302,2,@"self-private-on")]];
+        timantirecall_stepDelay=1.6;
+    });
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_walletCalls==walletBefore+1,@"own private packet routes only after separate switch is enabled");
+        timantirecall_check(timantirecall_openButtonCalls==openBefore+1 && timantirecall_closeButtonCalls==closeBefore+1,@"own private receipt opens once then closes its replacement control");
+        [NTMsgPushMonitorService recvMsgsWithRecords:@[timantirecall_selfSentPacket(2,8303,3,@"self-group-on")]];
+        timantirecall_stepDelay=1.6;
+    });
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_walletCalls==walletBefore+2,@"own group packet routes with separate opt-in");
+        timantirecall_check(timantirecall_openButtonCalls==openBefore+2 && timantirecall_closeButtonCalls==closeBefore+2,@"own group receipt closes the newly discovered close control");
+        [timantirecall_settings() timantirecall_setPacketOption:@"claimOwn" enabled:NO owner:@"self_uid" error:NULL];
+        [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:@"self_uid" error:NULL];
+    });
+    timantirecall_step(^{[timantirecall_coverage addObject:@"packet-own-claim"];});
+}
+
 @interface TIMAntiRecallBadProxyTarget : NSObject
 - (BOOL)openButtonClick;
 @end
@@ -93,7 +128,7 @@ static void timantirecall_testProxyRejections(void) {
             button=[UIButton buttonWithType:UIButtonTypeSystem];button.frame=CGRectMake(80,140,120,70);
             [button addTarget:proxy action:@selector(openButtonClick) forControlEvents:UIControlEventTouchUpInside];
             [timantirecall_window.rootViewController.view addSubview:button];
-            timantirecall_stepDelay=0.45;
+        timantirecall_stepDelay=0.6;
         });
         timantirecall_step(^{
             timantirecall_check(timantirecall_openButtonCalls==before,kind.boolValue?@"proxy dummy void signature cannot hide actual BOOL action ABI":@"expired weak proxy receiver is not messaged");

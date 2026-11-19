@@ -45,6 +45,13 @@ static int timantirecall_receiptMode; // 0=model receipt; 1=no receipt; 2=native
 - (void)openButtonClick {
     timantirecall_openButtonCalls++;
     if(timantirecall_receiptMode!=1)self.timantirecall_wallet.grabbedAmount=1;
+    // TIM may rebuild the received page after the open action. Replace the
+    // close control to require the production code to find it after receipt.
+    [self.timantirecall_closeButton removeFromSuperview];
+    UIButton *replacement=[UIButton buttonWithType:UIButtonTypeSystem];replacement.frame=CGRectMake(80,300,120,60);
+    [replacement setTitle:@"×" forState:UIControlStateNormal];
+    [replacement addTarget:self.timantirecall_proxies[1] action:@selector(dismissView) forControlEvents:UIControlEventTouchUpInside];
+    [self.timantirecall_overlay addSubview:replacement];self.timantirecall_closeButton=replacement;
     NSError *error=timantirecall_receiptMode==2?[NSError errorWithDomain:@"native-fixture" code:1 userInfo:nil]:nil;
     if(self.timantirecall_completion)self.timantirecall_completion(@{},error);
 }
@@ -118,7 +125,7 @@ static void timantirecall_testPacketMonitor(void) {
     timantirecall_step(^{
         QQAccountsManager.GetInstance.currentUid=owner;
         timantirecall_check(timantirecall_installPacketMonitor()&&timantirecall_installPacketMonitor(),@"packet monitor verifies/hook installs once");
-        timantirecall_check(![timantirecall_settings() timantirecall_autoClaimRedPackets],@"packet opt-in starts off");
+        timantirecall_check(![timantirecall_settings() timantirecall_autoClaimRedPackets] && ![timantirecall_settings() timantirecall_claimOwnRedPackets],@"claim and own-sent options start off");
         privatePacket=timantirecall_testPacket(1,8101,2,@"fixture-private");
         groupPacket=timantirecall_testPacket(2,8102,3,@"fixture-group");
         timantirecall_check([timantirecall_settings() timantirecall_setPacketOption:@"diagnostics" enabled:YES owner:owner error:NULL],@"packet diagnostics opt-in persists");

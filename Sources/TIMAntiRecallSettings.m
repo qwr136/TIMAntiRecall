@@ -90,7 +90,7 @@ static NSString *timantirecall_accountScope(NSDictionary *chat) {
         id options=packetAccounts[owner];
         if(!timantirecall_validUID(owner) || ![options isKindOfClass:NSDictionary.class])return NO;
         for(id key in options)
-            if(![@[@"autoClaim",@"diagnostics"] containsObject:key] || !timantirecall_boolean(options[key]))return NO;
+            if(![@[@"autoClaim",@"diagnostics",@"claimOwn"] containsObject:key] || !timantirecall_boolean(options[key]))return NO;
     }
     id chats=state[@"chats"]?:@[];
     if(![chats isKindOfClass:NSArray.class]||[chats count]>1024)return NO;
@@ -114,10 +114,11 @@ static NSString *timantirecall_accountScope(NSDictionary *chat) {
     }
 }
 - (BOOL)timantirecall_autoClaimRedPackets {return [self timantirecall_packetOption:@"autoClaim"];}
+- (BOOL)timantirecall_claimOwnRedPackets {return [self timantirecall_packetOption:@"claimOwn"];}
 - (BOOL)timantirecall_packetDiagnostics {return [self timantirecall_packetOption:@"diagnostics"];}
 - (BOOL)timantirecall_setPacketOption:(NSString *)key enabled:(BOOL)enabled owner:(NSString *)owner error:(NSError **)error {
     if(!timantirecall_validUID(owner) || ![owner isEqual:timantirecall_currentAccount()] ||
-       ![@[@"autoClaim",@"diagnostics"] containsObject:key]) {
+       ![@[@"autoClaim",@"diagnostics",@"claimOwn"] containsObject:key]) {
         if(error)*error=timantirecall_storageError(@"账号已变化或设置项无效");return NO;
     }
     @synchronized(self) {
