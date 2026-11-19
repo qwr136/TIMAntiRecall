@@ -354,11 +354,18 @@ void timantirecall_markIntercepted(NSData *data,NSString *owner) {
     if(!events.count || !owner.length)return;
     NSString *account=[owner copy];
     NSTimeInterval captured=NSDate.date.timeIntervalSince1970;
+    // The push is dropped immediately afterward. Commit the identity mark here,
+    // not on the UI queue, so process termination cannot outrun main-thread I/O.
+    TIMAntiRecallMarkStore *store=timantirecall_sharedMarks();
+    [store timantirecall_addEvents:events owner:account capturedAt:captured];
+    if([timantirecall_settings() timantirecall_persistMarks]) {
+        NSError *error=nil;
+        if(![store timantirecall_flush:&error])timantirecall_bootstrapEvent("recall-mark-persist-failed");
+    }
     dispatch_async(dispatch_get_main_queue(),^{
         timantirecall_installInlineIndicator();
         timantirecall_setupMarks();
         if(![timantirecall_currentAccount() isEqual:account])return;
-        [timantirecall_marks timantirecall_addEvents:events owner:account capturedAt:captured];
         timantirecall_hasEvents=YES;
         timantirecall_refreshRows();
     });

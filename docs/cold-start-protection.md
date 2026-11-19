@@ -16,7 +16,10 @@ Startup verifies the exact target executable UUID first, loads persisted identit
 
 The screenshots establish the user-visible before/after behavior, not which of these internal paths ran. Static C++ call-site analysis shows the special recall update path finds a record and updates/converts it; it does not yet prove a final database commit/rollback boundary. No device trace is available. Do not claim complete cold-start protection unless the real-device 5/6/10-minute repro succeeds, including text and image, after a true process termination.
 
-## Required gates and limits
+## Current persistence adjustment
+
+The pre-kernel interception path now adds the normalized event to the mark store and waits for the serial atomic-write queue to finish before returning, when mark persistence is enabled. This closes the local queued-write window between dropping the realtime push and process termination. It does **not** establish that TIM's cold-sync database worker traverses `setRecallTime:`; the native replace/delete path remains a separate unresolved boundary, and fast force-reopen must still be tested on the target device.
+
 
 The branch adds macOS ABI double tests for exact marked private/group identity suppression, mismatched chat/owner pass-through, and zero recall-time forwarding. UIKit test app compiles the actual protection file and invokes it after a true different-PID simulator relaunch before any new push. Existing 1.00 state persistence/source tests remain. CI success only proves the method hook and simulated identity logic; it does not prove that TIM's production C++ sync calls that method or that original content remains visible on device.
 

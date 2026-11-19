@@ -209,7 +209,27 @@ BOOL timantirecall_recallEventMatchesIdentity(NSDictionary *event,NSDictionary *
     }
     return nil;
 }
-- (BOOL)timantirecall_containsIdentity:(NSDictionary *)identity {return [self timantirecall_eventForIdentity:identity]!=nil;}
+- (BOOL)timantirecall_containsIdentity:(NSDictionary *)identity {
+    if(![identity isKindOfClass:NSDictionary.class])return NO;
+    NSDictionary *binding=timantirecall_recordBinding(identity);
+    if(!binding)return NO;
+    @synchronized(self) {
+        for(NSUInteger index=self.timantirecall_events.count;index>0;index--) {
+            NSDictionary *event=self.timantirecall_events[index-1];
+            if(!timantirecall_recallEventMatchesIdentity(event,identity))continue;
+            NSDictionary *stored=event[@"binding"];
+            // Display ambiguity suppresses only the red frame. Cold-sync
+            // protection remains valid when this exact message was already pinned.
+            if(stored)return [stored isEqual:binding];
+            if([event[@"displayAmbiguous"] boolValue])return NO;
+            NSMutableDictionary *pinned=event.mutableCopy;pinned[@"binding"]=binding;
+            self.timantirecall_events[index-1]=pinned.copy;
+            if(self.timantirecall_persistent)[self timantirecall_scheduleWrite];
+            return YES;
+        }
+    }
+    return NO;
+}
 - (NSArray<NSDictionary *> *)timantirecall_eventsForOwner:(NSString *)owner {
     @synchronized(self){
         NSMutableArray *result=[NSMutableArray array];

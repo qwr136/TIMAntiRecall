@@ -29,6 +29,13 @@ int main(void){@autoreleasepool {
     CHECK(timantirecall_installColdRecallProtection());
     CHECK(timantirecall_installColdRecallProtection());
     OCMsgRecord *marked=[OCMsgRecord new];marked.chatType=1;marked.msgId=9001;marked.msgSeq=42;marked.msgRandom=123;marked.msgTime=1700000000;marked.peerUid=@"peer_uid";marked.senderUid=@"peer_uid";
+    NSDictionary *markedIdentity=timantirecall_recordIdentity(marked,owner);
+    NSDictionary *matchedEvent=[store timantirecall_eventForIdentity:markedIdentity];
+    CHECK(matchedEvent!=nil);
+    [store timantirecall_suppressDisplayForEvent:matchedEvent];
+    CHECK([store timantirecall_flush:&flushError]&&!flushError);
+    CHECK([store timantirecall_eventForIdentity:markedIdentity]==nil);
+    CHECK([store timantirecall_containsIdentity:markedIdentity]);
     [marked setRecallTime:1700000000];
     CHECK(marked.recallTime==0 && marked.setterCalls==0);
     NSDictionary *groupEvent=@{@"kind":@2,@"group":@5566,@"seq":@77,@"author":@"member_uid"};

@@ -433,6 +433,11 @@ static void timantirecall_testPushToRow(UIView *root) {
         [session onMsfPush:@"trpc.msg.olpush.OlPushService.MsgPush"
                 msgBuffer:timantirecall_private(@"peer_a",@"self_uid",951) pushExtraInfo:extra];
         timantirecall_check(session.timantirecall_pushCalls==1,@"recognized recall is intercepted before original consumer");
+        NSDictionary *targetIdentity=timantirecall_recordIdentity(timantirecall_record(1,951,@"peer_a",0),@"self_uid");
+        TIMAntiRecallMarkStore *diskReload=[[TIMAntiRecallMarkStore alloc]
+            initWithURL:timantirecall_stateURL(@"marks.plist") persistent:YES];
+        timantirecall_check([diskReload timantirecall_eventForIdentity:targetIdentity]!=nil,
+                           @"intercept identity is readable from a fresh store before push hook returns");
     });
     timantirecall_step(^{
         timantirecall_count(row,1,@"actual push hook/session owner/Wire/Swift/current row produce indicator");

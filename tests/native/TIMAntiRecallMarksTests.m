@@ -68,6 +68,7 @@ static void timantirecall_testRowIsolation(void) {
     NSDictionary *ambiguousStored=[[collisionStore timantirecall_eventsForOwner:@"owner"] firstObject];
     CHECK([ambiguousStored[@"displayAmbiguous"] boolValue]);
     CHECK([collisionStore timantirecall_eventForIdentity:same]==nil);
+    CHECK([collisionStore timantirecall_containsIdentity:same]);
     [collisionStore timantirecall_addEvents:@[@{@"kind":@1,@"seq":@501,@"from":@"owner",@"to":@"peer"}] owner:@"owner"];
     CHECK([collisionStore timantirecall_eventForIdentity:same]==nil);
 }
