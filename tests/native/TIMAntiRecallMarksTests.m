@@ -1,4 +1,3 @@
-#import "TIMAntiRecallRules.h"
 #import <Foundation/Foundation.h>
 #import <objc/message.h>
 #import "TIMAntiRecallMarks.h"
@@ -37,7 +36,7 @@ static Class timantirecall_sessionFixture(const char *name,const char *encoding)
     class_addMethod(cls,sel_registerName("close:"),(IMP)timantirecall_fixtureClose,"v24@0:8@16");
     objc_registerClassPair(cls);return cls;
 }
-static void timantirecall_testRowIsolationAndRules(void) {
+static void timantirecall_testRowIsolation(void) {
     for(int kind=1;kind<=2;kind++) {
         TIMAntiRecallMarkStore *store=[TIMAntiRecallMarkStore new];
         NSDictionary *last=nil;
@@ -55,16 +54,10 @@ static void timantirecall_testRowIsolationAndRules(void) {
         CHECK(![store timantirecall_containsIdentity:fourth]);
         fourth[@"seq"]=@103;CHECK(![store timantirecall_containsIdentity:fourth]);
         CHECK([store timantirecall_containsIdentity:last]);
-        NSDictionary *policy=@{@"replyEnabled":@YES,@"replyAllChats":@YES,@"replyKeywords":@[@"hello"],@"replyText":@"收到",
-            @"filterEnabled":@YES,@"filterAllChats":@YES,@"filterKeywords":@[@"HELLO"]};
-        CHECK(timantirecall_rulesMatchChat(policy,last,NO) && timantirecall_rulesHideText(policy,@"Hello"));
-        CHECK([timantirecall_rulesReply(policy,last,@"Hello",NO,720) isEqual:@"收到"]);
-        NSMutableDictionary *disabled=policy.mutableCopy;disabled[@"replyEnabled"]=@NO;
-        CHECK(!timantirecall_rulesReply(disabled,last,@"Hello",NO,720) && timantirecall_rulesHideText(disabled,@"Hello"));
     }
 }
 int main(void) {
-    @autoreleasepool {timantirecall_testRowIsolationAndRules();}
+    @autoreleasepool {timantirecall_testRowIsolation();}
  @autoreleasepool {
     NSString *owner=@"self_uid";
     QQAccountsManager.GetInstance.currentUid=owner;

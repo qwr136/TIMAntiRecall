@@ -35,7 +35,6 @@ PRODUCTION = (
     "Sources/TIMAntiRecallSession.m", "Sources/TIMAntiRecallLegacy.m",
     "Sources/TIMAntiRecallRuntime.m", "Sources/TIMAntiRecallColdSync.m", "Sources/TIMAntiRecallSettings.m",
     "Sources/TIMAntiRecallStorage.m", "Sources/TIMAntiRecallMarkStore.m",
-    "Sources/TIMAntiRecallAutomationText.m", "Sources/TIMAntiRecallRules.m",
     "Sources/TIMAntiRecallPreferencesUI.m", "Sources/TIMAntiRecallPreferencesEntry.m",
 )
 SWIFT = ("Sources/TIMAntiRecallRecordBridge.swift",
