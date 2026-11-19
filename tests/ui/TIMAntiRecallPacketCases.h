@@ -106,6 +106,11 @@ static TIMAntiRecallPacketOpenFixture *timantirecall_openFixture;
 + (void)grabRedPackWithMsgRecord:(OCMsgRecord *)record rootVC:(UIViewController *)controller completion:(void (^)(NSDictionary *, NSError *))completion {
     timantirecall_check(NSThread.isMainThread && controller.view.window==timantirecall_window,@"native route receives visible controller on main queue");
     timantirecall_walletRecord=record;timantirecall_walletCalls++;
+    if(timantirecall_receiptMode==8) {
+        timantirecall_receiptMode=0;
+        if(completion)completion(nil,[NSError errorWithDomain:@"native-fixture" code:-1001 userInfo:nil]);
+        return;
+    }
     TIMAntiRecallPacketOpenFixture *fixture=[TIMAntiRecallPacketOpenFixture new];
     fixture.timantirecall_completion=completion;fixture.timantirecall_presenter=controller;
     UIView *overlay=[[UIView alloc] initWithFrame:controller.view.bounds];

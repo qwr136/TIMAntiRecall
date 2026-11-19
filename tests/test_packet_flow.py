@@ -38,6 +38,14 @@ class PacketFlowTests(unittest.TestCase):
         self.assertIn('skipped-native-error',flow)
         self.assertIn('native-result-page-not-ready',flow)
         self.assertIn('BOOL native=[context.timantirecall_nativeReceipt timantirecall_confirmed]',flow)
+    def test_route_error_without_page_releases_pending_lock(self):
+        source=(ROOT/'Sources/TIMAntiRecallPacketOpen.m').read_text()
+        for token in ('error-without-page','!timantirecall_openOwnsPage(context)',
+                      '[context.timantirecall_result timantirecall_originRestored]','if(!newVisible)'):
+            self.assertIn(token,source)
+        cases=(ROOT/'tests/ui/TIMAntiRecallPacketFlowCases.h').read_text()
+        self.assertIn('route error without UI releases lock and second packet still routes once',cases)
+        self.assertIn('failed first packet is not retried',cases)
     def test_uikit_requires_real_result_and_burst_regressions(self):
         driver=(ROOT/'tests/ui/run_inline_ui_tests.py').read_text()
         for token in ('Sources/TIMAntiRecallPacketReceipt.m','Sources/TIMAntiRecallPacketResult.m',

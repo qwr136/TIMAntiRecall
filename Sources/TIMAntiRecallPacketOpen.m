@@ -318,6 +318,15 @@ static BOOL timantirecall_installOpenObserver(void) {
 }
 BOOL timantirecall_hasPendingPacketUI(void) {
     if(!NSThread.isMainThread || !timantirecall_openContext)return NO;
+    TIMAntiRecallPacketOpenContext *context=timantirecall_openContext;
+    if(context.timantirecall_failed && context.timantirecall_failed() &&
+       !timantirecall_openOwnsPage(context) && [context.timantirecall_result timantirecall_originRestored]) {
+        NSArray *views=timantirecall_openViews(context.timantirecall_window);BOOL newVisible=views==nil;
+        for(UIView *view in views)if(![context.timantirecall_before containsObject:view] && !view.hidden && view.alpha>=0.05) {newVisible=YES;break;}
+        if(!newVisible) {
+            timantirecall_openLog(context,@"route","error-without-page");timantirecall_openContext=nil;return NO;
+        }
+    }
     if(timantirecall_openValid(timantirecall_openContext) || timantirecall_openOwnsPage(timantirecall_openContext))return YES;
     timantirecall_openContext=nil;return NO;
 }

@@ -1,13 +1,14 @@
 // Real UIKit return effects and serial queue; these are not actual TIM tests.
 static void timantirecall_testPacketResultAndQueue(void) {
     __block NSUInteger routes,opens,closes;
-    __block UIViewController *origin;
+    __block UIViewController *origin,*savedRoot;
     __block UINavigationController *navigation;
     __block OCMsgRecord *first,*second;
     for(NSNumber *kind in @[@3,@4,@5,@6,@7]) {
         timantirecall_step(^{
             origin=timantirecall_window.rootViewController;
             if(kind.intValue==7) {
+                savedRoot=origin;origin=[UIViewController new];
                 navigation=[[UINavigationController alloc] initWithRootViewController:origin];
                 [navigation setNavigationBarHidden:YES animated:NO];
                 timantirecall_window.rootViewController=navigation;
@@ -35,7 +36,7 @@ static void timantirecall_testPacketResultAndQueue(void) {
             }
             [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:@"self_uid" error:NULL];
             if(navigation) {
-                [navigation setViewControllers:@[] animated:NO];timantirecall_window.rootViewController=origin;navigation=nil;
+                timantirecall_window.rootViewController=savedRoot;navigation=nil;savedRoot=nil;
             }
             timantirecall_openFixture=nil;first=nil;timantirecall_walletRecord=nil;timantirecall_forwardedRecords=nil;
             timantirecall_receiptMode=0;
@@ -74,6 +75,13 @@ static void timantirecall_testPacketResultAndQueue(void) {
     });
     timantirecall_step(^{
         timantirecall_check(timantirecall_walletCalls==routes+1,@"manual takeover cancels queued packet instead of reopening native UI");
+        routes=timantirecall_walletCalls;opens=timantirecall_openButtonCalls;timantirecall_receiptMode=8;
+        first=timantirecall_testPacket(1,8507,2,@"queue-error-without-page");second=timantirecall_testPacket(1,8508,2,@"queue-after-error");
+        [NTMsgPushMonitorService recvMsgsWithRecords:@[first,second]];timantirecall_stepDelay=1.8;
+    });
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_walletCalls==routes+2 && timantirecall_walletRecord==second,@"route error without UI releases lock and second packet still routes once");
+        timantirecall_check(timantirecall_openButtonCalls==opens+1,@"failed first packet is not retried or auto-opened");
         [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:@"self_uid" error:NULL];
         timantirecall_receiptMode=0;first=nil;second=nil;origin=nil;
         timantirecall_openFixture=nil;timantirecall_walletRecord=nil;timantirecall_forwardedRecords=nil;

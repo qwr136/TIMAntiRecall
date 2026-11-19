@@ -31,3 +31,7 @@ Not implemented in this initial two-fix candidate. The prior main-only evidence 
 ## Validation
 
 Focused source tests and real UIKit cases cover unchanged original receipt model with native positive response, native error, wrong bill, missing amount, actual registered back event, modal/push result return effect, same-batch second packet, busy second delivery, duplicate suppression and manual queue cancellation. UIKit uses exact class-name doubles with UUID guarding disabled only by `TIMANTIRECALL_UI_TEST`; these fixtures cannot prove TIM device success. Real build and target-device verification are separate stages.
+
+First run 44590746266 (#41, ee87a5e) passed source/native/dual-architecture compilation but failed UIKit because the *fixture* tried placing the window's root controller inside a new navigation controller. Fixed by retaining that root and testing push-return with a separate child controller, then restoring the original window root. Do not attribute this host exception to TIM.
+
+Independent read-only review found a P2: a route completing with an error before showing UI kept the pending lock until 30 seconds, allowing the next fresh packet to expire. Release only on explicit error, no owned page, restored origin, and no newly visible views; keep errors with visible UI blocked. Added a failure-without-page/next-packet case. Never retry the failed bill.
