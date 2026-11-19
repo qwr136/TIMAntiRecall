@@ -76,7 +76,7 @@ static BOOL timantirecall_slotIsAmbiguous(TIMAntiRecallRowContext *context,NSDic
     BOOL ambiguous=NO;
     NSMutableArray<TIMAntiRecallRowContext *> *matches=[NSMutableArray arrayWithObject:context];
     for(TIMAntiRecallRowContext *other in timantirecall_rows.allObjects) {
-        if(other==context || other.timantirecall_waitingForRebind || ![owner isEqual:other.timantirecall_owner])continue;
+        if(other==context || ![owner isEqual:other.timantirecall_owner])continue;
         UIView *view=other.timantirecall_view;
         if(!view.window || view.hidden || view.alpha<0.01 || !timantirecall_windowActive(view.window))continue;
         id model=timantirecall_boundModel(view);
