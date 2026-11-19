@@ -276,11 +276,13 @@ static void timantirecall_testBindAndPrivate(UIView *host) {
     QQAccountsManager.GetInstance.currentUid=@"other_uid";
     });
     timantirecall_step(^{
+    [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:timantirecall_record(1,299,@"peer_a",0)]];
+    timantirecall_count(row,0,@"durably stored recall stays hidden under another account");
     QQAccountsManager.GetInstance.currentUid=@"self_uid";
     [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:timantirecall_record(1,299,@"peer_a",0)]];
-    timantirecall_count(row,0,@"queued event discarded if account switches before main queue consumes it");
-    [timantirecall_coverage addObjectsFromArray:@[@"private-identity",@"account-isolation"]];
+    timantirecall_count(row,1,@"intercepted mark remains available to its originating account after switch");
     [row removeFromSuperview];
+    [timantirecall_coverage addObjectsFromArray:@[@"private-identity",@"account-isolation",@"durable-intercept"]];
     });
 }
 
