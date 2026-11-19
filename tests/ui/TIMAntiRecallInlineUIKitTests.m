@@ -698,7 +698,8 @@ static void timantirecall_start(void) {
     UIBackgroundTaskIdentifier task=[UIApplication.sharedApplication beginBackgroundTaskWithExpirationHandler:^{}];
     dispatch_async(dispatch_get_main_queue(),^{
         timantirecall_check(scene.activationState==UISceneActivationStateBackground,@"scene truly entered system background");
-        timantirecall_count(self.window.rootViewController.view,0,@"all frames cleared in real background scene");
+        timantirecall_count(self.window.rootViewController.view,2,@"verified recall frames remain visible in app-switcher background snapshot");
+        timantirecall_count(timantirecall_demoRows[1].superview,0,@"unmarked row stays clean in background snapshot");
         timantirecall_backgroundObserved=YES;[timantirecall_coverage addObject:@"real-scene-background"];
         timantirecall_stage(@"background-observed");
         if(task!=UIBackgroundTaskInvalid)[UIApplication.sharedApplication endBackgroundTask:task];

@@ -9,7 +9,7 @@ static _Atomic(IMP) timantirecall_coldRecallOriginal;
 static Class timantirecall_coldRecallClass;
 static _Atomic(unsigned) timantirecall_coldTraceEvents;
 static void timantirecall_coldTrace(NSString *event) {
-    if(atomic_fetch_add_explicit(&timantirecall_coldTraceEvents,1,memory_order_relaxed)<12)
+    if(atomic_fetch_add_explicit(&timantirecall_coldTraceEvents,1,memory_order_relaxed)<48)
         timantirecall_logEvent(event);
 }
 static void timantirecall_setRecallTime(id receiver,SEL selector,int64_t value) {

@@ -116,8 +116,7 @@ static void timantirecall_refreshRow(TIMAntiRecallRowContext *context) {
     UIView *view=context.timantirecall_view;
     if(!view || !timantirecall_inlineInstalled) {timantirecall_clearVisual(context);return;}
     NSString *owner=timantirecall_currentAccount();
-    if(timantirecall_inlinePaused || !view.window ||
-       view.hidden || view.alpha<0.01 || !timantirecall_windowActive(view.window) ||
+    if(!view.window || view.hidden || view.alpha<0.01 ||
        ![owner isEqual:context.timantirecall_owner]) {timantirecall_clearVisual(context);return;}
     id model=timantirecall_boundModel(view);
     if(!model || model!=context.timantirecall_model) {timantirecall_syncRow(view);return;}
@@ -134,6 +133,13 @@ static void timantirecall_refreshRow(TIMAntiRecallRowContext *context) {
     CGRect bounds=host.bounds;
     if(host.window!=view.window || bounds.size.width<120 || bounds.size.height<32 ||
        !isfinite(bounds.size.width) || !isfinite(bounds.size.height)) {timantirecall_clearVisual(context);return;}
+    // Keep an already verified decoration in the app-switcher snapshot. Never
+    // create or move one onto a different row while this window is inactive.
+    if(timantirecall_inlinePaused || !timantirecall_windowActive(view.window)) {
+        if(context.timantirecall_indicator.superview!=host)timantirecall_clearVisual(context);
+        else [context.timantirecall_indicator timantirecall_fitToBounds:bounds];
+        return;
+    }
     if(!context.timantirecall_indicator) {
         context.timantirecall_indicator=[[TIMAntiRecallIndicatorView alloc] initWithFrame:CGRectZero];
         static unsigned matched=0;if(matched++<8)timantirecall_bootstrapEvent("inline-exact-account-peer-seq-match");
@@ -196,7 +202,7 @@ static void timantirecall_setupMarks(void) {
         for(NSNotificationName name in @[UIApplicationWillResignActiveNotification,UIApplicationDidEnterBackgroundNotification]) {
             id token=[center addObserverForName:name object:nil queue:NSOperationQueue.mainQueue usingBlock:^(__unused NSNotification *note){
                 timantirecall_inlinePaused=YES;
-                for(TIMAntiRecallRowContext *row in timantirecall_rows.allObjects)timantirecall_clearVisual(row);
+                for(TIMAntiRecallRowContext *row in timantirecall_rows.allObjects)timantirecall_refreshRow(row);
             }];[tokens addObject:token];
         }
         [tokens addObject:[center addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(__unused NSNotification *note){
@@ -204,7 +210,7 @@ static void timantirecall_setupMarks(void) {
         }]];
         [tokens addObject:[center addObserverForName:UISceneWillDeactivateNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note){
             for(TIMAntiRecallRowContext *row in timantirecall_rows.allObjects)
-                if(row.timantirecall_view.window.windowScene==note.object)timantirecall_clearVisual(row);
+                if(row.timantirecall_view.window.windowScene==note.object)timantirecall_refreshRow(row);
         }]];
         [tokens addObject:[center addObserverForName:UISceneDidActivateNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(__unused NSNotification *note){
             timantirecall_refreshRows();
