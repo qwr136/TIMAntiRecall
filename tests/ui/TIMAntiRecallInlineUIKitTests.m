@@ -42,14 +42,16 @@ static void timantirecall_writeJSON(NSDictionary *value, NSString *name) {
 static void timantirecall_stage(NSString *name) {
     timantirecall_writeJSON(@{@"stage":name, @"runToken":timantirecall_build[@"runToken"]?:@"", @"checks":@(timantirecall_checks)}, @"tim-inline-stage.json");
 }
+static OCMsgRecord *timantirecall_record(int type, int64_t sequence, NSString *peer, int64_t group);
 static void timantirecall_finish(void) {
     if(timantirecall_finished)return;
     timantirecall_finished=YES;
     NSError *saveError=nil;
     [timantirecall_settings() timantirecall_setChat:@{@"owner":@"self_uid",@"kind":@2,@"group":@9988} enabled:NO error:&saveError];
     timantirecall_check(!saveError && [timantirecall_sharedMarks() timantirecall_flush:&saveError],@"restart archive and chat config committed before termination");
-    NSDictionary *expectedIdentity=@{@"owner":@"self_uid",@"kind":@1,@"seq":@601,@"author":@"peer_a",@"peer":@"peer_a"};
+    NSDictionary *expectedIdentity=timantirecall_recordIdentity(timantirecall_record(1,601,@"peer_a",7001),@"self_uid");
     NSDictionary *expected=[timantirecall_sharedMarks() timantirecall_eventForIdentity:expectedIdentity];
+    timantirecall_check([expected[@"capturedAt"] doubleValue]>0,@"first process captures the exact message timestamp");
     timantirecall_writeJSON(@{@"runToken":timantirecall_build[@"runToken"]?:@"",@"pid":@(NSProcessInfo.processInfo.processIdentifier),
                              @"capturedAt":expected[@"capturedAt"]?:@0},@"tim-inline-restart-expected.json");
     timantirecall_writeJSON(@{
