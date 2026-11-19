@@ -47,7 +47,7 @@ class InlineContractTests(unittest.TestCase):
         source=strip_comments((ROOT/'Sources/TIMAntiRecallColdSync.m').read_text())
         self.assertIn('setRecallTime:',source);self.assertIn('timantirecall_recordIdentity',source)
         self.assertIn('timantirecall_sharedMarks()',source)
-        self.assertIn('timantirecall_containsIdentity',source)
+        self.assertIn('timantirecall_containsRecallEventForIdentity',source)
         self.assertIn('void(*)(id,SEL,int64_t)',source)
         self.assertNotIn('removeDBMsg',source);self.assertNotIn('deleteMsg',source)
     def test_cold_hook_is_installed_before_session_push(self):

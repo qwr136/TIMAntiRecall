@@ -15,6 +15,7 @@
 - (void)timantirecall_addEvents:(NSArray<NSDictionary *> *)events owner:(NSString *)owner;
 - (void)timantirecall_addEvents:(NSArray<NSDictionary *> *)events owner:(NSString *)owner capturedAt:(NSTimeInterval)time;
 - (BOOL)timantirecall_containsIdentity:(NSDictionary *)identity;
+- (BOOL)timantirecall_containsRecallEventForIdentity:(NSDictionary *)identity;
 - (void)timantirecall_clear;
 @end
 FOUNDATION_EXPORT TIMAntiRecallMarkStore *timantirecall_sharedMarks(void);

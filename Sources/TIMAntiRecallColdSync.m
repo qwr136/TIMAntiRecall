@@ -21,7 +21,7 @@ static void timantirecall_setRecallTime(id receiver,SEL selector,int64_t value) 
         if(!owner.length)timantirecall_coldTrace(@"cold-recall-owner-unavailable");
         NSDictionary *identity=timantirecall_recordIdentity(receiver,owner);
         if(!identity)timantirecall_coldTrace(@"cold-recall-identity-unavailable");
-        BOOL match=identity && [timantirecall_sharedMarks() timantirecall_containsIdentity:identity];
+        BOOL match=identity && [timantirecall_sharedMarks() timantirecall_containsRecallEventForIdentity:identity];
         timantirecall_coldTrace(match?@"cold-recall-identity-matched":@"cold-recall-identity-unmatched");
         if(match) {
             timantirecall_coldTrace(@"cold-recall-suppressed");
