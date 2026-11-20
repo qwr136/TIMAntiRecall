@@ -105,8 +105,12 @@ static UIView *timantirecall_replayHost(UIView *row) {
 }
 static UIViewController *timantirecall_replayController(UIView *row) {
     UIResponder *cursor=row;
-    for(unsigned depth=0;cursor&&depth<40;depth++,cursor=cursor.nextResponder)
-        if([cursor isKindOfClass:UIViewController.class])return (UIViewController *)cursor;
+    for(unsigned depth=0;cursor&&depth<40;depth++,cursor=cursor.nextResponder) {
+        if(![cursor isKindOfClass:UIViewController.class])continue;
+        UIViewController *controller=(UIViewController *)cursor;
+        for(unsigned parents=0;controller&&parents<12;parents++,controller=controller.parentViewController)
+            if([TIMAntiRecallRecordBridge timantirecall_replayChatContextForController:controller])return controller;
+    }
     return nil;
 }
 static UIScrollView *timantirecall_replayScroll(UIView *host) {
@@ -147,8 +151,9 @@ static BOOL timantirecall_replayContextAtPoint(TIMAntiRecallReplayContext *state
     if(!identity||!timantirecall_plainTextForRecord(record))return NO;
     UIViewController *controller=timantirecall_replayController(row);
     if(!controller||!controller.isViewLoaded||controller.view.window!=host.window||controller.view.hidden||
-       ![row isDescendantOfView:controller.view]||controller.presentedViewController||
-       (controller.navigationController&&controller.navigationController.topViewController!=controller))return NO;
+       ![row isDescendantOfView:controller.view]||controller.presentedViewController)return NO;
+    UIViewController *top=controller.navigationController.topViewController;
+    if(top&&top!=controller&&(!top.isViewLoaded||![controller.view isDescendantOfView:top.view]))return NO;
     if(!timantirecall_replayContact(record,controller))return NO;
     NSDictionary<NSString *,UIView *> *views=[TIMAntiRecallRecordBridge timantirecall_replayViewsForRow:row];
     UIView *content=views[@"content"];
@@ -281,6 +286,7 @@ void timantirecall_clearReplayRow(UIView *row) {
 }
 void timantirecall_updateReplayRow(UIView *row,NSString *boundOwner) {
     if(!NSThread.isMainThread||![row isKindOfClass:UIView.class])return;
+    if(!row.window||![timantirecall_settings() timantirecall_messageReplay]){timantirecall_clearReplayRow(row);return;}
     id model=[TIMAntiRecallRecordBridge timantirecall_currentModelForView:row];
     NSString *owner=timantirecall_currentAccount();
     NSDictionary *views=[TIMAntiRecallRecordBridge timantirecall_replayViewsForRow:row];

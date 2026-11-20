@@ -16,7 +16,9 @@ static void timantirecall_testMessageReplay(UIView *root) {
         [QQMsgService getInstance].timantirecall_sendCalls=0;
         chat=[TIMAntiRecallSwiftFixture timantirecall_replayControllerWithPeer:@"peer_a" type:1];
         chat.view.frame=root.bounds;[root addSubview:chat.view];
-        scroll=[[UIScrollView alloc] initWithFrame:chat.view.bounds];scroll.contentSize=CGSizeMake(root.bounds.size.width,root.bounds.size.height*2);[chat.view addSubview:scroll];
+        UIViewController *tableContainer=[UIViewController new];[chat addChildViewController:tableContainer];
+        tableContainer.view.frame=chat.view.bounds;[chat.view addSubview:tableContainer.view];[tableContainer didMoveToParentViewController:chat];
+        scroll=[[UIScrollView alloc] initWithFrame:chat.view.bounds];scroll.contentSize=CGSizeMake(root.bounds.size.width,root.bounds.size.height*2);[tableContainer.view addSubview:scroll];
         host=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
         host.frame=CGRectMake(0,80,root.bounds.size.width,64);[scroll addSubview:host];[host layoutIfNeeded];
         row=[TIMAntiRecallSwiftFixture timantirecall_replayRowWithFrame:host.contentView.bounds];[host.contentView addSubview:row];
