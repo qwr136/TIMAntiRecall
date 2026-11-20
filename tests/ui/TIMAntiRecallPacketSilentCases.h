@@ -1,0 +1,136 @@
+#import "TIMAntiRecallPacketSilent.h"
+static void timantirecall_testSilentPackets(void) {
+    __block TIMAntiRecallPreferencesController *settings;
+    __block OCMsgRecord *first,*second,*third,*own;
+    __block NSUInteger presents,loadings,prepares,claims,details;
+    timantirecall_step(^{
+        QQAccountsManager.GetInstance.currentUid=@"self_uid";
+        timantirecall_check(timantirecall_installPacketMonitor() && timantirecall_installPacketMonitor(),@"original message monitor installs once for actual process execution");
+        timantirecall_silentFixtureEnabled=YES;timantirecall_silentStarts=[NSMutableArray array];
+        [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:YES owner:@"self_uid" error:NULL];
+        [timantirecall_settings() timantirecall_setPacketOption:@"claimOwn" enabled:NO owner:@"self_uid" error:NULL];
+        settings=[[TIMAntiRecallPreferencesController alloc] initWithOwner:@"self_uid" chat:nil];
+        UINavigationController *navigation=[[UINavigationController alloc] initWithRootViewController:settings];
+        navigation.modalPresentationStyle=UIModalPresentationOverFullScreen;
+        [timantirecall_window.rootViewController presentViewController:navigation animated:NO completion:nil];
+        presents=timantirecall_silentPresents;loadings=timantirecall_silentLoadings;prepares=timantirecall_silentPrepares;
+        claims=timantirecall_silentClaims;details=timantirecall_detailsShown;
+        first=timantirecall_testPacket(1,9601,2,@"silent-unknown");
+        second=timantirecall_testPacket(2,9602,3,@"silent-error");third=timantirecall_testPacket(1,9603,2,@"silent-success");
+        timantirecall_silentHold=YES;
+        QQWallet.GetInstance->_grabCompletionBlock=^(__unused NSDictionary *result,__unused NSError *error){};
+        NSArray *batch=@[first];NSUInteger forwarded=timantirecall_ingressCalls;
+        [NTMsgPushMonitorService recvMsgsWithRecords:batch];
+        timantirecall_check(timantirecall_ingressCalls==forwarded+1 && timantirecall_forwardedRecords==batch,@"original batch is forwarded once with exact object identity");
+        timantirecall_stepDelay=0.25;
+    });
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_silentStarts.count==0,@"occupied lower native wallet slot prevents overlap without dropping queued work");
+        QQWallet.GetInstance->_grabCompletionBlock=nil;timantirecall_stepDelay=0.35;
+    });
+    timantirecall_step(^{
+        timantirecall_check([timantirecall_silentStarts isEqual:@[first]],@"fresh ordinary packet routes on settings page without opening its chat");
+        timantirecall_check(timantirecall_fixturePopup && !timantirecall_fixturePopup.view.window && !settings.presentedViewController,@"actual native popup remains off-window before its original open action");
+        timantirecall_check(timantirecall_silentPresents==presents && timantirecall_silentLoadings==loadings,@"ordinary popup and loading original presenters were never called, not presented then closed");
+        [NTMsgPushMonitorService recvMsgsWithRecords:@[second,third,second]];timantirecall_stepDelay=0.2;
+    });
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_silentStarts.count==1 && QQWalletGrapHBService.shareInstance.grapHBCallback!=nil,@"later packets wait only while original native slots are occupied");
+        timantirecall_silentHold=NO;timantirecall_silentRelease(@{@"state":@9},nil);timantirecall_stepDelay=0.85;
+    });
+    timantirecall_step(^{
+        timantirecall_check([timantirecall_silentStarts isEqual:@[first,second,third]],@"unknown and native error both release to next packet; duplicate is excluded");
+        timantirecall_check(timantirecall_silentPrepares==prepares+3 && timantirecall_silentClaims==claims+3,@"each ordinary packet keeps native pre-open and native claim exactly once");
+        timantirecall_check(timantirecall_silentPresents==presents && timantirecall_detailsShown==details && !settings.presentedViewController,@"no red packet modal, grey mask or details transition was presented");
+        timantirecall_check(((OCMsgElement *)first.elements.firstObject).walletElement.grabbedAmount==0,@"next attempts do not wait for old message-model credit");
+        timantirecall_check([timantirecall_findPacketToast().text isEqual:@"已领取 ¥1.23"],@"native successful recipient amount is shown instead of sent total");
+        own=timantirecall_testPacket(1,9610,2,@"silent-own");own.senderUid=@"self_uid";
+        [NTMsgPushMonitorService recvMsgsWithRecords:@[own]];timantirecall_stepDelay=0.2;
+    });
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_silentStarts.count==3,@"own-sent opt-out is preserved");
+        [timantirecall_settings() timantirecall_setPacketOption:@"claimOwn" enabled:YES owner:@"self_uid" error:NULL];
+        OCMsgRecord *group=timantirecall_testPacket(2,9611,3,@"silent-own-group");group.senderUid=@"self_uid";
+        [NTMsgPushMonitorService recvMsgsWithRecords:@[own,group]];timantirecall_stepDelay=0.65;
+    });
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_silentStarts.count==5 && timantirecall_silentClaims==claims+5,@"own private and group packets still require both switches");
+        OCMsgRecord *verify=timantirecall_testPacket(1,9620,2,@"silent-verify");
+        OCMsgRecord *unsupported=timantirecall_testPacket(1,9621,2,@"silent-unsupported");
+        OCMsgRecord *special=timantirecall_testPacket(2,9622,6,@"silent-command");
+        OCMsgRecord *old=timantirecall_testPacket(1,9623,2,@"silent-old");old.msgTime-=3600;
+        [NTMsgPushMonitorService recvMsgsWithRecords:@[verify,unsupported,special,old]];timantirecall_stepDelay=0.65;
+    });
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_silentVerifications==1 && timantirecall_silentClaims==claims+5,@"native verification refuses the claim; unsupported native branch is not bypassed");
+        timantirecall_check(timantirecall_silentStarts.count==7 && timantirecall_silentChecks>=12,@"old and command packets are excluded; native qualification queries remain intact");
+        [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:@"self_uid" error:NULL];
+        [timantirecall_settings() timantirecall_setPacketOption:@"claimOwn" enabled:NO owner:@"self_uid" error:NULL];
+        [timantirecall_window.rootViewController dismissViewControllerAnimated:NO completion:nil];timantirecall_stepDelay=0.25;
+    });
+    timantirecall_step(^{
+        QQWalletPreGrapHBResultViewController *manual=[QQWalletPreGrapHBResultViewController new];
+        manual.grapHBData=[QQWalletGrapHBData new];manual.grapHBData.aioData=[QQWalletGrapHBAIOData new];manual.grapHBData.aioData.listId=@"manual-native";
+        [QQWalletSceneManager presentTransparentViewController:manual];
+        [QQWalletGrapHBService.shareInstance showLoading];timantirecall_stepDelay=0.15;
+    });
+    timantirecall_step(^{
+        UIViewController *manual=timantirecall_window.rootViewController.presentedViewController;
+        timantirecall_check(manual.view.window==timantirecall_window && timantirecall_silentPresents==presents+1 && timantirecall_silentLoadings==loadings+1,@"manual popup and unrelated native loading still present exactly once");
+        [(QQWalletPreGrapHBResultViewController *)manual handleHBGrapResult:@{@"state":@0,@"recv_object":@{@"amount":@1}}];timantirecall_stepDelay=0.6;
+    });
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_detailsShown==details+1,@"manual success retains original details completion");
+        [timantirecall_coverage addObjectsFromArray:@[@"packet-monitor",@"packet-own-claim",@"packet-offscreen-on-settings",@"packet-native-slot-series",@"packet-no-detail",@"packet-amount-native-success",@"packet-no-popup-before-present",@"packet-native-preopen-token",@"packet-native-risk-preserved",@"packet-lower-slot-guard",@"packet-manual-window-preserved"]];
+    });
+}
+static NSUInteger timantirecall_silentBackgroundUpdates,timantirecall_silentBackgroundPresents;
+static void timantirecall_prepareSilentBackground(void) {
+    timantirecall_silentBackgroundUpdates=timantirecall_silentUpdates;
+    timantirecall_silentBackgroundPresents=timantirecall_silentPresents;
+    timantirecall_silentHold=NO;
+    [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:YES owner:@"self_uid" error:NULL];
+    [timantirecall_settings() timantirecall_setPacketOption:@"claimOwn" enabled:NO owner:@"self_uid" error:NULL];
+}
+static void timantirecall_checkSilentBackground(UIScene *scene,NSUInteger attempt,dispatch_block_t done) {
+    if(timantirecall_silentUpdates>=timantirecall_silentBackgroundUpdates+2 &&
+       timantirecall_silentPacketReady(QQWalletRedPacketMsgService.class)) {
+        timantirecall_check(UIApplication.sharedApplication.applicationState==UIApplicationStateBackground && scene.activationState==UISceneActivationStateBackground,
+                           @"both native claim callbacks complete in real system background, before foreground resume");
+        timantirecall_check(timantirecall_silentPresents==timantirecall_silentBackgroundPresents && !timantirecall_window.rootViewController.presentedViewController,
+                           @"background callbacks never present a packet, grey mask or details controller");
+        timantirecall_check(!timantirecall_findPacketToast(),@"no amount overlay is placed into another foreground app or queued for return");
+        [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:@"self_uid" error:NULL];
+        [timantirecall_coverage addObjectsFromArray:@[@"packet-background-receive",@"packet-background-before-resume"]];
+        done();return;
+    }
+    if(attempt>=30) {timantirecall_check(NO,@"background native receipt chain did not finish while process had execution time");done();return;}
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,100*NSEC_PER_MSEC),dispatch_get_main_queue(),^{timantirecall_checkSilentBackground(scene,attempt+1,done);});
+}
+static void timantirecall_beginSilentBackground(UIScene *scene,dispatch_block_t done) {
+    timantirecall_check(UIApplication.sharedApplication.applicationState==UIApplicationStateBackground,@"background ingress is not simulated with an active foreground app");
+    OCMsgRecord *one=timantirecall_testPacket(1,9701,2,@"silent-background-private");
+    OCMsgRecord *two=timantirecall_testPacket(2,9702,3,@"silent-background-group");
+    [NTMsgPushMonitorService recvMsgsWithRecords:@[one,two,one]];
+    timantirecall_checkSilentBackground(scene,0,done);
+}
+extern void timantirecall_expireSilentFixture(void);
+static void timantirecall_testSilentLateReceipt(void) {
+    timantirecall_step(^{
+        timantirecall_silentHold=YES;
+        [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:YES owner:@"self_uid" error:NULL];
+        [NTMsgPushMonitorService recvMsgsWithRecords:@[timantirecall_testPacket(1,9681,2,@"silent-late-success")]];
+        timantirecall_stepDelay=0.25;
+    });
+    timantirecall_step(^{
+        timantirecall_expireSilentFixture();
+        timantirecall_check(QQWalletGrapHBService.shareInstance.grapHBCallback!=nil && !timantirecall_silentPacketReady(QQWalletRedPacketMsgService.class),@"expired wait preserves an outstanding native claim and does not free its slots");
+        timantirecall_silentHold=NO;
+        timantirecall_silentRelease(@{@"state":@0,@"recv_object":@{@"amount":@7}},nil);timantirecall_stepDelay=0.25;
+    });
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_silentPacketReady(QQWalletRedPacketMsgService.class) && [timantirecall_findPacketToast().text isEqual:@"已领取 ¥0.07"],@"late native success still confirms its exact amount and releases to the next packet");
+        [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:@"self_uid" error:NULL];
+        [timantirecall_coverage addObject:@"packet-late-receipt"];
+    });
+}

@@ -36,7 +36,7 @@ PRODUCTION = (
     "Sources/TIMAntiRecallRuntime.m", "Sources/TIMAntiRecallColdSync.m", "Sources/TIMAntiRecallSettings.m",
     "Sources/TIMAntiRecallStorage.m", "Sources/TIMAntiRecallMarkStore.m",
     "Sources/TIMAntiRecallPreferencesUI.m", "Sources/TIMAntiRecallPreferencesEntry.m",
-    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m", "Sources/TIMAntiRecallPacketOpen.m", "Sources/TIMAntiRecallPacketWallet.m", "Sources/TIMAntiRecallPacketToast.m",
+    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m", "Sources/TIMAntiRecallPacketOpen.m", "Sources/TIMAntiRecallPacketWallet.m", "Sources/TIMAntiRecallPacketToast.m", "Sources/TIMAntiRecallPacketSilent.m",
 )
 SWIFT = ("Sources/TIMAntiRecallRecordBridge.swift",
          "tests/ui/TIMAntiRecallSwiftFixture.swift")
@@ -48,8 +48,9 @@ REQUIRED_COVERAGE = {
     "touch-routing", "weak-release", "real-scene-background", "real-scene-resume",
     "swift-direct-binding", "legacy-conversion-binding", "push-to-row", "startup-owner",
     "chat-forwarding", "captured-time", "persist-ui", "preferences-entry", "preferences-controls", "preferences-visible",
-    "packet-monitor", "packet-open-action", "packet-open-guards",
-    "packet-proxy-forwarding", "packet-receipt-close", "packet-close-confirmation", "packet-proxy-rejections", "packet-own-claim",
+    "packet-monitor", "packet-open-guards", "packet-proxy-rejections", "packet-own-claim",
+    "packet-no-popup-before-present", "packet-native-preopen-token", "packet-native-risk-preserved",
+    "packet-lower-slot-guard", "packet-manual-window-preserved", "packet-background-receive", "packet-background-before-resume", "packet-late-receipt",
     "packet-offscreen-on-settings", "packet-native-slot-series", "packet-no-detail",
     "packet-amount-native-success", "packet-amount-validation", "packet-amount-center-touch",
     "packet-amount-three-seconds", "packet-amount-refresh", "packet-amount-lifecycle",

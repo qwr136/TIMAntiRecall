@@ -45,14 +45,14 @@ class PacketOpenTests(unittest.TestCase):
         source=(ROOT/'Sources/TIMAntiRecallPacket.m').read_text()
         start=source.index('static BOOL timantirecall_packetAttempt')
         body=source[start:source.index('static BOOL timantirecall_packetObserve',start)]
-        self.assertLess(body.index('timantirecall_packetReserve('),body.index('timantirecall_beginPacketOpenForBill('))
-        self.assertIn('timantirecall_packetStillActive(owner,epoch)',body)
+        self.assertLess(body.index('timantirecall_packetReserve('),body.index('timantirecall_beginSilentPacket('))
+        self.assertIn('timantirecall_packetAccountValid(owner)',body)
         self.assertIn('timantirecall_autoClaimRedPackets',body)
 
     def test_real_uikit_open_and_negative_controls_are_required(self):
         driver=(ROOT/'tests/ui/run_inline_ui_tests.py').read_text()
         self.assertIn('Sources/TIMAntiRecallPacketOpen.m',driver)
-        self.assertIn('packet-open-action',driver)
+        self.assertIn('packet-no-popup-before-present',driver)
         self.assertIn('packet-open-guards',driver)
         cases=(ROOT/'tests/ui/TIMAntiRecallPacketOpenCases.h').read_text()
         for token in ('pre-existing open or payment','stale account/foreground/setting','ambiguous multiple','manual action forwards exactly once'):
@@ -71,7 +71,7 @@ class PacketOpenTests(unittest.TestCase):
         self.assertIn('timantirecall_openReceiver(target,action)!=context.timantirecall_openedReceiver',source)
         self.assertIn('const double delays[]={0.12,0.25,0.5,0.9,1.6,2.8,5.0,8.0}',source)
         route=(ROOT/'Sources/TIMAntiRecallPacket.m').read_text()
-        for token in ('initialAmount==0','nativeFailure=nativeFailure || failed','amountSelector,"Q"','timantirecall_hasPendingPacketUI()','claimOwnRedPackets'):
+        for token in ('timantirecall_beginSilentPacket(', 'timantirecall_silentPacketReady(service)', 'claimOwnRedPackets'):
             self.assertIn(token,route)
         self.assertNotIn('setGrabbedAmount:',route)
     def test_own_sender_setting_is_account_scoped_default_off_and_gated(self):

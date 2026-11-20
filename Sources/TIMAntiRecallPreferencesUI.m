@@ -67,7 +67,7 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     NSError *error=[timantirecall_settings() timantirecall_lastError]?:[timantirecall_sharedMarks() timantirecall_lastError];
     if(error)return [@"保存/读取失败：" stringByAppendingString:error.localizedDescription];
     if(self.timantirecall_mode==1)return @"先打开目标聊天即可识别。关闭只放行此聊天之后的撤回；不会删除已经保留的消息。总开关关闭时所有聊天均放行。";
-    if(section==0)return @"自动领取仅处理 TIM 前台新到的群聊和私聊红包；领取资格仍由 TIM 原生流程判定。本人发送红包只有同时开启两个领取开关才会尝试；两个领取开关及诊断日志均默认关闭。";
+    if(section==0)return @"自动领取处理 TIM 新到的群聊和私聊普通红包，不呈现普通领取小窗；资格与验证仍由 TIM 原生流程判定。后台仅在 TIM 进程确实得到执行时间并收到消息时尝试，不保活或唤醒。本人发送红包须同时开启两个领取开关；两个领取开关及诊断日志均默认关闭。";
     return @"标记与开关保存在TIM沙盒，仅本机有效，不上传；不恢复TIM已删除的原消息。移除插件不会删除TIM聊天记录。";
 }
 - (void)timantirecall_icon:(NSString *)name cell:(UITableViewCell *)cell {

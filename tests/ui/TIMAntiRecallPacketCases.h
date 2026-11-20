@@ -27,6 +27,8 @@ static int timantirecall_receiptMode; // 0=model receipt; 1=no receipt; 2=native
 - (NSMethodSignature *)methodSignatureForSelector:(SEL)selector {(void)selector;return [NSMethodSignature signatureWithObjCTypes:"v@:"];}
 @end
 #import "TIMAntiRecallPacketSeriesFixture.h"
+static BOOL timantirecall_silentFixtureEnabled;
+#import "TIMAntiRecallPacketSilentFixture.h"
 @interface TIMAntiRecallPacketOpenFixture : NSObject
 @property(nonatomic,strong) UIView *timantirecall_overlay;
 @property(nonatomic,strong) OCWalletElement *timantirecall_wallet;
@@ -79,6 +81,13 @@ static TIMAntiRecallPacketOpenFixture *timantirecall_openFixture;
 @end
 @implementation QQWalletRedPacketMsgService
 + (void)grabRedPackWithMsgRecord:(OCMsgRecord *)record rootVC:(UIViewController *)controller completion:(void (^)(NSDictionary *, NSError *))completion {
+    if(timantirecall_silentFixtureEnabled) {
+        timantirecall_check(NSThread.isMainThread,@"original native route runs on main queue in foreground or a real background window");
+        timantirecall_walletRecord=record;timantirecall_walletCalls++;
+        [timantirecall_silentStarts addObject:record];
+        NSString *bill=((OCMsgElement *)record.elements.firstObject).walletElement.billNo;
+        [QQWallet.GetInstance grabHB:controller params:@{@"listid":bill} completion:completion];return;
+    }
     timantirecall_check(NSThread.isMainThread && controller.view.window==timantirecall_window,@"native route receives visible controller on main queue");
     timantirecall_walletRecord=record;timantirecall_walletCalls++;
     if(timantirecall_seriesEnabled) {

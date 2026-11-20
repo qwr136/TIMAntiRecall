@@ -5,7 +5,7 @@ class ForegroundPacketSeriesTests(unittest.TestCase):
     def test_next_checks_wallet_slots_not_previous_credit(self):
         source=(ROOT/'Sources/TIMAntiRecallPacket.m').read_text()
         pump=source.split('static void timantirecall_packetPump(void) {',1)[1].split('static BOOL timantirecall_packetEnqueue',1)[0]
-        for token in ('timantirecall_walletCanAcceptPacket(service)','timantirecall_settlePacketUIForNext()', 'timantirecall_packetAttempt(item,presenter)','deadline'):
+        for token in ('timantirecall_silentPacketReady(service)', 'timantirecall_packetAttempt(item,presenter)','deadline'):
             self.assertIn(token,pump)
         for token in ('BusyUntil','ReturnPresenter','grabbedAmount','claim = NO;'):
             self.assertNotIn(token,pump)

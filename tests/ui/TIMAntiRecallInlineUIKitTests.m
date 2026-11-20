@@ -453,6 +453,7 @@ static void timantirecall_testPushToRow(UIView *root) {
 #import "TIMAntiRecallPacketOpenCases.h"
 #import "TIMAntiRecallPacketToastCases.h"
 #import "TIMAntiRecallPacketSeriesCases.h"
+#import "TIMAntiRecallPacketSilentCases.h"
 
 static void timantirecall_testGeometry(UIView *root) {
     CGFloat width=root.bounds.size.width-16;
@@ -639,12 +640,10 @@ static void timantirecall_start(void) {
         timantirecall_testWeakRelease(root);
         timantirecall_testRecallSettings(root);
         timantirecall_testPreferencesPanel();
-        timantirecall_testPacketMonitor();
-        timantirecall_testSelfSentPackets();
         timantirecall_testPacketOpenGuards();
-        timantirecall_testReceiptCloseGuards();
         timantirecall_testProxyRejections();
-        timantirecall_testForegroundPacketSeries();
+        timantirecall_testSilentPackets();
+        timantirecall_testSilentLateReceipt();
         timantirecall_testPacketAmountToast();
         timantirecall_step(^{timantirecall_makePreview(root);});
         timantirecall_step(^{
@@ -656,6 +655,7 @@ static void timantirecall_start(void) {
                     for(TIMAntiRecallTestBaseView *row in timantirecall_demoRows)timantirecall_layout(row);
                     timantirecall_count(root,2,@"已撤回 remains visible after idle/layout, not a transient toast");
                     timantirecall_capturePreview();
+                    timantirecall_prepareSilentBackground();
                     timantirecall_waitingForBackground=YES;
                     timantirecall_stage(@"ready-for-background");
                 } @catch(NSException *exception) {
@@ -712,8 +712,10 @@ static void timantirecall_start(void) {
         timantirecall_count(self.window.rootViewController.view,2,@"verified recall frames remain visible in app-switcher background snapshot");
         timantirecall_count(timantirecall_demoRows[1].superview,0,@"unmarked row stays clean in background snapshot");
         timantirecall_backgroundObserved=YES;[timantirecall_coverage addObject:@"real-scene-background"];
-        timantirecall_stage(@"background-observed");
-        if(task!=UIBackgroundTaskInvalid)[UIApplication.sharedApplication endBackgroundTask:task];
+        timantirecall_beginSilentBackground(scene,^{
+            timantirecall_stage(@"background-observed");
+            if(task!=UIBackgroundTaskInvalid)[UIApplication.sharedApplication endBackgroundTask:task];
+        });
     });
 }
 @end
