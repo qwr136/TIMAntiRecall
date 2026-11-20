@@ -58,7 +58,7 @@ int main(int argc,const char **argv){@autoreleasepool {
         CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(YES,NO) owner:@"owner"]);
         CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(YES,YES) owner:@"owner"]);
         CHECK([settings timantirecall_shouldBlockData:timantirecall_packet(YES,YES) owner:@"other"]);
-        CHECK([settings timantirecall_updateOptions:@{@"showTime":@YES} error:&error]);
+        CHECK([settings timantirecall_updateOptions:@{@"showTime":@YES,@"messageReplay":@YES} error:&error]);
         CHECK(![settings timantirecall_updateOptions:@{@"enabled":@"yes"} error:&error]);
         CHECK([settings timantirecall_enabled]);
         [store timantirecall_addEvents:@[timantirecall_private(),timantirecall_group()] owner:@"owner"];
