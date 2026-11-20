@@ -1,5 +1,4 @@
 #import "TIMAntiRecallMarks.h"
-#import "TIMAntiRecallPacket.h"
 #import "TIMAntiRecallSettings.h"
 #import "TIMAntiRecallBootstrap.h"
 #import "TIMAntiRecallIndicatorView.h"
@@ -110,13 +109,6 @@ static void timantirecall_syncRow(UIView *view) {
     // A row may bind during startup before currentUid is populated. Resolve an
     // absent owner once; never relabel a known owner when accounts change.
     if(!context.timantirecall_owner.length)context.timantirecall_owner=timantirecall_currentAccount();
-    // Loaded-chat scan is limited to the exact NT record carried by this bound
-    // normal message view. It never calls a history query or infers sender text.
-    if(view.window && timantirecall_windowActive(view.window) &&
-       !(timantirecall_legacyClass && [view isKindOfClass:timantirecall_legacyClass])) {
-        id record=model ? [TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model] : nil;
-        if(record)timantirecall_observeLoadedPacket(record,context.timantirecall_owner);
-    }
     timantirecall_refreshRow(context);
 }
 static void timantirecall_refreshRow(TIMAntiRecallRowContext *context) {
@@ -238,15 +230,7 @@ static BOOL timantirecall_bindRow(id receiver,SEL selector,id model) {
         context.timantirecall_view=receiver;context.timantirecall_model=model;
         context.timantirecall_owner=timantirecall_currentAccount();
         objc_setAssociatedObject(receiver,&timantirecall_contextKey,context,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        [timantirecall_rows addObject:context];
-        // A naturally loaded chat cell may bind before it enters a visible window.
-        // Let its later didMoveToWindow/layout observation handle it; otherwise it
-        // would be weak-deduped before the active-chat safety gate can run.
-        if([(UIView *)receiver window] && timantirecall_windowActive([(UIView *)receiver window])) {
-            id loadedRecord=model ? [TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model] : nil;
-            if(loadedRecord)timantirecall_observeLoadedPacket(loadedRecord,context.timantirecall_owner);
-        }
-        timantirecall_refreshRow(context);
+        [timantirecall_rows addObject:context];timantirecall_refreshRow(context);
     }
     return result;
 }
@@ -284,15 +268,6 @@ static BOOL timantirecall_installNTRows(void) {
     Class cls=objc_getClass("_TtC13NTAIOBaseCell17NTAIOBaseCellView");
 #endif
     if(!cls || ![cls isSubclassOfClass:UIView.class])return NO;
-#ifdef TIMANTIRECALL_UI_TEST
-    // The simulator uses compiler-generated Swift message models; install the exact
-    // converter bridge used by native NT rows before observing them as history.
-    static BOOL recordBridgeReady=NO;
-    if(!recordBridgeReady) {
-        if(!timantirecall_installLegacyBridge())return NO;
-        recordBridgeReady=YES;
-    }
-#endif
     SEL bind=sel_registerName("bindViewModel:"),unbind=sel_registerName("unbindViewModel"),reuse=sel_registerName("prepareForReuse"),layout=@selector(layoutSubviews),window=@selector(didMoveToWindow);
     Method bm=timantirecall_inlineOwn(cls,bind),um=timantirecall_inlineOwn(cls,unbind),rm=timantirecall_inlineOwn(cls,reuse),lm=timantirecall_inlineOwn(cls,layout);
     Method wm=class_getInstanceMethod(cls,window);

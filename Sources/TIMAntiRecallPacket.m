@@ -4,7 +4,6 @@
 #import "TIMAntiRecallPacketWallet.h"
 #if defined(TIMANTIRECALL_NATIVE_TEST)
 BOOL timantirecall_installPacketMonitor(void) { return NO; } // macOS has no UIKit.
-void timantirecall_observeLoadedPacket(id record,NSString *owner) {(void)record;(void)owner;}
 #else
 #import "TIMAntiRecallSettings.h"
 #import "TIMAntiRecallTrace.h"
@@ -24,7 +23,7 @@ static NSMutableDictionary<NSString *, NSNumber *> *timantirecall_packetAttempts
 @property(nonatomic,copy) NSString *timantirecall_waitReason;
 @property(nonatomic) NSTimeInterval timantirecall_deadline;
 @property(nonatomic) NSUInteger timantirecall_number;
-@property(nonatomic) BOOL timantirecall_own,timantirecall_loaded;
+@property(nonatomic) BOOL timantirecall_own;
 @end
 @implementation TIMAntiRecallPacketItem @end
 static NSMutableArray<TIMAntiRecallPacketItem *> *timantirecall_packetQueue;
@@ -166,8 +165,7 @@ static void timantirecall_packetQueueEvent(TIMAntiRecallPacketItem *item,NSStrin
 static void timantirecall_packetRetryPump(void) {
     if(timantirecall_packetPumpScheduled || !timantirecall_packetQueue.count)return;
     timantirecall_packetPumpScheduled=YES;
-    // Busy/transition fallback only. Idle arrivals and native completion callbacks
-    // invoke the pump directly; there is no per-packet delay or success cooldown.
+    // Busy/transition fallback only; live arrivals still leave the original NT callback first.
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,20*NSEC_PER_MSEC),dispatch_get_main_queue(),^{
         timantirecall_packetPumpScheduled=NO;timantirecall_packetPump();
     });
@@ -203,60 +201,34 @@ static void timantirecall_packetPump(void) {
         timantirecall_traceEvent(@"redpack-queue-pump-aborted");timantirecall_packetRetryPump();
     }
 }
-static BOOL timantirecall_packetEnqueue(id record,id wallet,NSDictionary *identity,NSString *owner,BOOL own,NSTimeInterval age,BOOL loaded) {
+static BOOL timantirecall_packetEnqueue(id record,id wallet,NSDictionary *identity,NSString *owner,BOOL own,NSTimeInterval age) {
     NSString *bill=timantirecall_packetObject(wallet,sel_registerName("billNo"));
-    if(![bill isKindOfClass:NSString.class] || !bill.length || bill.length>128)return NO;
-    NSUInteger oldCount=0;for(TIMAntiRecallPacketItem *queued in timantirecall_packetQueue)if(queued.timantirecall_loaded)oldCount++;
-    TIMAntiRecallPacketItem *sameBill=nil;
-    for(TIMAntiRecallPacketItem *queued in timantirecall_packetQueue)
-        if([queued.timantirecall_owner isEqual:owner] && [queued.timantirecall_bill isEqual:bill]) {sameBill=queued;break;}
-    if(sameBill) {
-        if(!loaded && sameBill.timantirecall_loaded) {
-            // Finish the fast enumeration before mutating the backing array.
-            sameBill.timantirecall_loaded=NO;sameBill.timantirecall_deadline=NSProcessInfo.processInfo.systemUptime+30;
-            [timantirecall_packetQueue removeObjectIdenticalTo:sameBill];
-            [timantirecall_packetQueue insertObject:sameBill atIndex:0];
-            timantirecall_packetQueueEvent(sameBill,@"live-promoted");return YES;
-        }
-        return NO;
-    }
-    if(loaded && oldCount>=8)return NO; // do not let loaded history fill the live queue
-    if(!timantirecall_packetQueue)timantirecall_packetQueue=[NSMutableArray array];
-    if(timantirecall_packetQueue.count>=32) {
-        if(loaded || !oldCount)return NO;
-        for(TIMAntiRecallPacketItem *queued in timantirecall_packetQueue.reverseObjectEnumerator)
-            if(queued.timantirecall_loaded) {[timantirecall_packetQueue removeObjectIdenticalTo:queued];break;}
-    }
+    if(![bill isKindOfClass:NSString.class] || !bill.length || bill.length>128 || timantirecall_packetQueue.count>=32)return NO;
     NSTimeInterval now=NSProcessInfo.processInfo.systemUptime;
+    NSNumber *previous=timantirecall_packetAttempts[[NSString stringWithFormat:@"%@/%@",owner,bill]];
+    if(previous && now-previous.doubleValue<=120)return NO;
+    for(TIMAntiRecallPacketItem *queued in timantirecall_packetQueue)
+        if([queued.timantirecall_owner isEqual:owner] && [queued.timantirecall_bill isEqual:bill])return NO;
+    if(!timantirecall_packetQueue)timantirecall_packetQueue=[NSMutableArray array];
     TIMAntiRecallPacketItem *item=[TIMAntiRecallPacketItem new];
     item.timantirecall_record=record;item.timantirecall_wallet=wallet;item.timantirecall_identity=identity;
-    item.timantirecall_owner=owner;item.timantirecall_bill=bill;item.timantirecall_own=own;item.timantirecall_loaded=loaded;
+    item.timantirecall_owner=owner;item.timantirecall_bill=bill;item.timantirecall_own=own;
     item.timantirecall_deadline=now+30;item.timantirecall_number=++timantirecall_packetNumber;
-    // Receipt time owns the bounded queue budget; a delayed valid message must
-    // not lose its whole attempt window simply because its send time is older.
+    // Queue budget starts on receipt; otherwise widening freshness to five minutes
+    // would enqueue a valid delayed message with an already-expired deadline.
     (void)age;
-    NSUInteger position=timantirecall_packetQueue.count;
-    if(!loaded)for(NSUInteger i=0;i<timantirecall_packetQueue.count;i++)
-        if(timantirecall_packetQueue[i].timantirecall_loaded) {position=i;break;}
-    [timantirecall_packetQueue insertObject:item atIndex:position];
-    timantirecall_packetQueueEvent(item,loaded?@"loaded-enqueued":@"enqueued");return YES;
+    [timantirecall_packetQueue addObject:item];timantirecall_packetQueueEvent(item,@"enqueued");return YES;
 }
 
-static BOOL timantirecall_packetObserve(id record, NSString *owner, BOOL autoClaim, BOOL claimOwn, BOOL diagnose,BOOL loaded) {
+static BOOL timantirecall_packetObserve(id record, NSString *owner, BOOL autoClaim, BOOL claimOwn, BOOL diagnose) {
     Class recordClass = objc_getClass("OCMsgRecord");
     Class elementClass = objc_getClass("OCMsgElement"), walletClass = objc_getClass("OCWalletElement");
     if (!recordClass || !elementClass || !walletClass || ![record isKindOfClass:recordClass]) return NO;
-    int32_t chat=0,kind=0;
-    if(!timantirecall_packetInt(record,sel_registerName("msgType"),&kind) || kind!=10) {
-        if(diagnose)timantirecall_traceEvent(@"redpack-unresolved-message-kind");return NO;
-    }
-    if(!timantirecall_packetInt(record,sel_registerName("chatType"),&chat) || (chat!=1 && chat!=2)) {
-        if(diagnose)timantirecall_traceEvent(@"redpack-unresolved-chat-kind");return NO;
-    }
+    int32_t chat = 0, kind = 0;
+    if (!timantirecall_packetInt(record, sel_registerName("chatType"), &chat) || (chat != 1 && chat != 2) ||
+        !timantirecall_packetInt(record, sel_registerName("msgType"), &kind) || kind != 10) return NO;
     NSArray *elements = timantirecall_packetObject(record, sel_registerName("elements"));
-    if (![elements isKindOfClass:NSArray.class] || elements.count > 32) {
-        if(diagnose)timantirecall_traceEvent(@"redpack-unresolved-elements");return NO;
-    }
+    if (![elements isKindOfClass:NSArray.class] || elements.count > 32) return NO;
     id wallet = nil;
     for (id element in elements) {
         int32_t type = 0;
@@ -265,32 +237,19 @@ static BOOL timantirecall_packetObserve(id record, NSString *owner, BOOL autoCla
         if (wallet || ![candidate isKindOfClass:walletClass]) return NO;
         wallet = candidate;
     }
-    if (!wallet) {
-        if(diagnose)timantirecall_traceEvent(@"redpack-unresolved-wallet-element");return NO;
-    }
+    if (!wallet) return NO;
     NSDictionary *identity = timantirecall_recordIdentity(record, owner);
-    if (!identity) {
-        if(diagnose)timantirecall_traceEvent(@"redpack-unresolved-message-identity");return NO;
-    }
+    if (!identity) return NO;
     BOOL own = [identity[@"author"] isEqual:owner];
     if (own && !claimOwn) {if (diagnose) timantirecall_traceEvent(@"redpack-own-sender-skipped");return NO;}
     if (diagnose) timantirecall_traceEvent(own ? @"redpack-own-sender-enabled" : (chat == 1 ? @"redpack-private-observed" : @"redpack-group-observed"));
     NSTimeInterval age = NSDate.date.timeIntervalSince1970 - [identity[@"time"] doubleValue];
-    BOOL imported=timantirecall_packetFlag(record,sel_registerName("isImportMsg"),YES);
-    BOOL fresh=loaded?(age>=0 && age<90000):
-                      (age>=-4 && age<=300 && !imported && timantirecall_packetFlag(record,sel_registerName("isOnlineMsg"),YES));
-    if(!fresh) {
-        if(diagnose)timantirecall_traceEvent(loaded?@"redpack-loaded-outside-window":@"redpack-not-confirmed-live");
+    BOOL fresh = age >= -4 && age <= 300 &&
+        timantirecall_packetFlag(record, sel_registerName("isOnlineMsg"), YES) &&
+        timantirecall_packetFlag(record, sel_registerName("isImportMsg"), NO);
+    if (!fresh) {
+        if (diagnose) timantirecall_traceEvent(@"redpack-not-confirmed-live");
         return NO;
-    }
-    // A zero local received amount only nominates an old record. It never
-    // proves that the envelope is claimable. The native pre-open state 16 is
-    // still required by PacketSilent before the native action can execute.
-    if(loaded) {
-        IMP amount=timantirecall_packetGetter(wallet,sel_registerName("grabbedAmount"),"Q");
-        if(!amount || ((uint64_t(*)(id,SEL))amount)(wallet,sel_registerName("grabbedAmount"))!=0) {
-            if(diagnose)timantirecall_traceEvent(@"redpack-loaded-claimed-or-unknown");return NO;
-        }
     }
     if(!autoClaim) {
         Class router=objc_getClass("NTRedPackRouterService");
@@ -298,7 +257,7 @@ static BOOL timantirecall_packetObserve(id record, NSString *owner, BOOL autoCla
         if(diagnose)timantirecall_traceEvent(route?@"redpack-route-available":@"redpack-route-unavailable");
         return NO;
     }
-    return timantirecall_packetEnqueue(record,wallet,identity,owner,own,age,loaded);
+    return timantirecall_packetEnqueue(record,wallet,identity,owner,own,age);
 }
 
 static void timantirecall_packetReceive(id target, SEL selector, NSArray *records) {
@@ -330,7 +289,7 @@ static void timantirecall_packetReceive(id target, SEL selector, NSArray *record
         atomic_fetch_sub(&timantirecall_packetPending, 1);
         return;
     }
-    dispatch_block_t consume=^{
+    dispatch_async(dispatch_get_main_queue(), ^{
         @try {
             if (!timantirecall_packetAccountValid(owner)) return;
             BOOL claim = autoClaim && [timantirecall_settings() timantirecall_autoClaimRedPackets];
@@ -338,7 +297,7 @@ static void timantirecall_packetReceive(id target, SEL selector, NSArray *record
             BOOL log = diagnose && [timantirecall_settings() timantirecall_packetDiagnostics];
             if (!log && !claim) return;
             for(id record in snapshot)
-                if(timantirecall_packetObserve(record,owner,claim,allowOwn,log,NO))timantirecall_packetPump();
+                if(timantirecall_packetObserve(record,owner,claim,allowOwn,log))timantirecall_packetPump();
             timantirecall_packetPump();
         } @catch (__unused NSException *exception) {
             // Private observer or presentation failures must not interrupt delivery.
@@ -346,38 +305,6 @@ static void timantirecall_packetReceive(id target, SEL selector, NSArray *record
         } @finally {
             atomic_fetch_sub(&timantirecall_packetPending, 1);
         }
-    };
-    if(NSThread.isMainThread)consume();
-    else dispatch_async(dispatch_get_main_queue(),consume);
-}
-
-// This is a passive consumer of existing NT row/converter records, not a guessed
-// private query or an all-chat scan. Weak keys never cache chat bodies or media.
-static NSMapTable *timantirecall_loadedSeen;
-static NSString *timantirecall_loadedOwner;
-void timantirecall_observeLoadedPacket(id record,NSString *owner) {
-    if(!record || !owner.length || !NSThread.isMainThread || !atomic_load(&timantirecall_packetOriginal) ||
-       !timantirecall_packetAccountValid(owner) || ![timantirecall_settings() timantirecall_autoClaimRedPackets])return;
-    if(![owner isEqual:timantirecall_loadedOwner]) {
-        timantirecall_loadedOwner=[owner copy];
-        timantirecall_loadedSeen=[NSMapTable mapTableWithKeyOptions:NSPointerFunctionsWeakMemory|NSPointerFunctionsObjectPointerPersonality
-                                                     valueOptions:NSPointerFunctionsStrongMemory];
-    }
-    NSTimeInterval now=NSProcessInfo.processInfo.systemUptime;
-    NSNumber *seen=[timantirecall_loadedSeen objectForKey:record];
-    if(seen && now-seen.doubleValue<2)return;
-    if(timantirecall_loadedSeen.count>=2048)[timantirecall_loadedSeen removeAllObjects];
-    [timantirecall_loadedSeen setObject:@(now) forKey:record];
-    // Never submit a wallet action reentrantly from row layout/conversion.
-    if(atomic_fetch_add(&timantirecall_packetPending,1)>=16) {atomic_fetch_sub(&timantirecall_packetPending,1);return;}
-    dispatch_async(dispatch_get_main_queue(),^{
-        @try {
-            if(!timantirecall_packetAccountValid(owner) || ![timantirecall_settings() timantirecall_autoClaimRedPackets])return;
-            BOOL own=[timantirecall_settings() timantirecall_claimOwnRedPackets];
-            BOOL log=[timantirecall_settings() timantirecall_packetDiagnostics];
-            if(timantirecall_packetObserve(record,owner,YES,own,log,YES))timantirecall_packetPump();
-        } @catch(__unused NSException *exception) {timantirecall_traceEvent(@"redpack-loaded-observation-aborted");}
-        @finally {atomic_fetch_sub(&timantirecall_packetPending,1);}
     });
 }
 
