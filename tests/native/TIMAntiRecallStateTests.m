@@ -82,7 +82,7 @@ int main(int argc,const char **argv){@autoreleasepool {
         CHECK(![settings timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:@"owner" error:&error]);
         QQAccountsManager.GetInstance.currentUid=@"owner";
         CHECK([settings timantirecall_autoClaimRedPackets]);
-        CHECK([settings timantirecall_showTime]);CHECK(![settings timantirecall_enabledForChat:timantirecall_private()]);
+        CHECK([settings timantirecall_showTime]&&[settings timantirecall_messageReplay]);CHECK(![settings timantirecall_enabledForChat:timantirecall_private()]);
         CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(NO,YES) owner:@"owner"]);
         CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(YES,NO) owner:@"owner"]);
         CHECK([store timantirecall_containsIdentity:timantirecall_private()]);CHECK([store timantirecall_containsIdentity:timantirecall_group()]);
@@ -134,5 +134,8 @@ int main(int argc,const char **argv){@autoreleasepool {
     CHECK([memory timantirecall_eventsForOwner:@"owner"].count==4096);
     CHECK(![memory timantirecall_containsIdentity:@{@"owner":@"owner",@"kind":@2,@"group":@99,@"seq":@1,@"author":@"member"}]);
     NSLog(@"PASS %u corrupted-file/symlink/bounds checks",timantirecall_checks);
+    return 0;
+}}
+antirecall_checks);
     return 0;
 }}

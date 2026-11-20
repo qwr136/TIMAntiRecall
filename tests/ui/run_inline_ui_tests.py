@@ -36,7 +36,7 @@ PRODUCTION = (
     "Sources/TIMAntiRecallRuntime.m", "Sources/TIMAntiRecallColdSync.m", "Sources/TIMAntiRecallSettings.m",
     "Sources/TIMAntiRecallStorage.m", "Sources/TIMAntiRecallMarkStore.m",
     "Sources/TIMAntiRecallPreferencesUI.m", "Sources/TIMAntiRecallPreferencesEntry.m",
-    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m", "Sources/TIMAntiRecallPacketOpen.m", "Sources/TIMAntiRecallPacketWallet.m", "Sources/TIMAntiRecallPacketToast.m", "Sources/TIMAntiRecallPacketSilent.m",
+    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m", "Sources/TIMAntiRecallPacketOpen.m", "Sources/TIMAntiRecallPacketWallet.m", "Sources/TIMAntiRecallPacketToast.m", "Sources/TIMAntiRecallPacketSilent.m", "Sources/TIMAntiRecallReplay.m",
 )
 SWIFT = ("Sources/TIMAntiRecallRecordBridge.swift",
          "tests/ui/TIMAntiRecallSwiftFixture.swift")
@@ -56,7 +56,7 @@ REQUIRED_COVERAGE = {
     "packet-native-parameter-envelope", "packet-native-local-rejection",
     "packet-offscreen-on-settings", "packet-native-slot-series", "packet-no-detail",
     "packet-amount-native-success", "packet-amount-validation", "packet-amount-center-touch",
-    "packet-amount-three-seconds", "packet-amount-refresh", "packet-amount-lifecycle",
+    "packet-amount-three-seconds", "packet-amount-refresh", "packet-amount-lifecycle", "message-replay",
 }
 COMMANDS: list[list[str]] = []
 TRANSCRIPT: list[str] = []

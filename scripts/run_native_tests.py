@@ -26,7 +26,8 @@ def run(project, version):
     output = root/'reports/TIMAntiRecallRuntimeTests'
     sources = [str(root/p) for p in source['compile_inputs'] if p.endswith('.m')
                and p not in ('Sources/TIMAntiRecallInline.m','Sources/TIMAntiRecallIndicatorView.m',
-                             'Sources/TIMAntiRecallPreferencesUI.m','Sources/TIMAntiRecallPreferencesEntry.m')]
+                             'Sources/TIMAntiRecallPreferencesUI.m','Sources/TIMAntiRecallPreferencesEntry.m',
+                             'Sources/TIMAntiRecallReplay.m')]
     stub=root/'tests/native/TIMAntiRecallInlineNativeStub.m'
     require(stub.is_file(), 'macOS UIKit-free inline stub is required')
     sources.append(str(stub))

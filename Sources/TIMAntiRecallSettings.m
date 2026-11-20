@@ -82,7 +82,7 @@ static NSString *timantirecall_accountScope(NSDictionary *chat) {
 }
 - (BOOL)timantirecall_validate:(NSDictionary *)state overrides:(NSDictionary **)output {
     if(![state[@"schema"] isEqual:@1])return NO;
-    for(NSString *key in @[@"enabled",@"persistMarks",@"showTime"])
+    for(NSString *key in @[@"enabled",@"persistMarks",@"showTime",@"messageReplay"])
         if(state[key] && !timantirecall_boolean(state[key]))return NO;
     id packetAccounts=state[@"packetAccounts"]?:@{};
     if(![packetAccounts isKindOfClass:NSDictionary.class] || [packetAccounts count]>64)return NO;
@@ -115,6 +115,7 @@ static NSString *timantirecall_accountScope(NSDictionary *chat) {
 }
 - (BOOL)timantirecall_autoClaimRedPackets {return [self timantirecall_packetOption:@"autoClaim"];}
 - (BOOL)timantirecall_claimOwnRedPackets {return [self timantirecall_packetOption:@"claimOwn"];}
+- (BOOL)timantirecall_messageReplay {@synchronized(self){return [self.timantirecall_snapshot[@"messageReplay"] boolValue];}}
 - (BOOL)timantirecall_packetDiagnostics {return [self timantirecall_packetOption:@"diagnostics"];}
 - (BOOL)timantirecall_setPacketOption:(NSString *)key enabled:(BOOL)enabled owner:(NSString *)owner error:(NSError **)error {
     if(!timantirecall_validUID(owner) || ![owner isEqual:timantirecall_currentAccount()] ||
@@ -174,7 +175,7 @@ static NSString *timantirecall_accountScope(NSDictionary *chat) {
         if(![changes isKindOfClass:NSDictionary.class])return NO;
         NSMutableDictionary *state=[self.timantirecall_snapshot mutableCopy];state[@"schema"]=@1;
         for(id key in changes) {
-            if(![@[@"enabled",@"persistMarks",@"showTime"] containsObject:key] || !timantirecall_boolean(changes[key])) {
+            if(![@[@"enabled",@"persistMarks",@"showTime",@"messageReplay"] containsObject:key] || !timantirecall_boolean(changes[key])) {
                 if(error)*error=timantirecall_storageError(@"设置项或类型无效");return NO;
             }
             state[key]=changes[key];

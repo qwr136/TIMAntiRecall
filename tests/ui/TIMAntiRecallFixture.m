@@ -78,3 +78,21 @@
 @implementation QQGroupSettingViewController
 - (void)viewDidAppear:(BOOL)animated {[super viewDidAppear:animated];}
 @end
+@implementation OCTextElement @end
+@implementation OCMsgElement @end
+@implementation QQBaseChatViewController
+- (BOOL)sendTextMsg:(NSString *)text showText:(NSString *)showText {(void)text;(void)showText;return NO;}
+@end
+@implementation QQChatViewController
+- (BOOL)sendTextMsg:(NSString *)text showText:(NSString *)showText {
+    self.timantirecall_sendCalls++;self.timantirecall_lastText=[text copy];self.timantirecall_lastShowText=[showText copy];return YES;
+}
+@end
+@implementation NTAIOContentDoubleTapService
+static NSUInteger timantirecall_testOriginalDoubleTapCalls;
++ (NSUInteger)timantirecall_originalCalls{return timantirecall_testOriginalDoubleTapCalls;}
++ (void)setTimantirecall_originalCalls:(NSUInteger)value{timantirecall_testOriginalDoubleTapCalls=value;}
++ (void)doubleTapGestureActionWithGesture:(id)gesture record:(id)record viewController:(id)controller tappedCellView:(id)view {
+    (void)gesture;(void)record;(void)controller;(void)view;timantirecall_testOriginalDoubleTapCalls++;
+}
+@end

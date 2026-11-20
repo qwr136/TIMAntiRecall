@@ -68,4 +68,58 @@ NS_ASSUME_NONNULL_BEGIN
 @interface QQGroupSettingViewController : QQSettingsViewController
 @property(nonatomic,copy) NSString *groupCode;
 @end
+@interface OCTextElement : NSObject
+@property(nonatomic,copy) NSString *content;
+@property(nonatomic) int atType;
+@property(nonatomic) int64_t atUid,atTinyId;
+@property(nonatomic,copy,nullable) id atNtUid;
+@property(nonatomic,copy,nullable) id subElementType;
+@property(nonatomic,copy,nullable) id atChannelId;
+@property(nonatomic,copy,nullable) id linkInfo;
+@property(nonatomic,copy,nullable) id atRoleColor;
+@property(nonatomic,copy,nullable) id atRoleName;
+@property(nonatomic,copy,nullable) id needNotify;
+@property(nonatomic,copy,nullable) id atRoleId;
+@end
+@interface OCMsgElement : NSObject
+@property(nonatomic,strong,nullable) OCTextElement *textElement;
+@property(nonatomic,strong,nullable) id faceElement;
+@property(nonatomic,strong,nullable) id marketFaceElement;
+@property(nonatomic,strong,nullable) id replyElement;
+@property(nonatomic,strong,nullable) id picElement;
+@property(nonatomic,strong,nullable) id pttElement;
+@property(nonatomic,strong,nullable) id videoElement;
+@property(nonatomic,strong,nullable) id grayTipElement;
+@property(nonatomic,strong,nullable) id arkElement;
+@property(nonatomic,strong,nullable) id fileElement;
+@property(nonatomic,strong,nullable) id liveGiftElement;
+@property(nonatomic,strong,nullable) id markdownElement;
+@property(nonatomic,strong,nullable) id structLongMsgElement;
+@property(nonatomic,strong,nullable) id multiForwardMsgElement;
+@property(nonatomic,strong,nullable) id giphyElement;
+@property(nonatomic,strong,nullable) id walletElement;
+@property(nonatomic,strong,nullable) id inlineKeyboardElement;
+@property(nonatomic,strong,nullable) id textGiftElement;
+@property(nonatomic,strong,nullable) id calendarElement;
+@property(nonatomic,strong,nullable) id yoloGameResultElement;
+@property(nonatomic,strong,nullable) id avRecordElement;
+@property(nonatomic,strong,nullable) id structMsgElement;
+@property(nonatomic,strong,nullable) id faceBubbleElement;
+@property(nonatomic,strong,nullable) id shareLocationElement;
+@property(nonatomic,strong,nullable) id tofuRecordElement;
+@property(nonatomic,strong,nullable) id taskTopMsgElement;
+@property(nonatomic,strong,nullable) id recommendedMsgElement;
+@property(nonatomic,strong,nullable) id actionBarElement;
+@property(nonatomic,strong,nullable) id prologueMsgElement;
+@end
+@interface QQBaseChatViewController : UIViewController
+@property(nonatomic) NSUInteger timantirecall_sendCalls;
+@property(nonatomic,copy,nullable) NSString *timantirecall_lastText,*timantirecall_lastShowText;
+- (BOOL)sendTextMsg:(NSString *)text showText:(NSString *)showText;
+@end
+@interface QQChatViewController : QQBaseChatViewController @end
+@interface NTAIOContentDoubleTapService : NSObject
+@property(class,nonatomic) NSUInteger timantirecall_originalCalls;
++ (void)doubleTapGestureActionWithGesture:(id)gesture record:(id)record viewController:(id)controller tappedCellView:(id)view;
+@end
 NS_ASSUME_NONNULL_END

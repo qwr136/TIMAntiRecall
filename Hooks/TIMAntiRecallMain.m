@@ -4,6 +4,7 @@
 #import "TIMAntiRecallMarks.h"
 #import "TIMAntiRecallPreferencesEntry.h"
 #import "TIMAntiRecallPacket.h"
+#import "TIMAntiRecallReplay.h"
 #import <mach-o/dyld.h>
 #import <crt_externs.h>
 #import <mach-o/loader.h>
@@ -25,7 +26,8 @@ static NSString *timantirecall_mainUUID(void) {
 static void timantirecall_attemptUIInstall(unsigned attempt) {
     BOOL installed=timantirecall_installInlineIndicator();
     BOOL preferences=timantirecall_installPreferences();
-    if((installed && preferences) || attempt>=10)return;
+    BOOL replay=timantirecall_installMessageReplay();
+    if((installed && preferences && replay) || attempt>=10)return;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(),^{
         timantirecall_attemptUIInstall(attempt+1);
     });

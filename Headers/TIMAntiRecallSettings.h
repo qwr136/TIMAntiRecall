@@ -12,6 +12,7 @@ FOUNDATION_EXPORT NSURL *timantirecall_stateURL(NSString *filename);
 - (BOOL)timantirecall_showTime;
 - (BOOL)timantirecall_autoClaimRedPackets;
 - (BOOL)timantirecall_claimOwnRedPackets;
+- (BOOL)timantirecall_messageReplay;
 - (BOOL)timantirecall_packetDiagnostics;
 - (BOOL)timantirecall_setPacketOption:(NSString *)key enabled:(BOOL)enabled owner:(NSString *)owner error:(NSError **)error;
 - (BOOL)timantirecall_enabledForChat:(NSDictionary *)chat;

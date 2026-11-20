@@ -18,7 +18,8 @@ static NSArray<NSDictionary *> *timantirecall_optionRows(void) {
              @{@"key":@"showTime",@"title":@"标记旁显示拦截时间",@"icon":@"clock"},
              @{@"key":@"packetDiagnostics",@"title":@"红包诊断日志",@"icon":@"doc.text.magnifyingglass"},
              @{@"key":@"autoClaimRedPackets",@"title":@"自动领取红包",@"icon":@"gift"},
-              @{ @"key":@"claimOwnRedPackets",@"title":@"自动领取自己发的红包",@"icon":@"person.crop.circle.badge.checkmark"}];
+              @{ @"key":@"claimOwnRedPackets",@"title":@"自动领取自己发的红包",@"icon":@"person.crop.circle.badge.checkmark"},
+             @{ @"key":@"messageReplay",@"title":@"消息双击复读",@"icon":@"arrow.2.squarepath"}];
 }
 static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     BOOL group=[chat[@"kind"] intValue]==2;
@@ -67,7 +68,7 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     NSError *error=[timantirecall_settings() timantirecall_lastError]?:[timantirecall_sharedMarks() timantirecall_lastError];
     if(error)return [@"保存/读取失败：" stringByAppendingString:error.localizedDescription];
     if(self.timantirecall_mode==1)return @"先打开目标聊天即可识别。关闭只放行此聊天之后的撤回；不会删除已经保留的消息。总开关关闭时所有聊天均放行。";
-    if(section==0)return @"自动领取处理 TIM 新到的群聊和私聊普通红包，不呈现普通领取小窗；资格与验证仍由 TIM 原生流程判定。后台仅在 TIM 进程确实得到执行时间并收到消息时尝试，不保活或唤醒。本人发送红包须同时开启两个领取开关；两个领取开关及诊断日志均默认关闭。";
+    if(section==0)return @"自动领取处理 TIM 新到的群聊和私聊普通红包，不呈现普通领取小窗；资格与验证仍由 TIM 原生流程判定。后台仅在 TIM 进程确实得到执行时间并收到消息时尝试，不保活或唤醒。本人发送红包须同时开启两个领取开关；两个领取开关及诊断日志均默认关闭。消息双击复读默认关闭；开启后双击纯文字消息立即发送原文，替代 TIM 双击朗读；@消息、链接和混合内容不复读。";
     return @"标记与开关保存在TIM沙盒，仅本机有效，不上传；不恢复TIM已删除的原消息。移除插件不会删除TIM聊天记录。";
 }
 - (void)timantirecall_icon:(NSString *)name cell:(UITableViewCell *)cell {
@@ -104,7 +105,7 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     }else if(path.section==0) {
         NSDictionary *row=timantirecall_optionRows()[(NSUInteger)path.row];NSString *key=row[@"key"];
         cell.textLabel.text=row[@"title"];[self timantirecall_icon:row[@"icon"] cell:cell];
-        BOOL value=path.row==0?enabled:path.row==1?[timantirecall_settings() timantirecall_persistMarks]:path.row==2?[timantirecall_settings() timantirecall_showTime]:path.row==3?[timantirecall_settings() timantirecall_packetDiagnostics]:path.row==4?[timantirecall_settings() timantirecall_autoClaimRedPackets]:[timantirecall_settings() timantirecall_claimOwnRedPackets];
+        BOOL value=path.row==0?enabled:path.row==1?[timantirecall_settings() timantirecall_persistMarks]:path.row==2?[timantirecall_settings() timantirecall_showTime]:path.row==3?[timantirecall_settings() timantirecall_packetDiagnostics]:path.row==4?[timantirecall_settings() timantirecall_autoClaimRedPackets]:path.row==5?[timantirecall_settings() timantirecall_claimOwnRedPackets]:[timantirecall_settings() timantirecall_messageReplay];
         cell.accessoryView=[self timantirecall_switch:key value:(path.row<3||active)&&value enabled:active&&(path.row==0||path.row>=3||enabled) index:path.row];
     }else {
         if(self.timantirecall_chat && path.row==0) {
@@ -139,6 +140,8 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
         }else if(control.tag>=3 && control.tag<=5) {
             NSString *key=@[@"diagnostics",@"autoClaim",@"claimOwn"][(NSUInteger)control.tag-3];
             ok=[timantirecall_settings() timantirecall_setPacketOption:key enabled:control.isOn owner:self.timantirecall_owner error:&error];
+        }else if(control.tag==6) {
+            ok=[timantirecall_settings() timantirecall_updateOptions:@{@"messageReplay":@(control.isOn)} error:&error];
         }
     }
     if(!ok)[self timantirecall_error:error];[self timantirecall_reload];
@@ -158,6 +161,11 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     [tableView deselectRowAtIndexPath:path animated:YES];if(![self timantirecall_validOwner])return;
     if(self.timantirecall_mode || path.section!=1 || path.row!=(self.timantirecall_chat?1:0))return;
     TIMAntiRecallPreferencesController *next=[[TIMAntiRecallPreferencesController alloc] initWithOwner:self.timantirecall_owner chat:self.timantirecall_chat];
+    next.timantirecall_mode=1;next.title=@"按聊天单独设置";
+    [self.navigationController pushViewController:next animated:NO];
+}
+@end
+alloc] initWithOwner:self.timantirecall_owner chat:self.timantirecall_chat];
     next.timantirecall_mode=1;next.title=@"按聊天单独设置";
     [self.navigationController pushViewController:next animated:NO];
 }

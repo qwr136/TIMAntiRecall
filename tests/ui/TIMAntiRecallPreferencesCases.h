@@ -131,6 +131,15 @@ static void timantirecall_testPreferencesPanel(void) {
             timantirecall_check(saved && !value,@"packet option commits on the same panel");
             packet.on=NO;[packet sendActionsForControlEvents:UIControlEventValueChanged];
         }
+        NSIndexPath *replayPath=[NSIndexPath indexPathForRow:6 inSection:0];
+        [panel.tableView scrollToRowAtIndexPath:replayPath atScrollPosition:UITableViewScrollPositionMiddle animated:NO];
+        [panel.tableView layoutIfNeeded];
+        UISwitch *replay=(UISwitch *)[panel.tableView cellForRowAtIndexPath:replayPath].accessoryView;
+        timantirecall_check(replay.window==timantirecall_window&&[replay.accessibilityIdentifier isEqual:@"messageReplay"]&&!replay.isOn,
+                           @"message replay switch is visible and defaults off");
+        replay.on=YES;[replay sendActionsForControlEvents:UIControlEventValueChanged];
+        timantirecall_check([timantirecall_settings() timantirecall_messageReplay],@"message replay option saves from visible panel");
+        replay.on=NO;[replay sendActionsForControlEvents:UIControlEventValueChanged];
         timantirecall_stepDelay=0.4;
     });
     timantirecall_step(^{
