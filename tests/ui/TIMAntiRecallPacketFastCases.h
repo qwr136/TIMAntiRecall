@@ -52,7 +52,8 @@ static void timantirecall_testLoadedRecentPackets(void) {
         [timantirecall_settings() timantirecall_setPacketOption:@"claimOwn" enabled:NO owner:@"self_uid" error:NULL];
         privateOld=timantirecall_testPacket(1,9910,2,@"loaded-old-private");privateOld.msgTime-=60;privateOld.isOnlineMsg=NO;privateOld.isImportMsg=YES;
         groupOld=timantirecall_testPacket(2,9911,3,@"loaded-old-group");groupOld.msgTime-=75;groupOld.isOnlineMsg=NO;groupOld.isImportMsg=YES;
-        tooOld=timantirecall_testPacket(1,9912,2,@"loaded-too-old");tooOld.msgTime-=120;
+        ((OCMsgElement *)groupOld.elements.firstObject).walletElement.billNo=@"loaded-old-group-bill";
+        tooOld=timantirecall_testPacket(1,9912,2,@"loaded-too-old");tooOld.msgTime-=90000;
         alreadyCredited=timantirecall_testPacket(1,9913,2,@"loaded-credited");((OCMsgElement *)alreadyCredited.elements.firstObject).walletElement.grabbedAmount=1;
         expired=timantirecall_testPacket(1,9914,2,@"loaded-expired");expired.msgTime-=90001;
         privateRow=timantirecall_row(timantirecall_window.rootViewController.view,CGRectMake(8,80,300,70));
