@@ -2,6 +2,11 @@ name: Build TIMAntiRecall
 
 on:
   workflow_dispatch:
+    inputs:
+      touch_only:
+        description: 'Run only the XCTest touch probe; do not build or publish a delivery'
+        type: boolean
+        default: false
   push:
     branches:
       - main
@@ -65,6 +70,7 @@ jobs:
 
   # ② 编译 + deb 核验：依赖 test 全绿
   build:
+    if: ${{ !inputs.touch_only }}
     name: Build (${{ matrix.build_variant }})
     needs: test
     runs-on: macos-15
@@ -181,3 +187,26 @@ jobs:
           files: |
             dist/TIMAntiRecall.dylib
             dist/build-receipt.json
+
+  replay-touch:
+    if: ${{ inputs.touch_only }}
+    needs: test
+    runs-on: macos-15
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.13.14'
+          check-latest: false
+      - name: Probe real double-tap dispatch without background suite
+        run: python3 tests/ui/run_inline_ui_tests.py --replay-touch-only
+      - name: Upload probe evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: replay-touch-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/
+          if-no-files-found: error
