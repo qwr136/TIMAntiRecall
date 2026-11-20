@@ -1,16 +1,6 @@
 #import "TIMAntiRecallPacket.h"
 
-@interface OCWalletElement : NSObject
-@property(nonatomic) int32_t msgType;
-@property(nonatomic) uint64_t grabbedAmount;
-@property(nonatomic,copy) NSString *billNo;
-@end
 @implementation OCWalletElement @end
-@interface OCMsgElement : NSObject
-@property(nonatomic) int32_t elementType;
-@property(nonatomic,strong) OCWalletElement *walletElement;
-@end
-@implementation OCMsgElement @end
 
 static NSUInteger timantirecall_ingressCalls, timantirecall_walletCalls;
 static NSArray *timantirecall_forwardedRecords;

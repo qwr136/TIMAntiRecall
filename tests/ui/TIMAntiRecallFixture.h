@@ -81,7 +81,14 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic,copy,nullable) id needNotify;
 @property(nonatomic,copy,nullable) id atRoleId;
 @end
+@interface OCWalletElement : NSObject
+@property(nonatomic) int32_t msgType;
+@property(nonatomic) uint64_t grabbedAmount;
+@property(nonatomic,copy) NSString *billNo;
+@end
 @interface OCMsgElement : NSObject
+@property(nonatomic) int32_t elementType;
+@property(nonatomic,strong,nullable) OCWalletElement *walletElement;
 @property(nonatomic,strong,nullable) OCTextElement *textElement;
 @property(nonatomic,strong,nullable) id faceElement;
 @property(nonatomic,strong,nullable) id marketFaceElement;
@@ -97,7 +104,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic,strong,nullable) id structLongMsgElement;
 @property(nonatomic,strong,nullable) id multiForwardMsgElement;
 @property(nonatomic,strong,nullable) id giphyElement;
-@property(nonatomic,strong,nullable) id walletElement;
 @property(nonatomic,strong,nullable) id inlineKeyboardElement;
 @property(nonatomic,strong,nullable) id textGiftElement;
 @property(nonatomic,strong,nullable) id calendarElement;
