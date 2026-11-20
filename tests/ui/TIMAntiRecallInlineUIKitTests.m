@@ -705,6 +705,9 @@ static void timantirecall_start(void) {
             timantirecall_count(self.window.rootViewController.view,2,@"production observers restore frames on real scene activation");
             timantirecall_count(timantirecall_demoRows[1].superview,0,@"unmarked row stays clean across scene lifecycle");
             timantirecall_resumeObserved=YES;[timantirecall_coverage addObject:@"real-scene-resume"];
+            if(timantirecall_backgroundTask!=UIBackgroundTaskInvalid) {
+                [UIApplication.sharedApplication endBackgroundTask:timantirecall_backgroundTask];timantirecall_backgroundTask=UIBackgroundTaskInvalid;
+            }
             timantirecall_finish();
         });
     }
@@ -722,10 +725,9 @@ static void timantirecall_start(void) {
         timantirecall_count(timantirecall_demoRows[1].superview,0,@"unmarked row stays clean in background snapshot");
         timantirecall_backgroundObserved=YES;[timantirecall_coverage addObject:@"real-scene-background"];
         timantirecall_beginSilentBackground(scene,^{
+            // Keep the TEST-only lease until the same scene actually resumes;
+            // simctl launch is asynchronous and must not silently create a new PID.
             timantirecall_stage(@"background-observed");
-            if(timantirecall_backgroundTask!=UIBackgroundTaskInvalid) {
-                [UIApplication.sharedApplication endBackgroundTask:timantirecall_backgroundTask];timantirecall_backgroundTask=UIBackgroundTaskInvalid;
-            }
         });
     });
 }

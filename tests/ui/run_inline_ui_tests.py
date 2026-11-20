@@ -238,6 +238,7 @@ def wait_for_result(device: str, documents: Path, token: str, receipt: dict) -> 
     foreground_sent = False
     settings_sent = False
     packet_amount_sent = False
+    original_pid = None
     while time.monotonic() < deadline:
         # A result is terminal even when FAIL; never wait for a later PASS.
         result = read_json(documents / "tim-inline-result.json")
@@ -251,6 +252,11 @@ def wait_for_result(device: str, documents: Path, token: str, receipt: dict) -> 
             return result
         checkpoint = read_json(documents / "tim-inline-stage.json")
         if checkpoint and checkpoint.get("runToken") == token:
+            pid = checkpoint.get("pid")
+            if isinstance(pid, int) and pid > 0:
+                if original_pid is not None and original_pid != pid:
+                    raise RuntimeError(f"Scene lifecycle lost the original test process: {original_pid} -> {pid}")
+                original_pid = pid
             current = checkpoint.get("stage", "")
             if current != stage:
                 print(f"APP STAGE {current}", flush=True)

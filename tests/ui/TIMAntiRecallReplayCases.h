@@ -1,5 +1,11 @@
 #import "TIMAntiRecallReplay.h"
 // Real UIKit views/recognizer + shared delegate/action decision logic; TIM services are synthetic.
+static NSArray<UITapGestureRecognizer *> *timantirecall_ownedReplayGestures(UIView *host) {
+    NSMutableArray *owned=[NSMutableArray array];
+    for(UIGestureRecognizer *gesture in host.gestureRecognizers)
+        if([NSStringFromClass(gesture.class) isEqual:@"TIMAntiRecallReplayTap"])[owned addObject:gesture];
+    return owned;
+}
 static void timantirecall_testMessageReplay(UIView *root) {
     __block UIViewController *chat;
     __block UIScrollView *scroll;
@@ -29,7 +35,7 @@ static void timantirecall_testMessageReplay(UIView *root) {
         draft=[[UITextView alloc] initWithFrame:CGRectMake(0,root.bounds.size.height-90,200,40)];draft.text=@"尚未发送的草稿";[chat.view addSubview:draft];
         outside=CGPointMake(180,30);
         timantirecall_updateReplayRow(row,@"self_uid");
-        timantirecall_check(host.contentView.gestureRecognizers.count==0,@"disabled replay adds no gesture");
+        timantirecall_check(timantirecall_ownedReplayGestures(host.contentView).count==0,@"disabled replay adds no gesture");
         [NTAIOContentDoubleTapService setTimantirecall_originalCalls:0];
         [NTAIOContentDoubleTapService doubleTapGestureActionWithGesture:[UITapGestureRecognizer new] record:record viewController:chat tappedCellView:row];
         timantirecall_check([NTAIOContentDoubleTapService timantirecall_originalCalls]==1,@"disabled replay preserves original TIM reader");
@@ -37,8 +43,8 @@ static void timantirecall_testMessageReplay(UIView *root) {
     });
     timantirecall_step(^{
         timantirecall_updateReplayRow(row,@"self_uid");timantirecall_updateReplayRow(row,@"self_uid");
-        UITapGestureRecognizer *tap=(UITapGestureRecognizer *)host.contentView.gestureRecognizers.firstObject;
-        timantirecall_check(host.contentView.gestureRecognizers.count==1&&tap.numberOfTapsRequired==2&&tap.numberOfTouchesRequired==1&&!tap.cancelsTouchesInView&&!tap.delaysTouchesBegan&&!tap.delaysTouchesEnded,@"one non-cancelling native double tap lives on the message row host");
+        UITapGestureRecognizer *tap=(UITapGestureRecognizer *)timantirecall_ownedReplayGestures(host.contentView).firstObject;
+        timantirecall_check(timantirecall_ownedReplayGestures(host.contentView).count==1&&tap.numberOfTapsRequired==2&&tap.numberOfTouchesRequired==1&&!tap.cancelsTouchesInView&&!tap.delaysTouchesBegan&&!tap.delaysTouchesEnded,@"one non-cancelling native double tap lives on the message row host");
         timantirecall_check(![chat isKindOfClass:QQBaseChatViewController.class],@"fixture uses modern NT controller not old QQ controller");
         timantirecall_check(timantirecall_testReplayCapture(row,outside,1)&&!timantirecall_testReplayComplete(row,outside)&&[QQMsgService getInstance].timantirecall_sendCalls==0,@"single outside tap never sends");
         BOOL first=timantirecall_testReplayCapture(row,outside,2);
@@ -76,7 +82,7 @@ static void timantirecall_testMessageReplay(UIView *root) {
         [QQAccountsManager GetInstance].currentUid=@"different_account";
         timantirecall_check(!timantirecall_testReplayCapture(row,outside,7.1),@"account change between taps rejects replay");
         timantirecall_updateReplayRow(row,@"self_uid");
-        timantirecall_check(host.contentView.gestureRecognizers.count==0&&!timantirecall_testReplayCapture(row,outside,7.2),@"layout cannot relabel old row for new account");
+        timantirecall_check(timantirecall_ownedReplayGestures(host.contentView).count==0&&!timantirecall_testReplayCapture(row,outside,7.2),@"layout cannot relabel old row for new account");
         [QQAccountsManager GetInstance].currentUid=@"self_uid";timantirecall_updateReplayRow(row,@"self_uid");
         timantirecall_testReplayCapture(row,outside,8);
         [NSNotificationCenter.defaultCenter postNotificationName:UISceneWillDeactivateNotification object:timantirecall_window.windowScene];
@@ -100,10 +106,10 @@ static void timantirecall_testMessageReplay(UIView *root) {
         timantirecall_check(timantirecall_testReplayCapture(row,outside,12)&&timantirecall_testReplayCapture(row,outside,12.1)&&timantirecall_testReplayComplete(row,outside),@"group chat submits its original matching contact once");
         timantirecall_check([QQMsgService getInstance].timantirecall_sendCalls==sent+2&&[QQMsgService getInstance].timantirecall_lastContact.chatType==2&&[draft.text isEqual:@"尚未发送的草稿"],@"private own and group sends leave editor draft unchanged");
         [row prepareForReuse];
-        timantirecall_check(host.contentView.gestureRecognizers.count==0&&!timantirecall_testReplayCapture(row,outside,13),@"row reuse removes gesture and all pending references");
+        timantirecall_check(timantirecall_ownedReplayGestures(host.contentView).count==0&&!timantirecall_testReplayCapture(row,outside,13),@"row reuse removes gesture and all pending references");
         [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];timantirecall_updateReplayRow(row,@"self_uid");
         [timantirecall_settings() timantirecall_updateOptions:@{@"messageReplay":@NO} error:nil];timantirecall_updateReplayRow(row,@"self_uid");
-        timantirecall_check(host.contentView.gestureRecognizers.count==0,@"turning replay off removes owned gesture");
+        timantirecall_check(timantirecall_ownedReplayGestures(host.contentView).count==0,@"turning replay off removes owned gesture");
         [chat.view removeFromSuperview];chat=nil;scroll=nil;host=nil;row=nil;record=nil;element=nil;text=nil;draft=nil;
         [timantirecall_coverage addObjectsFromArray:@[@"message-replay",@"message-replay-outside",@"message-replay-native-contact",@"message-replay-reuse-scroll"]];
     });
