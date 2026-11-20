@@ -207,17 +207,19 @@ static BOOL timantirecall_packetEnqueue(id record,id wallet,NSDictionary *identi
     NSString *bill=timantirecall_packetObject(wallet,sel_registerName("billNo"));
     if(![bill isKindOfClass:NSString.class] || !bill.length || bill.length>128)return NO;
     NSUInteger oldCount=0;for(TIMAntiRecallPacketItem *queued in timantirecall_packetQueue)if(queued.timantirecall_loaded)oldCount++;
-    // If the natural live callback follows the row/layout observation for this
-    // same bill, promote that one queued candidate back to the live head.
+    TIMAntiRecallPacketItem *sameBill=nil;
     for(TIMAntiRecallPacketItem *queued in timantirecall_packetQueue)
-        if([queued.timantirecall_owner isEqual:owner] && [queued.timantirecall_bill isEqual:bill]) {
-            if(!loaded && queued.timantirecall_loaded) {
-                queued.timantirecall_loaded=NO;queued.timantirecall_deadline=NSProcessInfo.processInfo.systemUptime+30;
-                [timantirecall_packetQueue removeObjectIdenticalTo:queued];[timantirecall_packetQueue insertObject:queued atIndex:0];
-                timantirecall_packetQueueEvent(queued,@"live-promoted");return YES;
-            }
-            return NO;
+        if([queued.timantirecall_owner isEqual:owner] && [queued.timantirecall_bill isEqual:bill]) {sameBill=queued;break;}
+    if(sameBill) {
+        if(!loaded && sameBill.timantirecall_loaded) {
+            // Finish the fast enumeration before mutating the backing array.
+            sameBill.timantirecall_loaded=NO;sameBill.timantirecall_deadline=NSProcessInfo.processInfo.systemUptime+30;
+            [timantirecall_packetQueue removeObjectIdenticalTo:sameBill];
+            [timantirecall_packetQueue insertObject:sameBill atIndex:0];
+            timantirecall_packetQueueEvent(sameBill,@"live-promoted");return YES;
         }
+        return NO;
+    }
     if(loaded && oldCount>=8)return NO; // do not let loaded history fill the live queue
     if(!timantirecall_packetQueue)timantirecall_packetQueue=[NSMutableArray array];
     if(timantirecall_packetQueue.count>=32) {
