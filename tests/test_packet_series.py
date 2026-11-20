@@ -9,7 +9,12 @@ class ForegroundPacketSeriesTests(unittest.TestCase):
             self.assertIn(token,pump)
         for token in ('BusyUntil','ReturnPresenter','grabbedAmount','claim = NO;'):
             self.assertNotIn(token,pump)
-        self.assertIn('packetQueue.count>=32',source)
+        self.assertIn('timantirecall_loaded',source)
+        self.assertIn('queued.timantirecall_loaded',source)
+        self.assertIn('timantirecall_packetQueue.count>=32',source)
+        self.assertIn('oldCount>=8',source)
+        self.assertIn('queued.timantirecall_loaded',source)
+        self.assertIn('firstObject',pump)
         self.assertNotIn('claim = NO;',source)
     def test_success_intercepts_only_verified_detail_completion(self):
         source=(ROOT/'Sources/TIMAntiRecallPacketWallet.m').read_text()

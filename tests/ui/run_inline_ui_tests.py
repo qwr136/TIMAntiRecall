@@ -51,6 +51,8 @@ REQUIRED_COVERAGE = {
     "packet-monitor", "packet-open-guards", "packet-proxy-rejections", "packet-own-claim",
     "packet-no-popup-before-present", "packet-native-preopen-token", "packet-native-risk-preserved",
     "packet-lower-slot-guard", "packet-manual-window-preserved", "packet-background-receive", "packet-background-before-resume", "packet-late-receipt", "packet-manual-slot-priority",
+    "packet-fast-main-ingress", "packet-delayed-live-window", "packet-wide-message-batch",
+    "packet-loaded-old-private-group", "packet-loaded-live-promotion", "packet-loaded-bounds-claimed-expired",
     "packet-native-parameter-envelope", "packet-native-local-rejection",
     "packet-offscreen-on-settings", "packet-native-slot-series", "packet-no-detail",
     "packet-amount-native-success", "packet-amount-validation", "packet-amount-center-touch",
