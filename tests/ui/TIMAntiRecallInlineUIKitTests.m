@@ -615,9 +615,13 @@ static void timantirecall_capturePreview(void) {
 }
 
 #import "TIMAntiRecallRestartCases.h"
+#import "TIMAntiRecallReplayTouchHost.h"
 
 static void timantirecall_start(void) {
     if(timantirecall_started)return;
+    if([NSProcessInfo.processInfo.arguments containsObject:@"--timantirecall-replay-touch-only"]) {
+        timantirecall_started=YES;timantirecall_startReplayTouchHost();return;
+    }
     if([NSProcessInfo.processInfo.arguments containsObject:@"--timantirecall-restore-only"]) {
         timantirecall_started=YES;timantirecall_testRestartStart();return;
     }

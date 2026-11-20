@@ -215,7 +215,12 @@ static BOOL timantirecall_replaySend(id record,UIViewController *controller,NSSt
     return YES; // Submitted once to the native service, NOT a delivery receipt.
 }
 @implementation TIMAntiRecallReplayTap
-- (void)reset {[super reset];[self.timantirecall_context timantirecall_clear];}
+- (void)reset {
+#ifdef TIMANTIRECALL_UI_TEST
+    NSLog(@"REPLAY_TOUCH reset samples=%lu",(unsigned long)self.timantirecall_context.timantirecall_samples);
+#endif
+    [super reset];[self.timantirecall_context timantirecall_clear];
+}
 @end
 @implementation TIMAntiRecallReplayContext
 - (void)dealloc {
@@ -266,9 +271,16 @@ static BOOL timantirecall_replaySend(id record,UIViewController *controller,NSSt
     return text?timantirecall_replaySend([TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model],controller,text):NO;
 }
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gesture shouldReceiveTouch:(UITouch *)touch {
-    return gesture==self.timantirecall_tap&&[self timantirecall_capture:[touch locationInView:self.timantirecall_host] time:touch.timestamp];
+    BOOL accepted=gesture==self.timantirecall_tap&&[self timantirecall_capture:[touch locationInView:self.timantirecall_host] time:touch.timestamp];
+#ifdef TIMANTIRECALL_UI_TEST
+    NSLog(@"REPLAY_TOUCH delegate accepted=%d tapCount=%lu samples=%lu state=%ld",accepted,(unsigned long)touch.tapCount,(unsigned long)self.timantirecall_samples,(long)gesture.state);
+#endif
+    return accepted;
 }
 - (void)timantirecall_action:(UITapGestureRecognizer *)tap {
+#ifdef TIMANTIRECALL_UI_TEST
+    NSLog(@"REPLAY_TOUCH action state=%ld samples=%lu",(long)tap.state,(unsigned long)self.timantirecall_samples);
+#endif
     if(tap==self.timantirecall_tap&&tap.state==UIGestureRecognizerStateRecognized)
         [self timantirecall_complete:[tap locationInView:self.timantirecall_host]];
 }

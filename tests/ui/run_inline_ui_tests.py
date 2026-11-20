@@ -385,7 +385,11 @@ def main() -> int:
         run_restart(device, documents, receipt)
         collect(device, data)
         validate_previews(REPORT)
-        print(f"PASS: real UIKit scene app; {result['checks']} checks; runtime iOS {runtime_version}, target {DEPLOY}", flush=True)
+        from run_replay_touch_tests import run_touch_suite
+        touch = run_touch_suite(device, app, REPORT.parent / "replay-touch")
+        receipt["replayTouchVerified"] = touch["status"] == "PASS"
+        receipt["replayTouchReport"] = str(Path(touch["reportPath"]).relative_to(ROOT))
+        print(f"PASS: real UIKit scene app and XCUITest touch dispatch; {result['checks']} checks; runtime iOS {runtime_version}, target {DEPLOY}", flush=True)
         status = 0
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
         print(f"FAIL: {error}", file=sys.stderr, flush=True)
