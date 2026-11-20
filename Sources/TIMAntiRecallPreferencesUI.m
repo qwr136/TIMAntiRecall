@@ -165,8 +165,3 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     [self.navigationController pushViewController:next animated:NO];
 }
 @end
-alloc] initWithOwner:self.timantirecall_owner chat:self.timantirecall_chat];
-    next.timantirecall_mode=1;next.title=@"按聊天单独设置";
-    [self.navigationController pushViewController:next animated:NO];
-}
-@end
