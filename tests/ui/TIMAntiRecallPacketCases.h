@@ -86,7 +86,7 @@ static TIMAntiRecallPacketOpenFixture *timantirecall_openFixture;
         timantirecall_walletRecord=record;timantirecall_walletCalls++;
         [timantirecall_silentStarts addObject:record];
         NSString *bill=((OCMsgElement *)record.elements.firstObject).walletElement.billNo;
-        [QQWallet.GetInstance grabHB:controller params:@{@"listid":bill} completion:completion];return;
+        [QQWallet.GetInstance grabHB:controller params:timantirecall_silentNativeEnvelope(bill) completion:completion];return;
     }
     timantirecall_check(NSThread.isMainThread && controller.view.window==timantirecall_window,@"native route receives visible controller on main queue");
     timantirecall_walletRecord=record;timantirecall_walletCalls++;

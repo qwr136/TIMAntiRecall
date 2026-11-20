@@ -4,6 +4,11 @@ static NSUInteger timantirecall_silentChecks,timantirecall_silentUpdates,timanti
 static BOOL timantirecall_silentHold;
 static NSMutableArray<OCMsgRecord *> *timantirecall_silentStarts;
 static char timantirecall_silentFixtureDataKey;
+static NSDictionary *timantirecall_silentForwardedEnvelope;
+static NSDictionary *timantirecall_silentNativeEnvelope(NSString *bill) {
+    // Match native grabHBParam: outer metadata plus nested extra_data.
+    return @{@"extra_data":@{@"listid":bill,@"channel":@1},@"app_info":@"native-fixture-envelope"};
+}
 @interface QQWallet : NSObject {
 @public
     BOOL tenpayDataHasLoaded;
@@ -39,6 +44,8 @@ static char timantirecall_silentFixtureDataKey;
 - (void)grabHB:(UIViewController *)root params:(NSDictionary *)params completion:(void (^)(NSDictionary *,NSError *))completion {
     (void)root;
     timantirecall_check(!self->_grabCompletionBlock && !self->_isPaying,@"native original entry never overwrites a lower wallet operation");
+    timantirecall_silentForwardedEnvelope=params;
+    timantirecall_check([params[@"extra_data"] isKindOfClass:NSDictionary.class] && params[@"listid"]==nil,@"original Wallet receives unchanged native nested envelope, not flattened parameters");
     [QQWalletGrapHBService.shareInstance preGrapHBProcess:params completion:completion];
 }
 @end
@@ -66,13 +73,13 @@ static void timantirecall_silentRelease(NSDictionary *result,NSError *error) {
 @implementation QQWalletGrapHBService (TIMAntiRecallSilentFixture)
 - (QQWalletGrapHBData *)grapHBData {return objc_getAssociatedObject(self,&timantirecall_silentFixtureDataKey);}
 - (void)setGrapHBData:(QQWalletGrapHBData *)data {objc_setAssociatedObject(self,&timantirecall_silentFixtureDataKey,data,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
-+ (BOOL)isGotoNewGrapProcess:(NSDictionary *)params {timantirecall_silentChecks++;return ![params[@"listid"] hasSuffix:@"unsupported"];}
-+ (BOOL)isNeedGotoPreGrapProcess:(NSDictionary *)params {(void)params;timantirecall_silentChecks++;return YES;}
++ (BOOL)isGotoNewGrapProcess:(NSDictionary *)params {timantirecall_silentChecks++;return ![params[@"extra_data"][@"listid"] hasSuffix:@"unsupported"];}
++ (BOOL)isNeedGotoPreGrapProcess:(NSDictionary *)params {timantirecall_silentChecks++;return ![params[@"extra_data"][@"listid"] hasSuffix:@"nopre"];}
 - (void)showLoading {timantirecall_silentLoadings++;}
 - (BOOL)preGrapHBProcess:(NSDictionary *)params completion:(void (^)(NSDictionary *,NSError *))completion {
     timantirecall_check(!self.preGrapHBCallback && !self.grapHBCallback,@"native pre-open retains its original callbacks and does not overlap");
     timantirecall_silentPrepares++;self.preGrapHBCallback=completion;
-    QQWalletGrapHBData *data=[QQWalletGrapHBData new];data.aioData=[QQWalletGrapHBAIOData new];data.aioData.listId=params[@"listid"];self.grapHBData=data;
+    QQWalletGrapHBData *data=[QQWalletGrapHBData new];data.aioData=[QQWalletGrapHBAIOData new];data.aioData.listId=params[@"extra_data"][@"listid"];self.grapHBData=data;
     [self showLoading];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_MSEC),dispatch_get_main_queue(),^{
         if([data.aioData.listId hasSuffix:@"verify"]) {

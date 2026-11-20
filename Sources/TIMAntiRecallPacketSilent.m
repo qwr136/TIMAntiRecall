@@ -141,15 +141,25 @@ static void timantirecall_silentStart(id wallet,SEL selector,id root,id params,T
     const char *args[]={"@",":","@"};Class cls=objc_getClass("QQWalletGrapHBService");
     IMP modern=timantirecall_silentMethod(cls,"isGotoNewGrapProcess:",YES,"B",3,args);
     IMP pre=timantirecall_silentMethod(cls,"isNeedGotoPreGrapProcess:",YES,"B",3,args);
-    id bill=[params isKindOfClass:NSDictionary.class]?params[@"listid"]:nil;
-    if(!request.timantirecall_valid() || ![bill isKindOfClass:NSString.class] || ![bill isEqualToString:request.timantirecall_bill] ||
-       !modern || !pre || !((BOOL(*)(id,SEL,id))modern)(cls,sel_registerName("isGotoNewGrapProcess:"),params) ||
-       !((BOOL(*)(id,SEL,id))pre)(cls,sel_registerName("isNeedGotoPreGrapProcess:"),params)) {
-        // Unknown legacy/non-pre-open paths are not silently converted to requests.
-        // No parameters, tokens or native qualification decisions are fabricated.
+    // grabHB: receives the native outer envelope. Native createHBAIODataWithParam:
+    // extracts extra_data first; the bill is not a field of the outer dictionary.
+    id extra=[params isKindOfClass:NSDictionary.class]?params[@"extra_data"]:nil;
+    id bill=[extra isKindOfClass:NSDictionary.class]?extra[@"listid"]:nil;
+    NSString *rejection=nil;
+    if(!request.timantirecall_valid())rejection=@"redpack-silent-reject-context";
+    else if(![extra isKindOfClass:NSDictionary.class])rejection=@"redpack-silent-reject-envelope";
+    else if(![bill isKindOfClass:NSString.class])rejection=@"redpack-silent-reject-bill-type";
+    else if(![bill isEqualToString:request.timantirecall_bill])rejection=@"redpack-silent-reject-bill-mismatch";
+    else if(!modern || !pre)rejection=@"redpack-silent-reject-native-abi";
+    else if(!((BOOL(*)(id,SEL,id))modern)(cls,sel_registerName("isGotoNewGrapProcess:"),params))rejection=@"redpack-silent-reject-legacy-route";
+    else if(!((BOOL(*)(id,SEL,id))pre)(cls,sel_registerName("isNeedGotoPreGrapProcess:"),params))rejection=@"redpack-silent-reject-no-preopen";
+    if(rejection) {
+        request.timantirecall_phase=rejection;
+        // Fail closed without changing the original envelope, native checks or tokens.
         if(completion)completion(nil,timantirecall_silentError());return;
     }
     request.timantirecall_starting=YES;
+    timantirecall_traceEvent(@"redpack-silent-native-start-forwarded");
     @try {original(wallet,selector,root,params,completion);}
     @finally {request.timantirecall_starting=NO;}
     if(!request.timantirecall_pre) {
@@ -288,7 +298,9 @@ BOOL timantirecall_beginSilentPacket(Class service,NSString *bill,BOOL (^valid)(
             TIMAntiRecallSilentPacket *live=weakRequest;
             if(!live || live!=timantirecall_silent || live.timantirecall_callback)return;
             live.timantirecall_callback=YES;
-            live.timantirecall_phase=error?@"redpack-silent-native-error":@"redpack-silent-unknown";
+            live.timantirecall_phase=error?(live.timantirecall_phase?:@"redpack-silent-native-error"):@"redpack-silent-unknown";
+            if(error && ![error.domain isEqualToString:@"com.minis.timantirecall.native-route"])
+                timantirecall_traceEvent([NSString stringWithFormat:@"redpack-silent-wallet-error-code-%lld",(long long)error.code]);
             id current=timantirecall_silentObject(live.timantirecall_service,"grapHBData",NO);
             if(!error && live.timantirecall_submitted && live.timantirecall_valid() && current==live.timantirecall_data &&
                timantirecall_silentDataMatches(live,current) && timantirecall_silentState(result,@"0")) {

@@ -145,7 +145,7 @@ static void timantirecall_testSilentManualContention(void) {
     });
     timantirecall_step(^{
         void (^slot)(NSDictionary *,NSError *)=QQWalletGrapHBService.shareInstance.grapHBCallback;
-        [QQWallet.GetInstance grabHB:nil params:@{@"listid":@"manual-priority"} completion:^(__unused NSDictionary *result,__unused NSError *error){manualCallbacks++;}];
+        [QQWallet.GetInstance grabHB:nil params:timantirecall_silentNativeEnvelope(@"manual-priority") completion:^(__unused NSDictionary *result,__unused NSError *error){manualCallbacks++;}];
         timantirecall_check(slot && QQWalletGrapHBService.shareInstance.grapHBCallback==slot && timantirecall_silentPrepares==pre+1,@"manual open waits instead of overwriting the invisible automatic claim's callback");
         timantirecall_silentHold=NO;timantirecall_silentRelease(@{@"state":@0,@"recv_object":@{@"amount":@21}},nil);
         timantirecall_stepDelay=0.25;
@@ -160,5 +160,48 @@ static void timantirecall_testSilentManualContention(void) {
         timantirecall_check(manualCallbacks==1 && timantirecall_silentClaims==claims+2 && timantirecall_detailsShown==details+1,@"manual continuation and details complete once without losing either native receipt");
         [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:@"self_uid" error:NULL];
         [timantirecall_coverage addObject:@"packet-manual-slot-priority"];
+    });
+}
+static void timantirecall_testSilentNativeEnvelope(void) {
+    NSArray<NSString *> *shapes=@[@"nested",@"flat",@"not-dictionary",@"bad-extra",@"missing-bill",@"numeric-bill",@"mismatched-bill",@"unsupported",@"no-preopen",@"native-error"];
+    NSArray<NSString *> *phases=@[@"redpack-silent-receipt-confirmed",@"redpack-silent-reject-envelope",@"redpack-silent-reject-envelope",@"redpack-silent-reject-envelope",@"redpack-silent-reject-bill-type",@"redpack-silent-reject-bill-type",@"redpack-silent-reject-bill-mismatch",@"redpack-silent-reject-legacy-route",@"redpack-silent-reject-no-preopen",@"redpack-silent-native-error"];
+    for(NSUInteger i=0;i<shapes.count;i++) {
+        NSString *shape=shapes[i],*expected=phases[i];
+        NSString *bill=[NSString stringWithFormat:@"envelope-%@",shape];
+        if([shape isEqual:@"no-preopen"])bill=@"envelope-nopre";
+        if([shape isEqual:@"native-error"])bill=@"envelope-error";
+        id envelope=timantirecall_silentNativeEnvelope(bill);
+        if([shape isEqual:@"flat"])envelope=@{@"listid":bill};
+        else if([shape isEqual:@"not-dictionary"])envelope=@"not-an-envelope";
+        else if([shape isEqual:@"bad-extra"])envelope=@{@"extra_data":@123,@"listid":bill};
+        else if([shape isEqual:@"missing-bill"])envelope=@{@"extra_data":@{},@"listid":bill};
+        else if([shape isEqual:@"numeric-bill"])envelope=@{@"extra_data":@{@"listid":@123}};
+        else if([shape isEqual:@"mismatched-bill"])envelope=@{@"extra_data":@{@"listid":@"different-native-bill"},@"listid":bill};
+        __block NSUInteger callbacks=0,prepares=0,claims=0,presents=0;
+        __block NSString *phase=nil,*amount=nil;
+        BOOL native=[shape isEqual:@"nested"] || [shape isEqual:@"native-error"];
+        timantirecall_step(^{
+            timantirecall_check(timantirecall_silentPacketReady(QQWalletRedPacketMsgService.class),@"envelope case starts only after all preceding native slots are idle");
+            prepares=timantirecall_silentPrepares;claims=timantirecall_silentClaims;presents=timantirecall_silentPresents;
+            timantirecall_silentForwardedEnvelope=nil;
+            BOOL began=timantirecall_beginSilentPacket(QQWalletRedPacketMsgService.class,bill,^BOOL(void){return YES;},^(NSString *resultPhase,NSString *text){
+                callbacks++;phase=resultPhase;amount=text;
+            },^(TIMAntiRecallSilentReceipt completion){
+                [QQWallet.GetInstance grabHB:nil params:envelope completion:completion];
+            });
+            timantirecall_check(began,@"envelope guard runs inside the original native entry context");timantirecall_stepDelay=0.3;
+        });
+        timantirecall_step(^{
+            timantirecall_check(callbacks==1 && [phase isEqual:expected],@"local envelope rejection has its exact fixed reason, not a generic Wallet error");
+            timantirecall_check(timantirecall_silentPrepares==prepares+(native?1:0) && timantirecall_silentClaims==claims+(native?1:0),@"only an authorized nested same-bill envelope reaches native pre-open and claim");
+            timantirecall_check(timantirecall_silentPresents==presents,@"native envelope validation never introduces a red packet window");
+            timantirecall_check(native?timantirecall_silentForwardedEnvelope==envelope:timantirecall_silentForwardedEnvelope==nil,@"original native start receives the exact envelope object unchanged, or is not called");
+            timantirecall_check([shape isEqual:@"nested"]?[amount isEqual:@"已领取 ¥1.23"]:amount==nil,@"only the successful nested native receipt supplies an amount");
+            timantirecall_check(timantirecall_silentPacketReady(QQWalletRedPacketMsgService.class),@"a rejected or completed envelope leaves all native slots available for later packets");
+        });
+    }
+    timantirecall_step(^{
+        timantirecall_silentForwardedEnvelope=nil;
+        [timantirecall_coverage addObjectsFromArray:@[@"packet-native-parameter-envelope",@"packet-native-local-rejection"]];
     });
 }
