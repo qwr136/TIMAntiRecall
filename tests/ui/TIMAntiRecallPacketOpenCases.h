@@ -47,7 +47,7 @@ static void timantirecall_testPacketOpenGuards(void) {
     });
 }
 
-static void timantirecall_testReceiptCloseGuards(void) {
+static void __attribute__((unused)) timantirecall_testReceiptCloseGuards(void) {
     for(NSNumber *mode in @[@1,@2]) {
         __block NSUInteger opens,closes;
         timantirecall_step(^{
@@ -76,7 +76,7 @@ static void timantirecall_testReceiptCloseGuards(void) {
 static OCMsgRecord *timantirecall_selfSentPacket(int chat,int64_t sequence,int32_t type,NSString *bill) {
     OCMsgRecord *record=timantirecall_testPacket(chat,sequence,type,bill);record.senderUid=@"self_uid";return record;
 }
-static void timantirecall_testSelfSentPackets(void) {
+static void __attribute__((unused)) timantirecall_testSelfSentPackets(void) {
     __block NSUInteger walletBefore,openBefore,closeBefore;
     timantirecall_step(^{
         walletBefore=timantirecall_walletCalls;openBefore=timantirecall_openButtonCalls;closeBefore=timantirecall_closeButtonCalls;

@@ -141,7 +141,7 @@ static OCMsgRecord *timantirecall_testPacket(int chat, int64_t seq, int32_t type
     OCMsgElement *element=[OCMsgElement new];element.elementType=9;element.walletElement=wallet;
     record.elements=@[element];return record;
 }
-static void timantirecall_testPacketMonitor(void) {
+static void __attribute__((unused)) timantirecall_testPacketMonitor(void) {
     __block OCMsgRecord *privatePacket,*groupPacket;
     NSString *owner=@"self_uid";
     timantirecall_step(^{

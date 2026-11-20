@@ -1,5 +1,5 @@
 // No packet chat or rendered row participates in this test.
-static void timantirecall_testForegroundPacketSeries(void) {
+static void __attribute__((unused)) timantirecall_testForegroundPacketSeries(void) {
     __block TIMAntiRecallPreferencesController *settings;
     __block OCMsgRecord *first,*second,*third;
     __block NSUInteger opens,closes,details;
