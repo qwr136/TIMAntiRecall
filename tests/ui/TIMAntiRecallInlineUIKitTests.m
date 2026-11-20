@@ -20,7 +20,7 @@ static NSUInteger timantirecall_checks;
 static NSDictionary *timantirecall_build;
 static BOOL timantirecall_started, timantirecall_waitingForBackground;
 static BOOL timantirecall_backgroundObserved, timantirecall_resumeObserved;
-static UIBackgroundTaskIdentifier timantirecall_backgroundTask=UIBackgroundTaskInvalid;
+static UIBackgroundTaskIdentifier timantirecall_backgroundTask;
 static BOOL timantirecall_previewWritten, timantirecall_finished;
 static UIWindow *timantirecall_window;
 static NSArray<TIMAntiRecallTestBaseView *> *timantirecall_demoRows;

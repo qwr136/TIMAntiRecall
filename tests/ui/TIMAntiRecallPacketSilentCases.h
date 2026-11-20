@@ -86,7 +86,7 @@ static void timantirecall_testSilentPackets(void) {
 }
 static NSUInteger timantirecall_silentBackgroundUpdates,timantirecall_silentBackgroundPresents;
 static void timantirecall_prepareSilentBackground(void) {
-    // Test-host execution lease only: establish it while foreground, before the
+    timantirecall_backgroundTask=UIBackgroundTaskInvalid;
     // driver switches apps. Production never requests background execution time.
     timantirecall_backgroundTask=[UIApplication.sharedApplication beginBackgroundTaskWithExpirationHandler:^{
         timantirecall_check(NO,@"test-host background execution window expired before native receipts");
