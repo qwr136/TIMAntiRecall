@@ -644,6 +644,7 @@ static void timantirecall_start(void) {
         timantirecall_testProxyRejections();
         timantirecall_testSilentPackets();
         timantirecall_testSilentLateReceipt();
+        timantirecall_testSilentManualContention();
         timantirecall_testPacketAmountToast();
         timantirecall_step(^{timantirecall_makePreview(root);});
         timantirecall_step(^{

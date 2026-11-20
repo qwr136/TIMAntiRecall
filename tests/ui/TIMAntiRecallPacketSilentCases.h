@@ -134,3 +134,31 @@ static void timantirecall_testSilentLateReceipt(void) {
         [timantirecall_coverage addObject:@"packet-late-receipt"];
     });
 }
+static void timantirecall_testSilentManualContention(void) {
+    __block NSUInteger pre,claims,presents,details,manualCallbacks;
+    timantirecall_step(^{
+        pre=timantirecall_silentPrepares;claims=timantirecall_silentClaims;presents=timantirecall_silentPresents;details=timantirecall_detailsShown;manualCallbacks=0;
+        timantirecall_silentHold=YES;
+        [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:YES owner:@"self_uid" error:NULL];
+        [NTMsgPushMonitorService recvMsgsWithRecords:@[timantirecall_testPacket(1,9685,2,@"silent-manual-contention")]];
+        timantirecall_stepDelay=0.25;
+    });
+    timantirecall_step(^{
+        void (^slot)(NSDictionary *,NSError *)=QQWalletGrapHBService.shareInstance.grapHBCallback;
+        [QQWallet.GetInstance grabHB:nil params:@{@"listid":@"manual-priority"} completion:^(__unused NSDictionary *result,__unused NSError *error){manualCallbacks++;}];
+        timantirecall_check(slot && QQWalletGrapHBService.shareInstance.grapHBCallback==slot && timantirecall_silentPrepares==pre+1,@"manual open waits instead of overwriting the invisible automatic claim's callback");
+        timantirecall_silentHold=NO;timantirecall_silentRelease(@{@"state":@0,@"recv_object":@{@"amount":@21}},nil);
+        timantirecall_stepDelay=0.25;
+    });
+    timantirecall_step(^{
+        UIViewController *manual=timantirecall_window.rootViewController.presentedViewController;
+        timantirecall_check(timantirecall_silentPrepares==pre+2 && timantirecall_silentPresents==presents+1 && manual.view.window==timantirecall_window,@"deferred manual request resumes its unchanged native presenter after auto slots release");
+        [(QQWalletPreGrapHBResultViewController *)manual onOpenButtonClick:((QQWalletPreGrapHBResultViewController *)manual).grapHBView];
+        timantirecall_stepDelay=0.5;
+    });
+    timantirecall_step(^{
+        timantirecall_check(manualCallbacks==1 && timantirecall_silentClaims==claims+2 && timantirecall_detailsShown==details+1,@"manual continuation and details complete once without losing either native receipt");
+        [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:@"self_uid" error:NULL];
+        [timantirecall_coverage addObject:@"packet-manual-slot-priority"];
+    });
+}

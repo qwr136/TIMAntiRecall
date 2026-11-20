@@ -31,6 +31,7 @@ typedef void (*TIMAntiRecallSilentDismissIMP)(id,SEL,BOOL,void (^)(void));
 @end
 @implementation TIMAntiRecallSilentPacket @end
 static TIMAntiRecallSilentPacket *timantirecall_silent; // main queue only
+static dispatch_block_t timantirecall_silentManual; // one native manual request gets priority after the owned slots release
 static Class timantirecall_silentImageClass;
 static const void *timantirecall_silentImage;
 static Ivar timantirecall_silentLowSlot;
@@ -109,7 +110,11 @@ static void timantirecall_silentPoll(void) {
     NSString *phase=request.timantirecall_phase?:@"redpack-silent-unknown";
     NSString *text=request.timantirecall_valid()?request.timantirecall_text:nil;
     void (^notify)(NSString *,NSString *)=request.timantirecall_finished;
-    dispatch_async(dispatch_get_main_queue(),^{notify(phase,text);});
+    dispatch_async(dispatch_get_main_queue(),^{
+        dispatch_block_t manual=timantirecall_silentManual;timantirecall_silentManual=nil;
+        if(manual)manual();
+        notify(phase,text);
+    });
 }
 static NSError *timantirecall_silentError(void) {
     return [NSError errorWithDomain:@"com.minis.timantirecall.native-route" code:1 userInfo:nil];
@@ -117,6 +122,19 @@ static NSError *timantirecall_silentError(void) {
 static void timantirecall_silentStart(id wallet,SEL selector,id root,id params,TIMAntiRecallSilentReceipt completion) {
     TIMAntiRecallSilentStartIMP original=(TIMAntiRecallSilentStartIMP)atomic_load(&timantirecall_silentStartOriginal);
     TIMAntiRecallSilentPacket *request=NSThread.isMainThread?timantirecall_silent:nil;
+    if(request && !request.timantirecall_entering && wallet==request.timantirecall_wallet) {
+        // The invisible auto flow must not let a manual open steal its single native callback slots.
+        if(!timantirecall_silentManual) {
+            NSString *owner=timantirecall_currentAccount();id nativeService=request.timantirecall_service;
+            timantirecall_silentManual=^{
+                if(owner.length && [owner isEqual:timantirecall_currentAccount()] &&
+                   UIApplication.sharedApplication.applicationState==UIApplicationStateActive &&
+                   timantirecall_silentIdle(nativeService,wallet))original(wallet,selector,root,params,completion);
+                else if(completion)completion(nil,timantirecall_silentError());
+            };
+        } else if(completion)dispatch_async(dispatch_get_main_queue(),^{completion(nil,timantirecall_silentError());});
+        timantirecall_silentPoll();return;
+    }
     if(!request || !request.timantirecall_entering || wallet!=request.timantirecall_wallet) {
         original(wallet,selector,root,params,completion);return;
     }
@@ -233,7 +251,7 @@ static BOOL timantirecall_installSilent(Class service) {
 BOOL timantirecall_silentPacketReady(Class service) {
     if(!NSThread.isMainThread)return NO;
     timantirecall_silentPoll();
-    if(timantirecall_silent || !timantirecall_walletCanAcceptPacket(service) || !timantirecall_installSilent(service))return NO;
+    if(timantirecall_silent || timantirecall_silentManual || !timantirecall_walletCanAcceptPacket(service) || !timantirecall_installSilent(service))return NO;
     id wallet=timantirecall_silentObject(objc_getClass("QQWallet"),"GetInstance",YES);
     id nativeService=timantirecall_silentObject(objc_getClass("QQWalletGrapHBService"),"shareInstance",YES);
     return object_getClass(wallet)==objc_getClass("QQWallet") && object_getClass(nativeService)==objc_getClass("QQWalletGrapHBService") &&

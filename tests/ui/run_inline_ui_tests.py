@@ -50,7 +50,7 @@ REQUIRED_COVERAGE = {
     "chat-forwarding", "captured-time", "persist-ui", "preferences-entry", "preferences-controls", "preferences-visible",
     "packet-monitor", "packet-open-guards", "packet-proxy-rejections", "packet-own-claim",
     "packet-no-popup-before-present", "packet-native-preopen-token", "packet-native-risk-preserved",
-    "packet-lower-slot-guard", "packet-manual-window-preserved", "packet-background-receive", "packet-background-before-resume", "packet-late-receipt",
+    "packet-lower-slot-guard", "packet-manual-window-preserved", "packet-background-receive", "packet-background-before-resume", "packet-late-receipt", "packet-manual-slot-priority",
     "packet-offscreen-on-settings", "packet-native-slot-series", "packet-no-detail",
     "packet-amount-native-success", "packet-amount-validation", "packet-amount-center-touch",
     "packet-amount-three-seconds", "packet-amount-refresh", "packet-amount-lifecycle",

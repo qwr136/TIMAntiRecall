@@ -47,4 +47,11 @@ class SilentPacketTests(unittest.TestCase):
         self.assertIn('UIApplicationStateBackground',cases)
         self.assertIn('timantirecall_silentPresents==presents',cases)
         self.assertIn('manual success retains original details completion',cases)
+    def test_manual_requests_keep_exact_native_arguments_and_get_priority(self):
+        source=(ROOT/'Sources/TIMAntiRecallPacketSilent.m').read_text()
+        self.assertIn('static dispatch_block_t timantirecall_silentManual',source)
+        self.assertIn('if(manual)manual();',source)
+        self.assertIn('timantirecall_silentIdle(nativeService,wallet))original(wallet,selector,root,params,completion);',source)
+        self.assertIn('timantirecall_silent || timantirecall_silentManual',source)
+        self.assertIn('packet-manual-slot-priority',(ROOT/'tests/ui/run_inline_ui_tests.py').read_text())
 if __name__=='__main__':unittest.main()
