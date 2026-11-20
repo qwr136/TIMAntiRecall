@@ -321,7 +321,7 @@ def collect(device: str, data: Path | None) -> None:
         except (RuntimeError, subprocess.SubprocessError) as error:
             print(f"Diagnostic screenshot unavailable: {error}", flush=True)
         try:
-            text = run(["xcrun", "simctl", "spawn", device, "log", "show", "--last", "3m",
+            text = run(["xcrun", "simctl", "spawn", device, "log", "show", "--last", "10m",
                         "--style", "compact", "--predicate", f'process == "{EXECUTABLE}"'], timeout=20, check=False)
             (REPORT / "app-system.log").write_text(text)
         except subprocess.SubprocessError as error:

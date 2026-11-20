@@ -86,6 +86,16 @@ static void timantirecall_testSilentPackets(void) {
 }
 static NSUInteger timantirecall_silentBackgroundUpdates,timantirecall_silentBackgroundPresents;
 static void timantirecall_prepareSilentBackground(void) {
+    // Test-host execution lease only: establish it while foreground, before the
+    // driver switches apps. Production never requests background execution time.
+    timantirecall_backgroundTask=[UIApplication.sharedApplication beginBackgroundTaskWithExpirationHandler:^{
+        timantirecall_check(NO,@"test-host background execution window expired before native receipts");
+        if(timantirecall_backgroundTask!=UIBackgroundTaskInvalid) {
+            [UIApplication.sharedApplication endBackgroundTask:timantirecall_backgroundTask];timantirecall_backgroundTask=UIBackgroundTaskInvalid;
+        }
+        timantirecall_stage(@"background-execution-expired");timantirecall_finish();
+    }];
+    timantirecall_check(timantirecall_backgroundTask!=UIBackgroundTaskInvalid,@"test host owns an execution window before the real background transition");
     timantirecall_silentBackgroundUpdates=timantirecall_silentUpdates;
     timantirecall_silentBackgroundPresents=timantirecall_silentPresents;
     timantirecall_silentHold=NO;
@@ -111,6 +121,7 @@ static void timantirecall_beginSilentBackground(UIScene *scene,dispatch_block_t 
     timantirecall_check(UIApplication.sharedApplication.applicationState==UIApplicationStateBackground,@"background ingress is not simulated with an active foreground app");
     OCMsgRecord *one=timantirecall_testPacket(1,9701,2,@"silent-background-private");
     OCMsgRecord *two=timantirecall_testPacket(2,9702,3,@"silent-background-group");
+    timantirecall_stage(@"background-native-ingress");
     [NTMsgPushMonitorService recvMsgsWithRecords:@[one,two,one]];
     timantirecall_checkSilentBackground(scene,0,done);
 }

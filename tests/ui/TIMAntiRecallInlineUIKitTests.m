@@ -20,6 +20,7 @@ static NSUInteger timantirecall_checks;
 static NSDictionary *timantirecall_build;
 static BOOL timantirecall_started, timantirecall_waitingForBackground;
 static BOOL timantirecall_backgroundObserved, timantirecall_resumeObserved;
+static UIBackgroundTaskIdentifier timantirecall_backgroundTask=UIBackgroundTaskInvalid;
 static BOOL timantirecall_previewWritten, timantirecall_finished;
 static UIWindow *timantirecall_window;
 static NSArray<TIMAntiRecallTestBaseView *> *timantirecall_demoRows;
@@ -40,7 +41,9 @@ static void timantirecall_writeJSON(NSDictionary *value, NSString *name) {
         NSLog(@"Cannot write %@: %@", name, error);
 }
 static void timantirecall_stage(NSString *name) {
-    timantirecall_writeJSON(@{@"stage":name, @"runToken":timantirecall_build[@"runToken"]?:@"", @"checks":@(timantirecall_checks)}, @"tim-inline-stage.json");
+    timantirecall_writeJSON(@{@"stage":name, @"runToken":timantirecall_build[@"runToken"]?:@"", @"checks":@(timantirecall_checks),
+                             @"failures":timantirecall_failures?:@[], @"applicationState":@(UIApplication.sharedApplication.applicationState),
+                             @"pid":@(NSProcessInfo.processInfo.processIdentifier)}, @"tim-inline-stage.json");
 }
 static OCMsgRecord *timantirecall_record(int type, int64_t sequence, NSString *peer, int64_t group);
 static void timantirecall_finish(void) {
@@ -708,7 +711,7 @@ static void timantirecall_start(void) {
 }
 - (void)sceneDidEnterBackground:(UIScene *)scene {
     if(!timantirecall_waitingForBackground || timantirecall_finished)return;
-    UIBackgroundTaskIdentifier task=[UIApplication.sharedApplication beginBackgroundTaskWithExpirationHandler:^{}];
+    timantirecall_stage(@"scene-entered-background");
     dispatch_async(dispatch_get_main_queue(),^{
         timantirecall_check(scene.activationState==UISceneActivationStateBackground,@"scene truly entered system background");
         timantirecall_count(self.window.rootViewController.view,2,@"verified recall frames remain visible in app-switcher background snapshot");
@@ -716,7 +719,9 @@ static void timantirecall_start(void) {
         timantirecall_backgroundObserved=YES;[timantirecall_coverage addObject:@"real-scene-background"];
         timantirecall_beginSilentBackground(scene,^{
             timantirecall_stage(@"background-observed");
-            if(task!=UIBackgroundTaskInvalid)[UIApplication.sharedApplication endBackgroundTask:task];
+            if(timantirecall_backgroundTask!=UIBackgroundTaskInvalid) {
+                [UIApplication.sharedApplication endBackgroundTask:timantirecall_backgroundTask];timantirecall_backgroundTask=UIBackgroundTaskInvalid;
+            }
         });
     });
 }
