@@ -57,6 +57,7 @@ static void timantirecall_testPacketAmountToast(void) {
         timantirecall_showPacketAmountText(timantirecall_packetAmountText(@3),timantirecall_window);
         [NSNotificationCenter.defaultCenter postNotificationName:UIApplicationDidEnterBackgroundNotification object:UIApplication.sharedApplication];
         timantirecall_check(!timantirecall_findPacketToast(),@"backgrounding leaves no amount overlay to reappear on return");
+        [NSNotificationCenter.defaultCenter postNotificationName:UIApplicationDidBecomeActiveNotification object:UIApplication.sharedApplication];
         [timantirecall_coverage addObjectsFromArray:@[@"packet-amount-validation",@"packet-amount-center-touch",@"packet-amount-three-seconds",@"packet-amount-refresh",@"packet-amount-lifecycle"]];
     });
 }
