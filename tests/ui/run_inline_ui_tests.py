@@ -380,16 +380,24 @@ def main() -> int:
         data = Path(run(["xcrun", "simctl", "get_app_container", device, BUNDLE, "data"]))
         documents = data / "Documents"
         documents.mkdir(exist_ok=True)
-        run(["xcrun", "simctl", "launch", "--terminate-running-process", device, BUNDLE], timeout=60)
-        result = wait_for_result(device, documents, token, receipt)
-        run_restart(device, documents, receipt)
-        collect(device, data)
-        validate_previews(REPORT)
+        touch_only = "--replay-touch-only" in sys.argv
+        receipt["verificationScope"] = "replay-touch-only" if touch_only else "full-uikit-and-touch"
+        result = None
+        if not touch_only:
+            run(["xcrun", "simctl", "launch", "--terminate-running-process", device, BUNDLE], timeout=60)
+            result = wait_for_result(device, documents, token, receipt)
+            run_restart(device, documents, receipt)
+            collect(device, data)
+            validate_previews(REPORT)
         from run_replay_touch_tests import run_touch_suite
         touch = run_touch_suite(device, app, REPORT.parent / "replay-touch")
         receipt["replayTouchVerified"] = touch["status"] == "PASS"
         receipt["replayTouchReport"] = str(Path(touch["reportPath"]).relative_to(ROOT))
-        print(f"PASS: real UIKit scene app and XCUITest touch dispatch; {result['checks']} checks; runtime iOS {runtime_version}, target {DEPLOY}", flush=True)
+        collect(device, data)
+        if touch_only:
+            print("PASS: isolated XCUITest touch dispatch; full scene regression NOT run", flush=True)
+        else:
+            print(f"PASS: real UIKit scene app and XCUITest touch dispatch; {result['checks']} checks; runtime iOS {runtime_version}, target {DEPLOY}", flush=True)
         status = 0
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
         print(f"FAIL: {error}", file=sys.stderr, flush=True)
