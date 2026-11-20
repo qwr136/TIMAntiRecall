@@ -242,7 +242,7 @@ static BOOL timantirecall_bindRow(id receiver,SEL selector,id model) {
         // A naturally loaded chat cell may bind before it enters a visible window.
         // Let its later didMoveToWindow/layout observation handle it; otherwise it
         // would be weak-deduped before the active-chat safety gate can run.
-        if(receiver.window && timantirecall_windowActive(receiver.window)) {
+        if([(UIView *)receiver window] && timantirecall_windowActive([(UIView *)receiver window])) {
             id loadedRecord=model ? [TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model] : nil;
             if(loadedRecord)timantirecall_observeLoadedPacket(loadedRecord,context.timantirecall_owner);
         }
