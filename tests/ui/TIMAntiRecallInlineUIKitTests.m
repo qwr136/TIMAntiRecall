@@ -451,6 +451,7 @@ static void timantirecall_testPushToRow(UIView *root) {
 #import "TIMAntiRecallPreferencesCases.h"
 #import "TIMAntiRecallPacketCases.h"
 #import "TIMAntiRecallPacketOpenCases.h"
+#import "TIMAntiRecallPacketToastCases.h"
 #import "TIMAntiRecallPacketSeriesCases.h"
 
 static void timantirecall_testGeometry(UIView *root) {
@@ -644,6 +645,7 @@ static void timantirecall_start(void) {
         timantirecall_testReceiptCloseGuards();
         timantirecall_testProxyRejections();
         timantirecall_testForegroundPacketSeries();
+        timantirecall_testPacketAmountToast();
         timantirecall_step(^{timantirecall_makePreview(root);});
         timantirecall_step(^{
             timantirecall_count(root,2,@"three equal-text messages: only private and group targets marked");

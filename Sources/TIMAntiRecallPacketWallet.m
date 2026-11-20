@@ -9,6 +9,7 @@ void timantirecall_disarmPacketFinish(void) {}
 #else
 #import "TIMAntiRecallMarks.h"
 #import "TIMAntiRecallTrace.h"
+#import "TIMAntiRecallPacketToast.h"
 #import <UIKit/UIKit.h>
 #include <dlfcn.h>
 #include <mach-o/loader.h>
@@ -175,15 +176,24 @@ typedef void (*TIMAntiRecallWalletDismissIMP)(id,SEL,BOOL,void (^)(void));
 static void timantirecall_popupDismiss(id controller,SEL selector,BOOL animated,void (^completion)(void)) {
     TIMAntiRecallWalletDismissIMP original=(TIMAntiRecallWalletDismissIMP)atomic_load(&timantirecall_dismissOriginal);
     void (^notify)(void)=nil;
+    NSString *amountText=nil;__weak UIWindow *amountWindow=nil;
     @try {
         if(NSThread.isMainThread && !animated && timantirecall_finishClosed && timantirecall_walletDetailContinuation(completion) &&
            timantirecall_walletSameSuccessfulPopup(controller)) {
             notify=timantirecall_finishClosed;timantirecall_disarmPacketFinish();
             timantirecall_traceEvent(@"redpack-native-detail-skipped");
+            // Reuse the already-correlated native success, never the packet's total amount.
+            id data=timantirecall_walletObject(controller,"grapHBData");
+            NSDictionary *result=timantirecall_walletObject(data,"grapResultData");
+            amountText=timantirecall_packetAmountText(result[@"recv_object"][@"amount"]);
+            amountWindow=((UIViewController *)controller).viewIfLoaded.window;
         }
     } @catch(__unused NSException *exception) {}
     // The original UIKit dismissal and its lifecycle run once in either case.
     original(controller,selector,animated,notify?:completion);
+    if(amountText)dispatch_async(dispatch_get_main_queue(),^{
+        timantirecall_showPacketAmountText(amountText,amountWindow);
+    });
 }
 BOOL timantirecall_installPacketFinish(Class service) {
     if(!NSThread.isMainThread || !timantirecall_walletImageReady(service))return NO;

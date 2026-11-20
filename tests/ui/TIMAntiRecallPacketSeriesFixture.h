@@ -78,7 +78,7 @@ static BOOL timantirecall_seriesEnabled;
         if(live.timantirecall_callback)live.timantirecall_callback(nil,error);
     };
     if(popup.timantirecall_variant!=1) {
-        NSDictionary *result=popup.timantirecall_variant==2?@{@"state":@6}:@{@"state":@0,@"recv_object":@{@"amount":@1}};
+        NSDictionary *result=popup.timantirecall_variant==2?@{@"state":@6}:@{@"state":@0,@"recv_object":@{@"amount":@123},@"send_object":@{@"amount":@9900}};
         NSError *error=popup.timantirecall_variant==2?[NSError errorWithDomain:@"native-fixture" code:6 userInfo:nil]:nil;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW,75*NSEC_PER_MSEC),dispatch_get_main_queue(),^{
             void (^callback)(NSDictionary *,NSError *)=wallet.grapHBCallback;

@@ -36,7 +36,7 @@ PRODUCTION = (
     "Sources/TIMAntiRecallRuntime.m", "Sources/TIMAntiRecallColdSync.m", "Sources/TIMAntiRecallSettings.m",
     "Sources/TIMAntiRecallStorage.m", "Sources/TIMAntiRecallMarkStore.m",
     "Sources/TIMAntiRecallPreferencesUI.m", "Sources/TIMAntiRecallPreferencesEntry.m",
-    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m", "Sources/TIMAntiRecallPacketOpen.m", "Sources/TIMAntiRecallPacketWallet.m",
+    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m", "Sources/TIMAntiRecallPacketOpen.m", "Sources/TIMAntiRecallPacketWallet.m", "Sources/TIMAntiRecallPacketToast.m",
 )
 SWIFT = ("Sources/TIMAntiRecallRecordBridge.swift",
          "tests/ui/TIMAntiRecallSwiftFixture.swift")
@@ -51,6 +51,8 @@ REQUIRED_COVERAGE = {
     "packet-monitor", "packet-open-action", "packet-open-guards",
     "packet-proxy-forwarding", "packet-receipt-close", "packet-close-confirmation", "packet-proxy-rejections", "packet-own-claim",
     "packet-offscreen-on-settings", "packet-native-slot-series", "packet-no-detail",
+    "packet-amount-native-success", "packet-amount-validation", "packet-amount-center-touch",
+    "packet-amount-three-seconds", "packet-amount-refresh", "packet-amount-lifecycle",
 }
 COMMANDS: list[list[str]] = []
 TRANSCRIPT: list[str] = []
@@ -231,6 +233,7 @@ def wait_for_result(device: str, documents: Path, token: str, receipt: dict) -> 
     background_sent = False
     foreground_sent = False
     settings_sent = False
+    packet_amount_sent = False
     while time.monotonic() < deadline:
         # A result is terminal even when FAIL; never wait for a later PASS.
         result = read_json(documents / "tim-inline-result.json")
@@ -252,6 +255,9 @@ def wait_for_result(device: str, documents: Path, token: str, receipt: dict) -> 
                 run_screenshot(device, REPORT / "tim-inline-settings-simulator.png")
                 (documents / "tim-inline-settings-captured.json").write_text(json.dumps({'runToken': token}))
                 settings_sent = True
+            elif current == "packet-amount-ready" and not packet_amount_sent:
+                run_screenshot(device, REPORT / "tim-inline-packet-amount-simulator.png")
+                packet_amount_sent = True
             elif current == "ready-for-background" and not background_sent:
                 run_screenshot(device, REPORT / "tim-inline-simulator.png")
                 # Safari is local on every iPhone runtime. No external page needed.
@@ -296,7 +302,7 @@ def run_restart(device: str, documents: Path, receipt: dict) -> None:
 
 
 def validate_previews(report: Path) -> None:
-    for name in ("tim-inline-preview.png", "tim-inline-simulator.png", "tim-inline-settings-preview.png", "tim-inline-settings-simulator.png"):
+    for name in ("tim-inline-preview.png", "tim-inline-simulator.png", "tim-inline-settings-preview.png", "tim-inline-settings-simulator.png", "tim-inline-packet-amount-preview.png", "tim-inline-packet-amount-simulator.png"):
         path = report / name
         if not path.is_file() or path.stat().st_size < 128 or path.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
             raise RuntimeError(f"Missing real UIKit/simulator screenshot: {name}")

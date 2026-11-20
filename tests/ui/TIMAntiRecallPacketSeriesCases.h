@@ -3,6 +3,7 @@ static void timantirecall_testForegroundPacketSeries(void) {
     __block TIMAntiRecallPreferencesController *settings;
     __block OCMsgRecord *first,*second,*third;
     __block NSUInteger opens,closes,details;
+    __block UILabel *successToast;
     timantirecall_step(^{
         opens=timantirecall_nativePopupOpens;closes=timantirecall_nativePopupCloses;details=timantirecall_detailsShown;
         timantirecall_check(!timantirecall_hasPendingPacketUI(),@"standalone probe without an open popup or bill does not own the next route");
@@ -30,6 +31,7 @@ static void timantirecall_testForegroundPacketSeries(void) {
     });
     timantirecall_step(^{
         timantirecall_check(timantirecall_seriesStarts.count==1 && timantirecall_nativePopupCloses==closes,@"later receipts wait only while first wallet slot is actually occupied");
+        timantirecall_check(!timantirecall_findPacketToast(),@"in-flight or unconfirmed receipts never show a claimed amount");
         // Deliberately no business result, no amount update and no route callback.
         QQWalletGrapHBService.shareInstance.grapHBCallback=nil;
         timantirecall_stepDelay=2.1;
@@ -40,6 +42,8 @@ static void timantirecall_testForegroundPacketSeries(void) {
         timantirecall_check(timantirecall_nativePopupOpens==opens+3 && timantirecall_nativePopupCloses==closes+2,@"each packet opens once and only the two released leftover popups retire");
         timantirecall_check(timantirecall_detailsShown==details && !settings.presentedViewController && settings.viewIfLoaded.window==timantirecall_window,
                            @"same-bill native success keeps UIKit dismissal and never opens the details page");
+        successToast=timantirecall_findPacketToast();
+        timantirecall_check([successToast.text isEqual:@"已领取 ¥1.23"],@"native same-bill success shows received amount, never total sent amount");
         // Manual/unarmed success must still execute native details completion.
         QQWalletPreGrapHBResultViewController *manual=[QQWalletPreGrapHBResultViewController new];
         manual.grapHBData=[QQWalletGrapHBData new];manual.grapHBData.aioData=[QQWalletGrapHBAIOData new];manual.grapHBData.aioData.listId=@"manual";
@@ -51,6 +55,8 @@ static void timantirecall_testForegroundPacketSeries(void) {
     });
     timantirecall_step(^{
         timantirecall_check(timantirecall_detailsShown==details+1,@"manual success retains its native details transition");
+        timantirecall_check(successToast && timantirecall_findPacketToast()==successToast,@"manual receipt does not create or refresh an automatic-claim toast");
+        [timantirecall_coverage addObject:@"packet-amount-native-success"];
         [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:@"self_uid" error:NULL];
         [timantirecall_window.rootViewController dismissViewControllerAnimated:NO completion:nil];
         timantirecall_seriesEnabled=NO;timantirecall_seriesStarts=nil;timantirecall_forwardedRecords=nil;timantirecall_walletRecord=nil;
