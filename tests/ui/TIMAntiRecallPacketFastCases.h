@@ -75,8 +75,8 @@ static void timantirecall_testLoadedRecentPackets(void) {
         timantirecall_check(((OCMsgElement *)tooOld.elements.firstObject).walletElement.grabbedAmount==0 &&
                            ((OCMsgElement *)alreadyCredited.elements.firstObject).walletElement.grabbedAmount>0,
                            @"expired and already-credited old candidates remain untouched");
-        // A separate fresh online copy with the identical identity/bill promotes the queued old group candidate.
-        liveGroup=timantirecall_testPacket(2,9911,3,@"loaded-old-group");liveGroup.msgTime=groupOld.msgTime;
+        // The same bound OCMsgRecord may later reach the live callback; promote it rather than queue it twice.
+        liveGroup=groupOld;liveGroup.isOnlineMsg=YES;liveGroup.isImportMsg=NO;
         NSArray *batch=@[liveGroup];[NTMsgPushMonitorService recvMsgsWithRecords:batch];
         timantirecall_check(timantirecall_ingressCalls==forwarded+1 && timantirecall_forwardedRecords==batch,
                            @"live same-bill callback is forwarded once without changing original records");
