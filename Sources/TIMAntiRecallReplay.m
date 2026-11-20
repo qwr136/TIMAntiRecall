@@ -35,7 +35,7 @@ static NSString *timantirecall_plainTextForRecord(id record) {
     if(!recordClass||!elementClass||!textClass||![record isKindOfClass:recordClass])return nil;
     BOOL valid=NO;id elements=timantirecall_replayObject(record,"elements",&valid);
     if(!valid||![elements isKindOfClass:NSArray.class]||[elements count]!=1)return nil;
-    id element=elements.firstObject;
+    id element=((NSArray *)elements)[0];
     if(![element isKindOfClass:elementClass])return nil;
     static const char *payloads[]={"faceElement","marketFaceElement","replyElement","picElement","pttElement","videoElement","grayTipElement","arkElement","fileElement","liveGiftElement","markdownElement","structLongMsgElement","multiForwardMsgElement","giphyElement","walletElement","inlineKeyboardElement","textGiftElement","calendarElement","yoloGameResultElement","avRecordElement","structMsgElement","faceBubbleElement","shareLocationElement","tofuRecordElement","taskTopMsgElement","recommendedMsgElement","actionBarElement","prologueMsgElement"};
     for(size_t i=0;i<sizeof(payloads)/sizeof(payloads[0]);i++) {
