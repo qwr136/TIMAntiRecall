@@ -3,6 +3,7 @@
 #import "TIMAntiRecallBootstrap.h"
 #import "TIMAntiRecallIndicatorView.h"
 #import "TIMAntiRecall-Swift.h"
+#import "TIMAntiRecallReplay.h"
 #import <objc/runtime.h>
 #include <stdatomic.h>
 #include <math.h>
@@ -39,6 +40,7 @@ static void timantirecall_clearVisual(TIMAntiRecallRowContext *context) {
     [context.timantirecall_indicator removeFromSuperview];context.timantirecall_indicator=nil;
 }
 static void timantirecall_resetRow(UIView *view) {
+    timantirecall_clearReplayRow(view);
     TIMAntiRecallRowContext *context=objc_getAssociatedObject(view,&timantirecall_contextKey);
     timantirecall_clearVisual(context);
     if(context)[timantirecall_rows removeObject:context];
@@ -109,6 +111,7 @@ static void timantirecall_syncRow(UIView *view) {
     // A row may bind during startup before currentUid is populated. Resolve an
     // absent owner once; never relabel a known owner when accounts change.
     if(!context.timantirecall_owner.length)context.timantirecall_owner=timantirecall_currentAccount();
+    timantirecall_updateReplayRow(view,context.timantirecall_owner);
     timantirecall_refreshRow(context);
 }
 static void timantirecall_refreshRow(TIMAntiRecallRowContext *context) {
@@ -184,7 +187,9 @@ static void timantirecall_discoverVisibleRows(void) {
 }
 static void timantirecall_refreshRows(void) {
     timantirecall_discoverVisibleRows();
-    for(TIMAntiRecallRowContext *context in timantirecall_rows.allObjects)timantirecall_refreshRow(context);
+    for(TIMAntiRecallRowContext *context in timantirecall_rows.allObjects) {
+        timantirecall_updateReplayRow(context.timantirecall_view,context.timantirecall_owner);timantirecall_refreshRow(context);
+    }
 }
 static void timantirecall_setupMarks(void) {
     static dispatch_once_t once;
@@ -230,7 +235,7 @@ static BOOL timantirecall_bindRow(id receiver,SEL selector,id model) {
         context.timantirecall_view=receiver;context.timantirecall_model=model;
         context.timantirecall_owner=timantirecall_currentAccount();
         objc_setAssociatedObject(receiver,&timantirecall_contextKey,context,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        [timantirecall_rows addObject:context];timantirecall_refreshRow(context);
+        [timantirecall_rows addObject:context];timantirecall_updateReplayRow(receiver,context.timantirecall_owner);timantirecall_refreshRow(context);
     }
     return result;
 }

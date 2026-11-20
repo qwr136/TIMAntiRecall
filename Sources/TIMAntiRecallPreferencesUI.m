@@ -19,7 +19,7 @@ static NSArray<NSDictionary *> *timantirecall_optionRows(void) {
              @{@"key":@"packetDiagnostics",@"title":@"红包诊断日志",@"icon":@"doc.text.magnifyingglass"},
              @{@"key":@"autoClaimRedPackets",@"title":@"自动领取红包",@"icon":@"gift"},
               @{ @"key":@"claimOwnRedPackets",@"title":@"自动领取自己发的红包",@"icon":@"person.crop.circle.badge.checkmark"},
-             @{ @"key":@"messageReplay",@"title":@"消息双击复读",@"icon":@"arrow.2.squarepath"}];
+             @{ @"key":@"messageReplay",@"title":@"气泡外侧双击复读",@"icon":@"arrow.2.squarepath"}];
 }
 static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     BOOL group=[chat[@"kind"] intValue]==2;
@@ -68,7 +68,7 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     NSError *error=[timantirecall_settings() timantirecall_lastError]?:[timantirecall_sharedMarks() timantirecall_lastError];
     if(error)return [@"保存/读取失败：" stringByAppendingString:error.localizedDescription];
     if(self.timantirecall_mode==1)return @"先打开目标聊天即可识别。关闭只放行此聊天之后的撤回；不会删除已经保留的消息。总开关关闭时所有聊天均放行。";
-    if(section==0)return @"自动领取处理 TIM 新到的群聊和私聊普通红包，不呈现普通领取小窗；资格与验证仍由 TIM 原生流程判定。后台仅在 TIM 进程确实得到执行时间并收到消息时尝试，不保活或唤醒。本人发送红包须同时开启两个领取开关；两个领取开关及诊断日志均默认关闭。消息双击复读默认关闭；开启后双击纯文字消息立即发送原文，替代 TIM 双击朗读；@消息、链接和混合内容不复读。";
+    if(section==0)return @"自动领取处理 TIM 新到的群聊和私聊普通红包，不呈现普通领取小窗；资格与验证仍由 TIM 原生流程判定。后台仅在 TIM 进程确实得到执行时间并收到消息时尝试，不保活或唤醒。本人发送红包须同时开启两个领取开关；两个领取开关及诊断日志均默认关闭。气泡外侧双击复读默认关闭；开启后双击纯文字气泡外侧的空白立即发送原文；对方消息右侧、自己消息左侧；文字本身的双击功能保留；@消息、链接和混合内容不复读。";
     return @"标记与开关保存在TIM沙盒，仅本机有效，不上传；不恢复TIM已删除的原消息。移除插件不会删除TIM聊天记录。";
 }
 - (void)timantirecall_icon:(NSString *)name cell:(UITableViewCell *)cell {

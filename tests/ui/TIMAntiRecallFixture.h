@@ -128,4 +128,20 @@ NS_ASSUME_NONNULL_BEGIN
 @property(class,nonatomic) NSUInteger timantirecall_originalCalls;
 + (void)doubleTapGestureActionWithGesture:(id)gesture record:(id)record viewController:(id)controller tappedCellView:(id)view;
 @end
+@interface OCContact : NSObject
+@property(nonatomic) int32_t chatType;
+@property(nonatomic,copy) NSString *peerUid;
+@property(nonatomic,copy) NSString *guildId;
+@end
+@interface OCMsgRecord (TIMAntiRecallReplayContact)
+- (OCContact *)contact;
+@end
+@interface QQMsgService : NSObject
+@property(nonatomic) NSUInteger timantirecall_sendCalls;
+@property(nonatomic,copy,nullable) NSString *timantirecall_lastText;
+@property(nonatomic,strong,nullable) OCContact *timantirecall_lastContact;
+@property(nonatomic) BOOL timantirecall_callbackWasNil;
++ (instancetype)getInstance;
+- (void)sendTextMsgByOCContact:(OCContact *)contact richText:(NSString *)text callBack:(nullable void(^)(void))callback;
+@end
 NS_ASSUME_NONNULL_END

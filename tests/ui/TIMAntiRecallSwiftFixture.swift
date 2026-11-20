@@ -11,6 +11,21 @@ class NTAIOBaseCellView: TIMAntiRecallTestBaseView {
     }
 }
 
+class NTAIOCellView: NTAIOBaseCellView {
+    var content: UIView?
+    var avatar: UIView?
+    var title: UIView?
+    var status: UIView?
+    var checkView: UIView?
+    var tailContainerView: UIView?
+}
+final class AIOChatContext: NSObject {
+    @objc var chatType: Int32 = 1
+    @objc var peerUid: String = "peer_a"
+}
+class NTAIOChatBaseViewController: UIViewController { var chatContext: AIOChatContext? }
+class NTAIOChatViewController: NTAIOChatBaseViewController {}
+
 // No @objc on record: production must read inherited Swift storage via Mirror.
 class NTAIOBaseCellViewModel: NSObject {
     var record: OCMsgRecord
@@ -32,6 +47,28 @@ private enum TIMAntiRecallInvalidTypes {
 
 @objc(TIMAntiRecallSwiftFixture)
 final class TIMAntiRecallSwiftFixture: NSObject {
+    @objc(timantirecall_replayRowWithFrame:)
+    static func timantirecall_replayRow(frame: CGRect) -> TIMAntiRecallTestBaseView {
+        let row = NTAIOCellView(frame: frame)
+        let content = UIView(frame: CGRect(x: 56, y: 8, width: 100, height: 44))
+        let avatar = UIView(frame: CGRect(x: 8, y: 8, width: 36, height: 36))
+        row.content = content; row.avatar = avatar; row.addSubview(content); row.addSubview(avatar)
+        let status = UIView(frame: .zero); status.isHidden = true; row.status = status; row.addSubview(status)
+        return row
+    }
+    @objc(timantirecall_replayControllerWithPeer:type:)
+    static func timantirecall_replayController(peer: String, type: Int32) -> UIViewController {
+        let controller = NTAIOChatViewController()
+        let context = AIOChatContext(); context.peerUid = peer; context.chatType = type
+        controller.chatContext = context
+        return controller
+    }
+    @objc(timantirecall_setReplayPeer:controller:type:)
+    static func timantirecall_setReplayPeer(_ peer: String, controller: UIViewController, type: Int32) {
+        (controller as? NTAIOChatViewController)?.chatContext?.peerUid = peer
+        (controller as? NTAIOChatViewController)?.chatContext?.chatType = type
+    }
+
     @objc(timantirecall_rowWithFrame:)
     static func timantirecall_row(frame: CGRect) -> TIMAntiRecallTestBaseView {
         NTAIOBaseCellView(frame: frame)

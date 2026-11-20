@@ -96,3 +96,16 @@ static NSUInteger timantirecall_testOriginalDoubleTapCalls;
     (void)gesture;(void)record;(void)controller;(void)view;timantirecall_testOriginalDoubleTapCalls++;
 }
 @end
+
+@implementation OCContact @end
+@implementation OCMsgRecord (TIMAntiRecallReplayContact)
+- (OCContact *)contact {
+    OCContact *contact=[OCContact new];contact.chatType=self.chatType;contact.peerUid=self.peerUid;contact.guildId=@"";return contact;
+}
+@end
+@implementation QQMsgService
++ (instancetype)getInstance {static QQMsgService *service;static dispatch_once_t once;dispatch_once(&once,^{service=[QQMsgService new];});return service;}
+- (void)sendTextMsgByOCContact:(OCContact *)contact richText:(NSString *)text callBack:(void(^)(void))callback {
+    self.timantirecall_sendCalls++;self.timantirecall_lastText=text;self.timantirecall_lastContact=contact;self.timantirecall_callbackWasNil=callback==nil;
+}
+@end

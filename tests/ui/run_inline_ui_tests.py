@@ -56,7 +56,7 @@ REQUIRED_COVERAGE = {
     "packet-native-parameter-envelope", "packet-native-local-rejection",
     "packet-offscreen-on-settings", "packet-native-slot-series", "packet-no-detail",
     "packet-amount-native-success", "packet-amount-validation", "packet-amount-center-touch",
-    "packet-amount-three-seconds", "packet-amount-refresh", "packet-amount-lifecycle", "message-replay",
+    "packet-amount-three-seconds", "packet-amount-refresh", "packet-amount-lifecycle", "message-replay", "message-replay-outside", "message-replay-native-contact", "message-replay-reuse-scroll",
 }
 COMMANDS: list[list[str]] = []
 TRANSCRIPT: list[str] = []

@@ -1,54 +1,43 @@
 import unittest
 from pathlib import Path
 from source_checks import strip_comments
-
 ROOT=Path(__file__).resolve().parents[1]
-
 class MessageReplayContractTests(unittest.TestCase):
-    def test_feature_uses_verified_native_double_tap_and_send_signatures(self):
-        source=strip_comments((ROOT/'Sources/TIMAntiRecallReplay.m').read_text())
-        self.assertIn('doubleTapGestureActionWithGesture:record:viewController:tappedCellView:',source)
-        self.assertIn('const char *args[]={"@",":","@","@","@","@"}',source)
-        self.assertIn('class_getClassMethod(service,selector)',source)
-        self.assertIn('sendTextMsg:showText:',source)
-        self.assertIn('Class controllerClass=objc_getClass("QQChatViewController")',source)
-        self.assertIn('Method base=class_getInstanceMethod(sendClass,selector)',source)
-        self.assertIn('method_getImplementation(method)==method_getImplementation(base)',source)
-        self.assertIn('QQBaseChatViewController',source)
-        self.assertIn('QQChatViewController',source)
-
-    def test_only_bounded_pure_text_records_can_be_replayed(self):
-        source=strip_comments((ROOT/'Sources/TIMAntiRecallReplay.m').read_text())
-        for field in ('elements','textElement','content','atType','atUid','atTinyId',
-                      'faceElement','replyElement','picElement','walletElement','prologueMsgElement'):
-            self.assertIn(field,source)
-        self.assertIn('[elements count]!=1',source)
-        self.assertIn('content.length>4096',source)
-        self.assertIn('stringByTrimmingCharactersInSet:',source)
-
-    def test_replay_is_default_off_and_preserves_original_when_ineligible(self):
+    def test_native_text_double_tap_is_not_interposed(self):
+        s=strip_comments((ROOT/'Sources/TIMAntiRecallReplay.m').read_text())
+        self.assertNotIn('method_setImplementation',s)
+        self.assertNotIn('NTAIOContentDoubleTapService',s)
+        self.assertNotIn('sendInputText:',s)
+        for token in ('sendTextMsgByOCContact:richText:callBack:', 'const char *args[]={"@",":","@","@","@?"}', 'getInstance','replayContact(record,controller)'):
+            self.assertIn(token,s)
+    def test_pure_text_and_live_session_are_required(self):
+        s=strip_comments((ROOT/'Sources/TIMAntiRecallReplay.m').read_text())
+        for token in ('[elements count]!=1','content.length>4096','atType','atUid','atTinyId','faceElement','replyElement','picElement','walletElement','prologueMsgElement','replayChatContextForController','recordType!=currentType','[recordPeer isEqual:currentPeer]'):
+            self.assertIn(token,s)
+    def test_native_recognizer_and_bounded_outside_geometry(self):
+        s=strip_comments((ROOT/'Sources/TIMAntiRecallReplay.m').read_text())
+        for token in ('numberOfTapsRequired=2','numberOfTouchesRequired=1','cancelsTouchesInView=NO','delaysTouchesBegan=NO','delaysTouchesEnded=NO','requireGestureRecognizerToFail:scroll.panGestureRecognizer','CGRectContainsPoint(band,point)','CGRectContainsRect(host.bounds,bubble)','isKindOfClass:UIControl.class'):
+            self.assertIn(token,s)
+    def test_current_binding_and_transition_guards(self):
+        s=strip_comments((ROOT/'Sources/TIMAntiRecallReplay.m').read_text())
+        for token in ('timantirecall_firstModel','timantirecall_boundModel','timantirecall_firstIdentity','timantirecall_firstController','timantirecall_firstScroll','timantirecall_firstOffset','timantirecall_replayEpoch','timantirecall_replayHostUnique','timantirecall_samples=2','removeGestureRecognizer:'):
+            self.assertIn(token,s)
+        inline=(ROOT/'Sources/TIMAntiRecallInline.m').read_text()
+        self.assertIn('timantirecall_updateReplayRow(view,context.timantirecall_owner)',inline)
+        self.assertIn('timantirecall_updateReplayRow(receiver,context.timantirecall_owner)',inline)
+        self.assertIn('timantirecall_clearReplayRow(view)',inline)
+    def test_swift_bridge_reads_actual_stored_fields_not_offsets(self):
+        s=(ROOT/'Sources/TIMAntiRecallRecordBridge.swift').read_text()
+        for token in ('NTAIOCellView','"content", "avatar", "title", "status", "checkView", "tailContainerView"','NTAIOChatBaseViewController','NTAIOChatViewController','AIOChatContext','"chatContext"','Mirror(reflecting:'):
+            self.assertIn(token,s)
+        self.assertNotIn('UnsafePointer',s)
+    def test_default_off_and_ui_regressions_remain_mandatory(self):
         settings=(ROOT/'Sources/TIMAntiRecallSettings.m').read_text()
-        ui=(ROOT/'Sources/TIMAntiRecallPreferencesUI.m').read_text()
-        hook=strip_comments((ROOT/'Sources/TIMAntiRecallReplay.m').read_text())
         self.assertIn('return [self.timantirecall_snapshot[@"messageReplay"] boolValue]',settings)
-        self.assertIn('@"messageReplay"',settings)
-        self.assertIn('@"消息双击复读"',ui)
-        self.assertIn('timantirecall_replayTextForContext(record,viewController,tappedCellView,&text)',hook)
-        self.assertIn('original)(receiver,selector,gesture,record,viewController,tappedCellView)',hook)
-        self.assertIn('QQBaseChatViewController',hook)
-
-    def test_ui_regression_and_native_state_coverage_are_required(self):
         driver=(ROOT/'tests/ui/run_inline_ui_tests.py').read_text()
-        suite=(ROOT/'tests/ui/TIMAntiRecallInlineUIKitTests.m').read_text()
         cases=(ROOT/'tests/ui/TIMAntiRecallReplayCases.h').read_text()
-        state=(ROOT/'tests/native/TIMAntiRecallStateTests.m').read_text()
-        main=(ROOT/'Hooks/TIMAntiRecallMain.m').read_text()
-        for token in ('Sources/TIMAntiRecallReplay.m','"message-replay"'):
-            self.assertIn(token,driver)
-        self.assertIn('timantirecall_testMessageReplay(root)',suite)
-        for token in ('disabled replay preserves original TIM reader','pure text sends once','mention message never sends','mixed rich message never sends'):
+        for token in ('message-replay','message-replay-outside','message-replay-native-contact','message-replay-reuse-scroll'):
+            self.assertIn('"'+token+'"',driver)
+        for token in ('single outside tap never sends','pure text sends once','original TIM text double tap untouched','live chat must match record contact','Swift direct rebinding','group chat submits','row reuse removes gesture','scroll offset change','mention message never sends','mixed rich message never sends'):
             self.assertIn(token,cases)
-        self.assertIn('timantirecall_messageReplay',state)
-        self.assertIn('timantirecall_installMessageReplay()',main)
-
 if __name__=='__main__':unittest.main()
