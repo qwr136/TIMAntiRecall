@@ -114,7 +114,7 @@ static void timantirecall_syncRow(UIView *view) {
     // normal message view. It never calls a history query or infers sender text.
     if(view.window && timantirecall_windowActive(view.window) &&
        !(timantirecall_legacyClass && [view isKindOfClass:timantirecall_legacyClass])) {
-        id record=[TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model];
+        id record=model ? [TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model] : nil;
         if(record)timantirecall_observeLoadedPacket(record,context.timantirecall_owner);
     }
     timantirecall_refreshRow(context);
@@ -239,7 +239,7 @@ static BOOL timantirecall_bindRow(id receiver,SEL selector,id model) {
         context.timantirecall_owner=timantirecall_currentAccount();
         objc_setAssociatedObject(receiver,&timantirecall_contextKey,context,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         [timantirecall_rows addObject:context];
-        id loadedRecord=[TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model];
+        id loadedRecord=model ? [TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model] : nil;
         if(loadedRecord)timantirecall_observeLoadedPacket(loadedRecord,context.timantirecall_owner);
         timantirecall_refreshRow(context);
     }

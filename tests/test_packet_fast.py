@@ -49,6 +49,8 @@ class FastPacketRecognitionTests(unittest.TestCase):
             self.assertIn(token,source)
         self.assertIn('timantirecall_observeLoadedPacket(record,context.timantirecall_owner)',
                       (ROOT/'Sources/TIMAntiRecallInline.m').read_text())
+        inline=(ROOT/'Sources/TIMAntiRecallInline.m').read_text()
+        self.assertIn('model ? [TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model] : nil',inline)
         self.assertIn('age<90000',source)
 
 if __name__=='__main__':unittest.main()
