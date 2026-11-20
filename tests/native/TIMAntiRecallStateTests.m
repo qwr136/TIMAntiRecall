@@ -42,7 +42,7 @@ int main(int argc,const char **argv){@autoreleasepool {
     QQAccountsManager.GetInstance.currentUid=@"owner";
     if([mode isEqual:@"seed"]){
         CHECK([settings timantirecall_enabled] && [settings timantirecall_persistMarks] && ![settings timantirecall_showTime]);
-        CHECK(![settings timantirecall_autoClaimRedPackets] && ![settings timantirecall_packetDiagnostics] && ![settings timantirecall_claimOwnRedPackets]);
+        CHECK(![settings timantirecall_autoClaimRedPackets] && ![settings timantirecall_packetDiagnostics] && ![settings timantirecall_claimOwnRedPackets] && ![settings timantirecall_messageReplay] && ![settings timantirecall_replayDiagnostics]);
         CHECK(![NSFileManager.defaultManager fileExistsAtPath:settingsURL.path]);
         CHECK([settings timantirecall_setPacketOption:@"diagnostics" enabled:YES owner:@"owner" error:&error]);
         CHECK([settings timantirecall_packetDiagnostics] && ![settings timantirecall_autoClaimRedPackets]);
@@ -58,7 +58,7 @@ int main(int argc,const char **argv){@autoreleasepool {
         CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(YES,NO) owner:@"owner"]);
         CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(YES,YES) owner:@"owner"]);
         CHECK([settings timantirecall_shouldBlockData:timantirecall_packet(YES,YES) owner:@"other"]);
-        CHECK([settings timantirecall_updateOptions:@{@"showTime":@YES,@"messageReplay":@YES} error:&error]);
+        CHECK([settings timantirecall_updateOptions:@{@"showTime":@YES,@"messageReplay":@YES,@"replayDiagnostics":@YES} error:&error]);
         CHECK(![settings timantirecall_updateOptions:@{@"enabled":@"yes"} error:&error]);
         CHECK([settings timantirecall_enabled]);
         [store timantirecall_addEvents:@[timantirecall_private(),timantirecall_group()] owner:@"owner"];
@@ -82,7 +82,7 @@ int main(int argc,const char **argv){@autoreleasepool {
         CHECK(![settings timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:@"owner" error:&error]);
         QQAccountsManager.GetInstance.currentUid=@"owner";
         CHECK([settings timantirecall_autoClaimRedPackets]);
-        CHECK([settings timantirecall_showTime]&&[settings timantirecall_messageReplay]);CHECK(![settings timantirecall_enabledForChat:timantirecall_private()]);
+        CHECK([settings timantirecall_showTime]&&[settings timantirecall_messageReplay]&&[settings timantirecall_replayDiagnostics]);CHECK(![settings timantirecall_enabledForChat:timantirecall_private()]);
         CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(NO,YES) owner:@"owner"]);
         CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(YES,NO) owner:@"owner"]);
         CHECK([store timantirecall_containsIdentity:timantirecall_private()]);CHECK([store timantirecall_containsIdentity:timantirecall_group()]);

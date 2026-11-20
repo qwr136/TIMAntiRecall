@@ -47,7 +47,7 @@
         cell.frame=CGRectMake(0,200+i*110,width,72);[scroll addSubview:cell];[cell layoutIfNeeded];
         TIMAntiRecallTestBaseView *row=[TIMAntiRecallSwiftFixture timantirecall_replayRowWithFrame:cell.contentView.bounds];
         [cell.contentView addSubview:row];[rows addObject:row];
-        OCTextElement *text=[OCTextElement new];text.content=@"真实点击测试";text.atNtUid=@"";
+        OCTextElement *text=[OCTextElement new];text.content=@"真实点击测试";text.atNtUid=@"";text.subElementType=@0;text.atChannelId=@0;
         OCMsgElement *element=[OCMsgElement new];element.textElement=text;
         OCMsgRecord *record=timantirecall_record(1,2001+(int64_t)i,@"peer_a",0);record.elements=@[element];
         if(i)record.senderUid=@"self_uid";

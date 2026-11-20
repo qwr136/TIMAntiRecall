@@ -1,4 +1,5 @@
 #import "TIMAntiRecallPreferencesUI.h"
+#import "TIMAntiRecallReplayTrace.h"
 #import "TIMAntiRecallSettings.h"
 #import "TIMAntiRecallMarks.h"
 @interface TIMAntiRecallSettingsSwitch : UISwitch
@@ -19,7 +20,8 @@ static NSArray<NSDictionary *> *timantirecall_optionRows(void) {
              @{@"key":@"packetDiagnostics",@"title":@"红包诊断日志",@"icon":@"doc.text.magnifyingglass"},
              @{@"key":@"autoClaimRedPackets",@"title":@"自动领取红包",@"icon":@"gift"},
               @{ @"key":@"claimOwnRedPackets",@"title":@"自动领取自己发的红包",@"icon":@"person.crop.circle.badge.checkmark"},
-             @{ @"key":@"messageReplay",@"title":@"气泡外侧双击复读",@"icon":@"arrow.2.squarepath"}];
+             @{ @"key":@"messageReplay",@"title":@"气泡外侧双击复读",@"icon":@"arrow.2.squarepath"},
+             @{ @"key":@"replayDiagnostics",@"title":@"复读诊断日志",@"icon":@"doc.text.magnifyingglass"}];
 }
 static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     BOOL group=[chat[@"kind"] intValue]==2;
@@ -45,11 +47,23 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
 - (void)viewWillAppear:(BOOL)animated {[super viewWillAppear:animated];[self timantirecall_reload];}
 - (void)dealloc {for(id token in _timantirecall_observers)[NSNotificationCenter.defaultCenter removeObserver:token];}
 - (void)timantirecall_done {[self dismissViewControllerAnimated:YES completion:nil];}
+- (void)timantirecall_shareReplayTrace {
+    NSURL *url=timantirecall_replayTraceExport();
+    if(!url) {
+        UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"暂无复读诊断" message:@"先开启复读诊断，再复现一次外侧双击问题，然后重新打开本页导出。日志不会包含消息正文或联系人。" preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"知道了" style:UIAlertActionStyleCancel handler:nil]];[self presentViewController:alert animated:YES completion:nil];return;
+    }
+    UIActivityViewController *activity=[[UIActivityViewController alloc] initWithActivityItems:@[url] applicationActivities:nil];
+    activity.popoverPresentationController.barButtonItem=self.navigationItem.rightBarButtonItem;
+    [self presentViewController:activity animated:YES completion:nil];
+}
 - (BOOL)timantirecall_validOwner {return [self.timantirecall_owner isEqual:timantirecall_currentAccount()];}
 - (void)timantirecall_reload {
     if(!self.isViewLoaded)return;
     if(![self timantirecall_validOwner])self.timantirecall_items=@[];
     else if(self.timantirecall_mode==1)self.timantirecall_items=[timantirecall_settings() timantirecall_chatsForOwner:self.timantirecall_owner];
+    self.navigationItem.rightBarButtonItem=[timantirecall_settings() timantirecall_replayDiagnostics]?
+        [[UIBarButtonItem alloc] initWithTitle:@"复读日志" style:UIBarButtonItemStylePlain target:self action:@selector(timantirecall_shareReplayTrace)]:nil;
     [self.tableView reloadData];
 }
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {(void)tableView;return self.timantirecall_mode?1:2;}
@@ -68,7 +82,7 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     NSError *error=[timantirecall_settings() timantirecall_lastError]?:[timantirecall_sharedMarks() timantirecall_lastError];
     if(error)return [@"保存/读取失败：" stringByAppendingString:error.localizedDescription];
     if(self.timantirecall_mode==1)return @"先打开目标聊天即可识别。关闭只放行此聊天之后的撤回；不会删除已经保留的消息。总开关关闭时所有聊天均放行。";
-    if(section==0)return @"自动领取处理 TIM 新到的群聊和私聊普通红包，不呈现普通领取小窗；资格与验证仍由 TIM 原生流程判定。后台仅在 TIM 进程确实得到执行时间并收到消息时尝试，不保活或唤醒。本人发送红包须同时开启两个领取开关；两个领取开关及诊断日志均默认关闭。气泡外侧双击复读默认关闭；开启后双击纯文字气泡外侧的空白立即发送原文；对方消息右侧、自己消息左侧；文字本身的双击功能保留；@消息、链接和混合内容不复读。";
+    if(section==0)return @"自动领取处理 TIM 新到的群聊和私聊普通红包，不呈现普通领取小窗；资格与验证仍由 TIM 原生流程判定。后台仅在 TIM 进程确实得到执行时间并收到消息时尝试，不保活或唤醒。本人发送红包须同时开启两个领取开关；两个领取开关及诊断日志均默认关闭。气泡外侧双击复读默认关闭；开启后双击纯文字消息气泡外侧空白立即发送原文；对方右侧、自己左侧；文字本身双击功能保留。复读诊断单独开启，日志不含消息正文和联系人。@消息、链接和混合内容不复读。";
     return @"标记与开关保存在TIM沙盒，仅本机有效，不上传；不恢复TIM已删除的原消息。移除插件不会删除TIM聊天记录。";
 }
 - (void)timantirecall_icon:(NSString *)name cell:(UITableViewCell *)cell {
@@ -105,7 +119,7 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     }else if(path.section==0) {
         NSDictionary *row=timantirecall_optionRows()[(NSUInteger)path.row];NSString *key=row[@"key"];
         cell.textLabel.text=row[@"title"];[self timantirecall_icon:row[@"icon"] cell:cell];
-        BOOL value=path.row==0?enabled:path.row==1?[timantirecall_settings() timantirecall_persistMarks]:path.row==2?[timantirecall_settings() timantirecall_showTime]:path.row==3?[timantirecall_settings() timantirecall_packetDiagnostics]:path.row==4?[timantirecall_settings() timantirecall_autoClaimRedPackets]:path.row==5?[timantirecall_settings() timantirecall_claimOwnRedPackets]:[timantirecall_settings() timantirecall_messageReplay];
+        BOOL value=path.row==0?enabled:path.row==1?[timantirecall_settings() timantirecall_persistMarks]:path.row==2?[timantirecall_settings() timantirecall_showTime]:path.row==3?[timantirecall_settings() timantirecall_packetDiagnostics]:path.row==4?[timantirecall_settings() timantirecall_autoClaimRedPackets]:path.row==5?[timantirecall_settings() timantirecall_claimOwnRedPackets]:path.row==6?[timantirecall_settings() timantirecall_messageReplay]:[timantirecall_settings() timantirecall_replayDiagnostics];
         cell.accessoryView=[self timantirecall_switch:key value:(path.row<3||active)&&value enabled:active&&(path.row==0||path.row>=3||enabled) index:path.row];
     }else {
         if(self.timantirecall_chat && path.row==0) {
@@ -142,6 +156,8 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
             ok=[timantirecall_settings() timantirecall_setPacketOption:key enabled:control.isOn owner:self.timantirecall_owner error:&error];
         }else if(control.tag==6) {
             ok=[timantirecall_settings() timantirecall_updateOptions:@{@"messageReplay":@(control.isOn)} error:&error];
+        }else if(control.tag==7) {
+            ok=[timantirecall_settings() timantirecall_updateOptions:@{@"replayDiagnostics":@(control.isOn)} error:&error];
         }
     }
     if(!ok)[self timantirecall_error:error];[self timantirecall_reload];

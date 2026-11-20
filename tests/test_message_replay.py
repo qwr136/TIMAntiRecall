@@ -31,6 +31,22 @@ class MessageReplayContractTests(unittest.TestCase):
         for token in ('NTAIOCellView','"content", "avatar", "title", "status", "checkView", "tailContainerView"','NTAIOChatBaseViewController','NTAIOChatViewController','AIOChatContext','"chatContext"','Mirror(reflecting:'):
             self.assertIn(token,s)
         self.assertNotIn('UnsafePointer',s)
+    def test_native_boxed_zero_metadata_is_narrowly_allowed(self):
+        s=strip_comments((ROOT/'Sources/TIMAntiRecallReplay.m').read_text())
+        self.assertIn('strcmp(metadata[i],"subElementType")==0||strcmp(metadata[i],"atChannelId")==0',s)
+        self.assertIn('CFGetTypeID((__bridge CFTypeRef)value)!=CFBooleanGetTypeID()',s)
+        self.assertIn('[value isEqualToNumber:@0]',s)
+        self.assertIn('text.subElementType=@0;text.atChannelId=@0',
+                      (ROOT/'tests/ui/TIMAntiRecallReplayCases.h').read_text())
+    def test_replay_diagnostics_are_opt_in_and_redacted(self):
+        settings=(ROOT/'Sources/TIMAntiRecallSettings.m').read_text()
+        trace=(ROOT/'Sources/TIMAntiRecallReplayTrace.m').read_text()
+        ui=(ROOT/'Sources/TIMAntiRecallPreferencesUI.m').read_text()
+        self.assertIn('timantirecall_replayDiagnostics',settings)
+        self.assertIn('if(![timantirecall_settings() timantirecall_replayDiagnostics])return',trace)
+        self.assertIn('replayDiagnostics',ui)
+        self.assertNotIn('record[',trace)
+        self.assertNotIn('@"content"',trace)
     def test_default_off_and_ui_regressions_remain_mandatory(self):
         settings=(ROOT/'Sources/TIMAntiRecallSettings.m').read_text()
         self.assertIn('return [self.timantirecall_snapshot[@"messageReplay"] boolValue]',settings)
@@ -40,4 +56,15 @@ class MessageReplayContractTests(unittest.TestCase):
             self.assertIn('"'+token+'"',driver)
         for token in ('single outside tap never sends','pure text sends once','original TIM text double tap untouched','live chat must match record contact','Swift direct rebinding','group chat submits','row reuse removes gesture','scroll offset change','mention message never sends','mixed rich message never sends'):
             self.assertIn(token,cases)
-if __name__=='__main__':unittest.main()
+    def test_native_boxed_zero_defaults_and_redacted_diagnostics(self):
+        replay=(ROOT/'Sources/TIMAntiRecallReplay.m').read_text()
+        trace=(ROOT/'Sources/TIMAntiRecallReplayTrace.m').read_text()
+        settings=(ROOT/'Sources/TIMAntiRecallSettings.m').read_text()
+        self.assertIn('strcmp(metadata[i],"subElementType")==0||strcmp(metadata[i],"atChannelId")==0',replay)
+        self.assertIn('CFBooleanGetTypeID()',replay)
+        self.assertIn('[value isEqualToNumber:@0]',replay)
+        self.assertIn('replayDiagnostics',settings)
+        self.assertIn('if(![timantirecall_settings() timantirecall_replayDiagnostics])return',trace)
+        self.assertNotIn('messageText',trace)
+        self.assertNotIn('peerUid',trace)
+        self.assertIn('96*1024',trace)

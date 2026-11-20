@@ -1,7 +1,9 @@
 #import "TIMAntiRecallReplay.h"
+#import "TIMAntiRecallReplayTrace.h"
 #import "TIMAntiRecallSettings.h"
 #import "TIMAntiRecallMarks.h"
 #import <UIKit/UIKit.h>
+#import <CoreFoundation/CoreFoundation.h>
 #import <objc/runtime.h>
 #import "TIMAntiRecall-Swift.h"
 #include <math.h>
@@ -30,33 +32,47 @@ static BOOL timantirecall_replayInteger(id object,const char *name,const char *e
     return YES;
 }
 static NSString *timantirecall_plainTextForRecord(id record) {
+#define REPLAY_REJECT(fieldName) do { timantirecall_replayTrace(@"text",@{@"reason":@"field-rejected",@"field":@#fieldName}); return nil; } while(0)
     Class recordClass=objc_getClass("OCMsgRecord"),elementClass=objc_getClass("OCMsgElement"),textClass=objc_getClass("OCTextElement");
-    if(!recordClass||!elementClass||!textClass||![record isKindOfClass:recordClass])return nil;
+    if(!recordClass||!elementClass||!textClass||![record isKindOfClass:recordClass])REPLAY_REJECT(recordClass);
     BOOL valid=NO;id elements=timantirecall_replayObject(record,"elements",&valid);
-    if(!valid||![elements isKindOfClass:NSArray.class]||[elements count]!=1)return nil;
+    if(!valid)REPLAY_REJECT(elements-abi);
+    if(![elements isKindOfClass:NSArray.class]||[elements count]!=1)REPLAY_REJECT(elements-count);
     id element=((NSArray *)elements)[0];
-    if(![element isKindOfClass:elementClass])return nil;
+    if(![element isKindOfClass:elementClass])REPLAY_REJECT(element-class);
     static const char *payloads[]={"faceElement","marketFaceElement","replyElement","picElement","pttElement","videoElement","grayTipElement","arkElement","fileElement","liveGiftElement","markdownElement","structLongMsgElement","multiForwardMsgElement","giphyElement","walletElement","inlineKeyboardElement","textGiftElement","calendarElement","yoloGameResultElement","avRecordElement","structMsgElement","faceBubbleElement","shareLocationElement","tofuRecordElement","taskTopMsgElement","recommendedMsgElement","actionBarElement","prologueMsgElement"};
     for(size_t i=0;i<sizeof(payloads)/sizeof(payloads[0]);i++) {
         id payload=timantirecall_replayObject(element,payloads[i],&valid);
-        if(!valid||payload)return nil;
+        if(!valid)REPLAY_REJECT(payload-abi);
+        if(payload) {timantirecall_replayTrace(@"text",@{@"reason":@"non-text-payload",@"field":[NSString stringWithUTF8String:payloads[i]]});return nil;}
     }
     id text=timantirecall_replayObject(element,"textElement",&valid);
-    if(!valid||![text isKindOfClass:textClass])return nil;
+    if(!valid)REPLAY_REJECT(textElement-abi);
+    if(![text isKindOfClass:textClass])REPLAY_REJECT(textElement-class);
     int64_t number=0;
-    if(!timantirecall_replayInteger(text,"atType","i",&number)||number!=0||
-       !timantirecall_replayInteger(text,"atUid","q",&number)||number!=0||
-       !timantirecall_replayInteger(text,"atTinyId","q",&number)||number!=0)return nil;
+    if(!timantirecall_replayInteger(text,"atType","i",&number))REPLAY_REJECT(atType-abi);
+    if(number!=0)REPLAY_REJECT(atType-value);
+    if(!timantirecall_replayInteger(text,"atUid","q",&number))REPLAY_REJECT(atUid-abi);
+    if(number!=0)REPLAY_REJECT(atUid-value);
+    if(!timantirecall_replayInteger(text,"atTinyId","q",&number))REPLAY_REJECT(atTinyId-abi);
+    if(number!=0)REPLAY_REJECT(atTinyId-value);
     static const char *metadata[]={"atNtUid","subElementType","atChannelId","linkInfo","atRoleId","atRoleColor","atRoleName"};
     for(size_t i=0;i<sizeof(metadata)/sizeof(metadata[0]);i++) {
         id value=timantirecall_replayObject(text,metadata[i],&valid);
-        if(!valid||(value&&(![value isKindOfClass:NSString.class]||[value length]!=0)))return nil;
+        if(!valid){timantirecall_replayTrace(@"text",@{@"reason":@"getter-abi",@"field":[NSString stringWithUTF8String:metadata[i]]});return nil;}
+        if(!value)continue;
+        if([value isKindOfClass:NSString.class]) {if([value length]!=0){timantirecall_replayTrace(@"text",@{@"reason":@"metadata-nonempty",@"field":[NSString stringWithUTF8String:metadata[i]]});return nil;}continue;}
+        BOOL nativeDefaultZero=(strcmp(metadata[i],"subElementType")==0||strcmp(metadata[i],"atChannelId")==0);
+        if(nativeDefaultZero&&[value isKindOfClass:NSNumber.class]&&CFGetTypeID((__bridge CFTypeRef)value)!=CFBooleanGetTypeID()&&[value isEqualToNumber:@0])continue;
+        timantirecall_replayTrace(@"text",@{@"reason":@"metadata-type",@"field":[NSString stringWithUTF8String:metadata[i]]});return nil;
     }
     NSString *content=timantirecall_replayObject(text,"content",&valid);
-    if(!valid||![content isKindOfClass:NSString.class]||content.length>4096||
-       [content stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].length==0)return nil;
+    if(!valid){timantirecall_replayTrace(@"text",@{@"reason":@"content-abi",@"field":@"content"});return nil;}
+    if(![content isKindOfClass:NSString.class]||content.length>4096) {timantirecall_replayTrace(@"text",@{@"reason":@"content-shape",@"field":@"content"});return nil;}
+    if([content stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].length==0) {timantirecall_replayTrace(@"text",@{@"reason":@"content-empty",@"field":@"content"});return nil;}
     return content;
 }
+#undef REPLAY_REJECT
 static BOOL timantirecall_replayWindowActive(UIWindow *window) {
     if(!window||window.hidden||window.alpha<0.01)return NO;
     if(window.windowScene)return window.windowScene.activationState==UISceneActivationStateForegroundActive;
@@ -136,47 +152,49 @@ static BOOL timantirecall_replayContextAtPoint(TIMAntiRecallReplayContext *state
         id *modelOut,NSDictionary **identityOut,UIViewController **controllerOut,CGRect *bubbleOut) {
     UIView *row=state.timantirecall_row,*host=state.timantirecall_host;
     NSString *owner=timantirecall_currentAccount();
-    if(!NSThread.isMainThread||![timantirecall_settings() timantirecall_messageReplay]||
-       !row||!host||timantirecall_replayHost(row)!=host||row.window!=host.window||!timantirecall_replayHostUnique(host,row)||
-       !timantirecall_replayWindowActive(host.window)||![owner isEqual:state.timantirecall_owner]||
-       !CGRectContainsPoint(host.bounds,point))return NO;
+    if(!NSThread.isMainThread){timantirecall_replayTrace(@"gate",@{@"reason":@"off-main-thread"});return NO;}
+    if(![timantirecall_settings() timantirecall_messageReplay]){timantirecall_replayTrace(@"gate",@{@"reason":@"feature-disabled"});return NO;}
+    if(!row||!host||timantirecall_replayHost(row)!=host||row.window!=host.window||!timantirecall_replayHostUnique(host,row)){timantirecall_replayTrace(@"gate",@{@"reason":@"host-invalid"});return NO;}
+    if(!timantirecall_replayWindowActive(host.window)){timantirecall_replayTrace(@"gate",@{@"reason":@"window-inactive"});return NO;}
+    if(![owner isEqual:state.timantirecall_owner]){timantirecall_replayTrace(@"gate",@{@"reason":@"owner-changed"});return NO;}
+    if(!CGRectContainsPoint(host.bounds,point)){timantirecall_replayTrace(@"gate",@{@"reason":@"point-outside-host",@"x":@(point.x),@"y":@(point.y),@"hw":@(host.bounds.size.width),@"hh":@(host.bounds.size.height)});return NO;}
     for(UIView *v=row;v;v=v.superview) {
-        if(v.hidden||v.alpha<0.01||!v.userInteractionEnabled)return NO;
-        if([v isKindOfClass:UIScrollView.class]&&(((UIScrollView *)v).dragging||((UIScrollView *)v).decelerating))return NO;
+        if(v.hidden||v.alpha<0.01||!v.userInteractionEnabled){timantirecall_replayTrace(@"gate",@{@"reason":@"ancestor-not-interactive"});return NO;}
+        if([v isKindOfClass:UIScrollView.class]&&(((UIScrollView *)v).dragging||((UIScrollView *)v).decelerating)){timantirecall_replayTrace(@"gate",@{@"reason":@"scroll-active"});return NO;}
     }
     id model=[TIMAntiRecallRecordBridge timantirecall_currentModelForView:row];
-    if(!model||model!=state.timantirecall_boundModel)return NO;
+    if(!model||model!=state.timantirecall_boundModel){timantirecall_replayTrace(@"gate",@{@"reason":@"model-not-current"});return NO;}
     id record=[TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model];
-    NSDictionary *identity=timantirecall_recordIdentity(record,owner);
-    if(!identity||!timantirecall_plainTextForRecord(record))return NO;
+    NSString *text=timantirecall_plainTextForRecord(record);NSDictionary *identity=text?timantirecall_recordIdentity(record,owner):nil;
+    if(!identity){timantirecall_replayTrace(@"gate",@{@"reason":@"message-not-eligible"});return NO;}
     UIViewController *controller=timantirecall_replayController(row);
     if(!controller||!controller.isViewLoaded||controller.view.window!=host.window||controller.view.hidden||
-       ![row isDescendantOfView:controller.view]||controller.presentedViewController)return NO;
+       ![row isDescendantOfView:controller.view]||controller.presentedViewController){timantirecall_replayTrace(@"gate",@{@"reason":@"chat-controller-invalid"});return NO;}
     UIViewController *top=controller.navigationController.topViewController;
-    if(top&&top!=controller&&(!top.isViewLoaded||![controller.view isDescendantOfView:top.view]))return NO;
-    if(!timantirecall_replayContact(record,controller))return NO;
+    if(top&&top!=controller&&(!top.isViewLoaded||![controller.view isDescendantOfView:top.view])){timantirecall_replayTrace(@"gate",@{@"reason":@"chat-not-top-controller"});return NO;}
+    if(!timantirecall_replayContact(record,controller)){timantirecall_replayTrace(@"gate",@{@"reason":@"record-contact-mismatch"});return NO;}
     NSDictionary<NSString *,UIView *> *views=[TIMAntiRecallRecordBridge timantirecall_replayViewsForRow:row];
     UIView *content=views[@"content"];
-    if(!content||content.window!=host.window||content.hidden||content.alpha<0.01||![content isDescendantOfView:row])return NO;
+    if(!content||content.window!=host.window||content.hidden||content.alpha<0.01||![content isDescendantOfView:row]){timantirecall_replayTrace(@"gate",@{@"reason":@"content-view-invalid"});return NO;}
     CGRect bubble=[content convertRect:content.bounds toView:host];
-    if(!timantirecall_replayRectValid(bubble)||bubble.size.width<8||bubble.size.height<8||
-       !CGRectContainsRect(host.bounds,bubble))return NO;
+    if(!timantirecall_replayRectValid(bubble)||bubble.size.width<8||bubble.size.height<8||!CGRectContainsRect(host.bounds,bubble)){
+        timantirecall_replayTrace(@"gate",@{@"reason":@"bubble-rect-invalid",@"bw":@(bubble.size.width),@"bh":@(bubble.size.height),@"hw":@(host.bounds.size.width),@"hh":@(host.bounds.size.height)});return NO;
+    }
     BOOL outgoing=[identity[@"author"] isEqual:owner];
     CGFloat left=outgoing?MAX(CGRectGetMinX(host.bounds)+6,CGRectGetMinX(bubble)-72):CGRectGetMaxX(bubble)+6;
     CGFloat right=outgoing?CGRectGetMinX(bubble)-6:MIN(CGRectGetMaxX(host.bounds)-6,CGRectGetMaxX(bubble)+72);
     CGRect band=CGRectMake(left,CGRectGetMinY(bubble),right-left,bubble.size.height);
-    if(!timantirecall_replayRectValid(band)||!CGRectContainsPoint(band,point))return NO;
+    if(!timantirecall_replayRectValid(band)||!CGRectContainsPoint(band,point)){timantirecall_replayTrace(@"gate",@{@"reason":@"point-outside-bubble-side-band",@"x":@(point.x),@"y":@(point.y),@"bx":@(CGRectGetMinX(bubble)),@"by":@(CGRectGetMinY(bubble)),@"bw":@(bubble.size.width),@"bh":@(bubble.size.height),@"hw":@(host.bounds.size.width),@"hh":@(host.bounds.size.height)});return NO;}
     for(UIView *excluded in views.allValues) {
         if(excluded.window!=host.window||excluded.hidden||excluded.alpha<0.01)continue;
         CGRect rect=[excluded convertRect:excluded.bounds toView:host];
         if(CGRectIsEmpty(rect))continue;
-        if(!timantirecall_replayRectValid(rect)||CGRectContainsPoint(CGRectInset(rect,-4,-4),point))return NO;
+        if(!timantirecall_replayRectValid(rect)||CGRectContainsPoint(CGRectInset(rect,-4,-4),point)){timantirecall_replayTrace(@"gate",@{@"reason":@"interactive-subview-hit"});return NO;}
     }
     UIView *hit=[host hitTest:point withEvent:nil];
-    if(!hit)return NO;
+    if(!hit){timantirecall_replayTrace(@"gate",@{@"reason":@"hit-test-nil"});return NO;}
     for(UIView *v=hit;v&&v!=host;v=v.superview)
-        if([v isKindOfClass:UIControl.class]||[v isKindOfClass:UITextView.class]||
-           [v isKindOfClass:UILabel.class]||[v isKindOfClass:UIImageView.class])return NO;
+        if([v isKindOfClass:UIControl.class]||[v isKindOfClass:UITextView.class]||[v isKindOfClass:UILabel.class]||[v isKindOfClass:UIImageView.class]){timantirecall_replayTrace(@"gate",@{@"reason":@"hit-test-excluded-view",@"contentClass":NSStringFromClass(v.class)});return NO;}
     if(modelOut)*modelOut=model;if(identityOut)*identityOut=identity;
     if(controllerOut)*controllerOut=controller;if(bubbleOut)*bubbleOut=bubble;
     return YES;
@@ -254,7 +272,7 @@ static BOOL timantirecall_replaySend(id record,UIViewController *controller,NSSt
         scroll==self.timantirecall_firstScroll&&CGPointEqualToPoint((scroll?scroll.contentOffset:CGPointZero),self.timantirecall_firstOffset)&&
         CGRectEqualToRect(bubble,self.timantirecall_firstBubble)&&
         hypot(point.x-self.timantirecall_firstPoint.x,point.y-self.timantirecall_firstPoint.y)<=20;
-    if(!same){[self timantirecall_clear];return NO;}
+    if(!same){timantirecall_replayTrace(@"capture",@{@"reason":@"second-tap-context-changed"});[self timantirecall_clear];return NO;}
     self.timantirecall_samples=2;return YES;
 }
 - (BOOL)timantirecall_complete:(CGPoint)point {
@@ -268,16 +286,22 @@ static BOOL timantirecall_replaySend(id record,UIViewController *controller,NSSt
     valid=valid&&scroll==self.timantirecall_firstScroll&&CGPointEqualToPoint((scroll?scroll.contentOffset:CGPointZero),self.timantirecall_firstOffset);
     NSString *text=valid?timantirecall_plainTextForRecord([TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model]):nil;
     [self timantirecall_clear];
-    return text?timantirecall_replaySend([TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model],controller,text):NO;
+    BOOL submitted=text?timantirecall_replaySend([TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model],controller,text):NO;
+    timantirecall_replayTrace(@"send",@{@"reason":submitted?@"native-submit-called":@"completed-context-or-service-rejected"});
+    return submitted;
 }
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gesture shouldReceiveTouch:(UITouch *)touch {
-    BOOL accepted=gesture==self.timantirecall_tap&&[self timantirecall_capture:[touch locationInView:self.timantirecall_host] time:touch.timestamp];
+    BOOL isReplay=gesture==self.timantirecall_tap;
+    CGPoint point=[touch locationInView:self.timantirecall_host];
+    BOOL accepted=isReplay&&[self timantirecall_capture:point time:touch.timestamp];
+    if(isReplay)timantirecall_replayTrace(@"touch",@{@"reason":accepted?@"accepted":@"delegate-rejected",@"tapCount":@(touch.tapCount),@"samples":@(self.timantirecall_samples),@"x":@(point.x),@"y":@(point.y)});
 #ifdef TIMANTIRECALL_UI_TEST
     NSLog(@"REPLAY_TOUCH delegate accepted=%d tapCount=%lu samples=%lu state=%ld",accepted,(unsigned long)touch.tapCount,(unsigned long)self.timantirecall_samples,(long)gesture.state);
 #endif
     return accepted;
 }
 - (void)timantirecall_action:(UITapGestureRecognizer *)tap {
+    timantirecall_replayTrace(@"action",@{@"reason":tap==self.timantirecall_tap&&tap.state==UIGestureRecognizerStateRecognized?@"recognized":@"state-rejected",@"samples":@(self.timantirecall_samples),@"state":@(tap.state)});
 #ifdef TIMANTIRECALL_UI_TEST
     NSLog(@"REPLAY_TOUCH action state=%ld samples=%lu",(long)tap.state,(unsigned long)self.timantirecall_samples);
 #endif
@@ -299,10 +323,12 @@ void timantirecall_clearReplayRow(UIView *row) {
 void timantirecall_updateReplayRow(UIView *row,NSString *boundOwner) {
     if(!NSThread.isMainThread||![row isKindOfClass:UIView.class])return;
     if(!row.window||![timantirecall_settings() timantirecall_messageReplay]){timantirecall_clearReplayRow(row);return;}
+    if(![boundOwner isKindOfClass:NSString.class]||!boundOwner.length) {timantirecall_replayTrace(@"attach",@{@"reason":@"owner-missing"});timantirecall_clearReplayRow(row);return;}
     id model=[TIMAntiRecallRecordBridge timantirecall_currentModelForView:row];
     NSString *owner=timantirecall_currentAccount();
     NSDictionary *views=[TIMAntiRecallRecordBridge timantirecall_replayViewsForRow:row];
     if(!row.window||![timantirecall_settings() timantirecall_messageReplay]||!model||!owner.length||![owner isEqual:boundOwner]||!views[@"content"]) {
+        timantirecall_replayTrace(@"attach",@{@"reason":@"row-context-incomplete",@"rowClass":NSStringFromClass(row.class),@"contentClass":(NSStringFromClass([views[@"content"] class])?:@"none"),@"modelClass":(NSStringFromClass([model class])?:@"none")});
         timantirecall_clearReplayRow(row);return;
     }
     UIView *host=timantirecall_replayHost(row);
@@ -314,7 +340,7 @@ void timantirecall_updateReplayRow(UIView *row,NSString *boundOwner) {
     [candidates addObject:row];
     TIMAntiRecallReplayContext *other=objc_getAssociatedObject(host,&timantirecall_replayHostKey);
     if(other&&other.timantirecall_row&&other.timantirecall_row!=row&&other.timantirecall_row.window==host.window) {
-        [other timantirecall_clear];return;
+        [other timantirecall_clear];timantirecall_replayTrace(@"attach",@{@"reason":@"host-ambiguous",@"hostClass":NSStringFromClass(host.class)});return;
     }
     state=[TIMAntiRecallReplayContext new];state.timantirecall_row=row;state.timantirecall_host=host;
     state.timantirecall_boundModel=model;state.timantirecall_owner=owner;
@@ -330,6 +356,7 @@ void timantirecall_updateReplayRow(UIView *row,NSString *boundOwner) {
     objc_setAssociatedObject(row,&timantirecall_replayRowKey,state,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     objc_setAssociatedObject(host,&timantirecall_replayHostKey,state,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     [host addGestureRecognizer:tap];
+    timantirecall_replayTrace(@"attach",@{@"reason":@"gesture-installed",@"rowClass":NSStringFromClass(row.class),@"hostClass":NSStringFromClass(host.class),@"contentClass":(NSStringFromClass([views[@"content"] class])?:@"none")});
 }
 BOOL timantirecall_installMessageReplay(void) {
     if(!NSThread.isMainThread)return NO;
