@@ -141,6 +141,6 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 // Independent value oracle: copies every declared field, recursively, without production code.
-FOUNDATION_EXPORT id timantirecall_richFixtureValue(nullable id object);
+FOUNDATION_EXPORT id timantirecall_richFixtureValue(id _Nullable object);
 FOUNDATION_EXPORT BOOL timantirecall_richFixtureABI(void);
 NS_ASSUME_NONNULL_END

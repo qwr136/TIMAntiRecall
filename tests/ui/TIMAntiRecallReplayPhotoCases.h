@@ -13,8 +13,9 @@ static void timantirecall_testPhotoReplay(UIView *root) {
         scroll=[[UIScrollView alloc] initWithFrame:chat.view.bounds];scroll.contentSize=CGSizeMake(root.bounds.size.width,root.bounds.size.height*2);[chat.view addSubview:scroll];
         host=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];host.frame=CGRectMake(0,80,root.bounds.size.width,64);[scroll addSubview:host];[host layoutIfNeeded];
         row=[TIMAntiRecallSwiftFixture timantirecall_replayRowWithFrame:host.contentView.bounds];[host.contentView addSubview:row];
-        UIGraphicsBeginImageContextWithOptions(CGSizeMake(8,8),YES,1);[UIColor.blueColor setFill];UIRectFill(CGRectMake(0,0,8,8));
-        original=UIImagePNGRepresentation(UIGraphicsGetImageFromCurrentImageContext());UIGraphicsEndImageContext();
+        UIGraphicsImageRenderer *renderer=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(8,8)];
+        UIImage *image=[renderer imageWithActions:^(UIGraphicsImageRendererContext *context){(void)context;[UIColor.blueColor setFill];UIRectFill(CGRectMake(0,0,8,8));}];
+        original=UIImagePNGRepresentation(image);
         path=[NSTemporaryDirectory() stringByAppendingPathComponent:@"timantirecall-original-photo.png"];
         timantirecall_check([original writeToFile:path atomically:YES],@"local image fixture writes complete PNG");
         record=timantirecall_record(1,1261,@"peer_a",0);record.peerUin=12345;
