@@ -40,9 +40,10 @@ PRODUCTION = (
 )
 SWIFT = ("Sources/TIMAntiRecallRecordBridge.swift",
          "tests/ui/TIMAntiRecallSwiftFixture.swift")
-FIXTURES = ("TIMAntiRecallFixture.m", "TIMAntiRecallReplayRichFixture.m", "TIMAntiRecallReplayPhotoFixture.m", "TIMAntiRecallInlineUIKitTests.m")
+FIXTURES = ("TIMAntiRecallFixture.m", "TIMAntiRecallReplayRichFixture.m", "TIMAntiRecallReplayPhotoFixture.m", "TIMAntiRecallReplayVideoFixture.m", "TIMAntiRecallInlineUIKitTests.m")
 FRAMEWORKS = ("Foundation", "UIKit", "QuartzCore")
 REQUIRED_COVERAGE = {
+    "photo-contact-absence-contract", "photo-send-rejection-diagnostics", "video-native-forward-replay", "video-native-forward-guards",
     "rich-rejection-diagnostics", "received-text-mention-replay", "received-zero-id-quote-replay", "received-original-cache-replay",
     "rich-message-replay", "rich-message-replay-quote", "rich-message-replay-deep-copy", "rich-message-replay-guards", "rich-message-replay-photo",
     "swift-reflection", "session-owner", "bind-abi", "private-identity", "own-recall-forwarded",

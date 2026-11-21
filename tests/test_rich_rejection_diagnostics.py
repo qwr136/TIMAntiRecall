@@ -6,8 +6,11 @@ from source_checks import strip_comments,function_body
 ROOT=Path(__file__).resolve().parents[1]
 
 class RichRejectDiagnosticTests(unittest.TestCase):
-    def test_observation_does_not_change_sending_or_original_photo_handling(self):
+    def test_unmodified_build_read_and_plain_text_routes_remain_frozen(self):
+        # 8.70 -> media repair intentionally changes only photo-contact equality
+        # and fixed diagnostic failures in richReplaySend. Eight other functions stay frozen.
         frozen=json.loads((ROOT/'tests/fixtures/tim-rich-diag-frozen.json').read_text())
+        self.assertEqual(sum(len(functions) for functions in frozen.values()),8)
         for path,functions in frozen.items():
             source=strip_comments((ROOT/path).read_text())
             for name,digest in functions.items():

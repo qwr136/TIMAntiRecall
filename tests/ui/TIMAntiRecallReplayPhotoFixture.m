@@ -12,7 +12,9 @@
 @end
 @implementation NTAIOContact
 - (OCContact *)convertToOCContact {
-    OCContact *contact=[OCContact new];contact.chatType=(int32_t)self.chatType;contact.guildId=@"";
+    OCContact *contact=[OCContact new];contact.chatType=(int32_t)self.chatType;
+    // Locked native converter returns nil guildId for ordinary chats; record.contact bridges it to @"".
+    contact.guildId=TIMAntiRecallReplayPhotoProbe.timantirecall_shared.timantirecall_conversionGuild;
     contact.peerUid=self.chatType==2?self.groupCode:([self.uin isEqual:@"12345"]?@"photo_peer":@"different_peer");
     return contact;
 }

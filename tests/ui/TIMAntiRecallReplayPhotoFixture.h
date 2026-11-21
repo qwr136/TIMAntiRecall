@@ -23,6 +23,7 @@
 @property(nonatomic,copy) NSString *timantirecall_path;
 @property(nonatomic,strong) OCContact *timantirecall_contact;
 @property(nonatomic,strong) id timantirecall_additional;
+@property(nonatomic,strong) id timantirecall_conversionGuild;
 @property(nonatomic,copy) void(^timantirecall_completion)(int32_t,NSString *);
 + (instancetype)timantirecall_shared;
 @end
