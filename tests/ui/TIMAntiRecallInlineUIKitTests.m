@@ -462,6 +462,7 @@ static void timantirecall_testPushToRow(UIView *root) {
 #import "TIMAntiRecallReplayCases.h"
 #import "TIMAntiRecallReplayRichCases.h"
 #import "TIMAntiRecallReplayPhotoCases.h"
+#import "TIMAntiRecallReplayDiagnosticCases.h"
 
 static void timantirecall_testGeometry(UIView *root) {
     CGFloat width=root.bounds.size.width-16;
@@ -655,6 +656,7 @@ static void timantirecall_start(void) {
         timantirecall_testMessageReplay(root);
         timantirecall_testRichReplay(root);
         timantirecall_testPhotoReplay(root);
+        timantirecall_testRichDiagnostics(root);
         timantirecall_testPreferencesPanel();
         timantirecall_testPacketOpenGuards();
         timantirecall_testProxyRejections();

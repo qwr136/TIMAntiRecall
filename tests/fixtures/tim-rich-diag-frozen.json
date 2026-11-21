@@ -1,0 +1,16 @@
+{
+  "Sources/TIMAntiRecallReplayPayload.m": {
+    "timantirecall_richWrite": "8d02887fb21f2257c51167d48feb7b9cd9b0ce2b70f6097af210945ecc465628",
+    "timantirecall_richRead": "a27da39ddbf0e6ba0f67e5bbd6ec90b8c72122eee16f1294657cf226c87cb4d1",
+    "timantirecall_richBuild": "8a260d786bee6f11bca29b452657ca1c0780e82b7dde0dec9fe682de3f8a345d",
+    "timantirecall_richReplayElements": "c77ebe6a5a1d38ad1963231d061dd757527b814c8c7648d2c3ec0a5626352a03",
+    "timantirecall_richPhotoContact": "be11c91689b4bbf3a4cc9119e597341c02d2b70ca5c11db9e2f169f2ef8b1891",
+    "timantirecall_richReadPhoto": "9fd977930ff849527d650ca52e156a00eff2042f441a4a7b9ce3d0f0e0592c9f",
+    "timantirecall_richReplaySend": "822ac431dc5e684dbd23825f5b815a7daa855d31d55753512c78b738082b1ea9"
+  },
+  "Sources/TIMAntiRecallReplay.m": {
+    "timantirecall_plainTextForRecord": "2f53d789177cb8f560f2450f0c854e5ce8b3d2dd0d667920f34553c9c7111e86",
+    "timantirecall_replaySend": "92e09e49a5760969a4558c52d7ba99fd89b01ee2977aa8dc83f5778b6a506f53",
+    "timantirecall_replayContact": "db813050f744e9cafca226091762277b4773c782f4e36a46cbd5cb3bc0a50c48"
+  }
+}

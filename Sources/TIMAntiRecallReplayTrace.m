@@ -38,12 +38,12 @@ void timantirecall_replayTrace(NSString *stage,NSDictionary *fields) {
     if(![timantirecall_settings() timantirecall_replayDiagnostics])return;
     static NSSet *stages,*names,*numbers;static dispatch_once_t once;
     dispatch_once(&once,^{
-        stages=[NSSet setWithArray:@[@"sync",@"attach",@"gate",@"text",@"touch",@"capture",@"action",@"send",@"settings"]];
-        names=[NSSet setWithArray:@[@"reason",@"field",@"shape",@"rowClass",@"hostClass",@"contentClass",@"controllerClass",@"modelClass",@"valueClass",@"valueKind"]];
-        numbers=[NSSet setWithArray:@[@"samples",@"tapCount",@"state",@"accepted",@"x",@"y",@"hw",@"hh",@"bx",@"by",@"bw",@"bh"]];
+        stages=[NSSet setWithArray:@[@"sync",@"attach",@"gate",@"text",@"rich",@"touch",@"capture",@"action",@"send",@"settings"]];
+        names=[NSSet setWithArray:@[@"reason",@"field",@"shape",@"rowClass",@"hostClass",@"contentClass",@"controllerClass",@"modelClass",@"valueClass",@"valueKind",@"expectedABI",@"actualABI"]];
+        numbers=[NSSet setWithArray:@[@"samples",@"tapCount",@"state",@"accepted",@"x",@"y",@"hw",@"hh",@"bx",@"by",@"bw",@"bh",@"elementType",@"elementCount",@"argumentCount"]];
     });
     if(![stages containsObject:stage])return;
-    NSMutableDictionary *safe=[@{@"stage":stage,@"schema":@"replay-boxed-zero-v1"} mutableCopy];
+    NSMutableDictionary *safe=[@{@"stage":stage,@"schema":@"replay-rich-reject-v2"} mutableCopy];
     for(id key in fields) {
         if([names containsObject:key]&&timantirecall_replayTraceToken(fields[key]))safe[key]=fields[key];
         else if([numbers containsObject:key]&&[fields[key] isKindOfClass:NSNumber.class]) {

@@ -43,6 +43,7 @@ SWIFT = ("Sources/TIMAntiRecallRecordBridge.swift",
 FIXTURES = ("TIMAntiRecallFixture.m", "TIMAntiRecallReplayRichFixture.m", "TIMAntiRecallReplayPhotoFixture.m", "TIMAntiRecallInlineUIKitTests.m")
 FRAMEWORKS = ("Foundation", "UIKit", "QuartzCore")
 REQUIRED_COVERAGE = {
+    "rich-rejection-diagnostics",
     "rich-message-replay", "rich-message-replay-quote", "rich-message-replay-deep-copy", "rich-message-replay-guards", "rich-message-replay-photo",
     "swift-reflection", "session-owner", "bind-abi", "private-identity", "own-recall-forwarded",
     "group-identity", "account-isolation", "reuse-lifecycle", "row-geometry",

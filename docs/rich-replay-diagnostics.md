@@ -1,0 +1,17 @@
+# Rich replay diagnostic candidate after 8.40
+
+## Real-device evidence
+
+The 8.40 user report confirms plain text replays but images/faces/quoted replies show no visible reaction. The provided session starts at Unix time 1795267793.85. Native image, reply and emoji row gestures are installed. The logged image tap pairs have `samples=0`, `message-not-eligible` and delegate rejection; `elements-count` is also observed on other rows. This isolates those attempts to eligibility before dispatch. Plain-text `non-text-payload` is expected probing: it is followed by the rich snapshot fallback, not a final hard rejection. A single combined gate currently cannot distinguish a rejected snapshot from a valid snapshot with rejected record identity. Scroll-active and one outside-band event explain individual attempts, not all static rich-message rejection. Video remains unsupported.
+
+## Candidate purpose, not a feature fix
+
+No eligibility rule is relaxed. No sender, clone builder, photo read/copy/upload logic or native ABI is changed. Ten core sender/build/photo/text function bodies are pinned to 8.40 with SHA256 in the source tests, plus the existing ten frozen own-recall/wallet production files. All 8.40 positive and negative runtime/UI tests remain mandatory.
+
+The existing default-OFF replayDiagnostics switch gains a `rich` stage with schema `replay-rich-reject-v2`. A new line distinguishes payload rejection from `message-identity-rejected`. Snapshot progress logs only element count/type enums. Reject lines report a fixed reason, property name, expected shape, actual class and value shape. A failed getter reports only normalized return-ABI categories and argument count; incompatible getters are never called. Unknown object graphs, field type mismatches, invalid/flash flags, local file status, quote target/expiry and unsupported payload families get separate fixed labels. Values, text, user/contact IDs, resource URLs, local paths, image bytes, error descriptions and raw object descriptions are never logged. Existing 192-event session cap, four-per-fingerprint limit, rotation, session reset and export controls remain unchanged.
+
+The new UIKit diagnostics case deliberately supplies (a) a safe fake q getter where i is expected, (b) numeric metadata where NSString is expected, (c) a relative local-photo path, and (d) a supported rich snapshot with zero record ID. It requires the exported log to distinguish all four, contain successful-snapshot evidence, exclude injected private sentinel content/path/peer values, and remain unchanged when diagnostics are disabled. It never submits those messages. `rich-rejection-diagnostics` is a mandatory CI coverage label.
+
+## Device acceptance
+
+This candidate only closes a missing evidence boundary. It is not proof of a rich replay fix. After installation, enable replay diagnostics once, return to the failed image/face/reply and double-tap once or twice after scrolling stops, then export immediately without toggling diagnostics again. The first concrete reject line (or snapshot-ready plus identity-rejected) identifies which one change is justified. No need to retransmit an IPA or repeat the same ambiguous 8.40 session. No new branch, Release or tag is created; work remains on main.
