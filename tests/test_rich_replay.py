@@ -52,6 +52,18 @@ class RichReplayTests(unittest.TestCase):
         for call in ('timantirecall_testRichReplay(root)','timantirecall_testPhotoReplay(root)'):
             self.assertIn(call,inline)
         self.assertIn('glob("*.inc")',runner)
+    def test_mutability_probe_and_photo_uid_are_isolated(self):
+        cases=(ROOT/'tests/ui/TIMAntiRecallReplayRichCases.h').read_text()
+        body=function_body(cases,'timantirecall_richImmutable')
+        self.assertIn('timantirecall_mutation_probe',body)
+        self.assertIn('@catch(NSException',body)
+        self.assertNotIn('isKindOfClass:NSMutableString.class',body)
+        self.assertIn('immutability probe rejects mutable containers',cases)
+        for name in ('TIMAntiRecallReplayPhotoCases.h','TIMAntiRecallReplayPhotoFixture.m'):
+            fixture=(ROOT/'tests/ui'/name).read_text()
+            self.assertIn('@"photo_peer"',fixture)
+            self.assertNotIn('@"peer_a"',fixture)
+
     def test_no_changes_to_own_recall_or_wallet(self):
         import subprocess
         paths=['Sources/TIMAntiRecallRuntime.m','Sources/TIMAntiRecallSettings.m','Sources/TIMAntiRecallWire.m','Sources/TIMAntiRecallMarks.m','Sources/TIMAntiRecallMarkStore.m','Sources/TIMAntiRecallPacket.m','Sources/TIMAntiRecallPacketOpen.m','Sources/TIMAntiRecallPacketWallet.m','Sources/TIMAntiRecallPacketSilent.m','Sources/TIMAntiRecallPacketToast.m']

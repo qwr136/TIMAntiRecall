@@ -6,14 +6,28 @@
 // Real UIKit row/chat/recognizer path; all private TIM classes are synthetic.
 // The production snapshot is deliberately opaque to these regression cases.
 static BOOL timantirecall_richImmutable(id value) {
-    if([value isKindOfClass:NSMutableDictionary.class] || [value isKindOfClass:NSMutableArray.class] ||
-       [value isKindOfClass:NSMutableString.class] || [value isKindOfClass:NSMutableData.class])return NO;
+    if(value==NSNull.null||[value isKindOfClass:NSNumber.class])return YES;
     if([value isKindOfClass:NSDictionary.class]) {
+        @try { [(NSMutableDictionary *)value setObject:@YES forKey:@"timantirecall_mutation_probe"];return NO; }
+        @catch(NSException *exception) {(void)exception;}
         for(id key in value)if(!timantirecall_richImmutable(key)||!timantirecall_richImmutable(value[key]))return NO;
         return YES;
     }
-    if([value isKindOfClass:NSArray.class]) { for(id child in value)if(!timantirecall_richImmutable(child))return NO;return YES; }
-    return value==NSNull.null || [value isKindOfClass:NSString.class] || [value isKindOfClass:NSData.class] || [value isKindOfClass:NSNumber.class];
+    if([value isKindOfClass:NSArray.class]) {
+        @try { [(NSMutableArray *)value addObject:NSNull.null];return NO; }
+        @catch(NSException *exception) {(void)exception;}
+        for(id child in value)if(!timantirecall_richImmutable(child))return NO;
+        return YES;
+    }
+    if([value isKindOfClass:NSString.class]) {
+        @try { [(NSMutableString *)value appendString:@"timantirecall_mutation_probe"];return NO; }
+        @catch(NSException *exception) {(void)exception;return YES;}
+    }
+    if([value isKindOfClass:NSData.class]) {
+        @try { [(NSMutableData *)value appendBytes:"x" length:1];return NO; }
+        @catch(NSException *exception) {(void)exception;return YES;}
+    }
+    return NO;
 }
 static OCMsgElement *timantirecall_richElement(id payload, NSString *slot, int32_t type) {
     OCMsgElement *element=[OCMsgElement new];element.elementType=type;element.elementId=456789;
@@ -80,6 +94,7 @@ static void timantirecall_testRichReplay(UIView *root) {
     __block OCFaceElement *face;__block OCMarketFaceElement *market;__block OCReplyElement *reply;__block OCTextElement *body;
     __block NSArray *originalValues;__block NSDictionary *oldAttrs;__block CGPoint outside=CGPointMake(180,30);
     timantirecall_step(^{
+        timantirecall_check(timantirecall_richImmutable(@{@"a":@[@"constant",@1,NSNull.null]})&&!timantirecall_richImmutable([NSMutableDictionary dictionary])&&!timantirecall_richImmutable([NSMutableArray array])&&!timantirecall_richImmutable([@"mutable" mutableCopy])&&!timantirecall_richImmutable([NSMutableData data]),@"immutability probe rejects mutable containers and accepts immutable Foundation class clusters");
         timantirecall_check(NSThread.isMainThread && timantirecall_richFixtureABI(),@"rich fixture getters and init retain locked QQ ABI, native sender is v48 with block callback");
         [QQAccountsManager GetInstance].currentUid=@"self_uid";
         [timantirecall_settings() timantirecall_updateOptions:@{@"messageReplay":@YES} error:nil];

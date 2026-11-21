@@ -8,7 +8,7 @@ static void timantirecall_testPhotoReplay(UIView *root) {
         [QQAccountsManager GetInstance].currentUid=@"self_uid";
         [timantirecall_settings() timantirecall_updateOptions:@{@"messageReplay":@YES} error:NULL];
         TIMAntiRecallReplayPhotoProbe.timantirecall_shared.timantirecall_calls=0;
-        chat=[TIMAntiRecallSwiftFixture timantirecall_replayControllerWithPeer:@"peer_a" type:1];
+        chat=[TIMAntiRecallSwiftFixture timantirecall_replayControllerWithPeer:@"photo_peer" type:1];
         chat.view.frame=root.bounds;[root addSubview:chat.view];
         scroll=[[UIScrollView alloc] initWithFrame:chat.view.bounds];scroll.contentSize=CGSizeMake(root.bounds.size.width,root.bounds.size.height*2);[chat.view addSubview:scroll];
         host=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];host.frame=CGRectMake(0,80,root.bounds.size.width,64);[scroll addSubview:host];[host layoutIfNeeded];
@@ -18,7 +18,7 @@ static void timantirecall_testPhotoReplay(UIView *root) {
         original=UIImagePNGRepresentation(image);
         path=[NSTemporaryDirectory() stringByAppendingPathComponent:@"timantirecall-original-photo.png"];
         timantirecall_check([original writeToFile:path atomically:YES],@"local image fixture writes complete PNG");
-        record=timantirecall_record(1,1261,@"peer_a",0);record.peerUin=12345;
+        record=timantirecall_record(1,1261,@"photo_peer",0);record.peerUin=12345;
         pic=[OCPicElement new];pic.sourcePath=path;pic.picWidth=8;pic.picHeight=8;pic.fileSize=original.length;pic.picSubType=0;
         record.elements=@[timantirecall_richElement(pic,@"picElement",2)];
         [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];timantirecall_updateReplayRow(row,@"self_uid");
@@ -27,7 +27,7 @@ static void timantirecall_testPhotoReplay(UIView *root) {
         timantirecall_check(timantirecall_richDoubleTap(row,outside,80),@"downloaded local photo double tap invokes native image producer");
         TIMAntiRecallReplayPhotoProbe *probe=TIMAntiRecallReplayPhotoProbe.timantirecall_shared;
         timantirecall_check(probe.timantirecall_calls==1&&[probe.timantirecall_bytes isEqual:original]&&![probe.timantirecall_path isEqual:path]&&probe.timantirecall_additional==nil&&probe.timantirecall_completion!=nil,@"native photo route reads isolated full bytes once, no appended text");
-        timantirecall_check([probe.timantirecall_contact.peerUid isEqual:@"peer_a"]&&probe.timantirecall_contact.chatType==1,@"photo contact roundtrip resolves the current C2C UID");
+        timantirecall_check([probe.timantirecall_contact.peerUid isEqual:@"photo_peer"]&&probe.timantirecall_contact.chatType==1,@"photo contact roundtrip resolves the current C2C UID");
         timantirecall_check([[NSData dataWithContentsOfFile:path] isEqual:original]&&[pic.sourcePath isEqual:path]&&record.elements.firstObject.elementId==456789,@"image replay never changes or deletes the received record or original file");
         timantirecall_check(![NSFileManager.defaultManager fileExistsAtPath:probe.timantirecall_path]&&!timantirecall_testReplayComplete(row,outside),@"temporary photo is removed after synchronous native read and gesture cannot resubmit");
         probe.timantirecall_completion(0,@"fixture success");probe.timantirecall_completion=nil;

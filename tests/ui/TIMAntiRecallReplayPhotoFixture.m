@@ -2,7 +2,7 @@
 @implementation NTAIOContact
 - (OCContact *)convertToOCContact {
     OCContact *contact=[OCContact new];contact.chatType=(int32_t)self.chatType;contact.guildId=@"";
-    contact.peerUid=self.chatType==2?self.groupCode:([self.uin isEqual:@"12345"]?@"peer_a":@"different_peer");
+    contact.peerUid=self.chatType==2?self.groupCode:([self.uin isEqual:@"12345"]?@"photo_peer":@"different_peer");
     return contact;
 }
 @end
