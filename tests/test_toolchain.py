@@ -126,6 +126,11 @@ class StaticTests(ProjectFixture):
         self.replace(workflow, self.lock["actions"]["checkout"], "actions/checkout@v5")
         self.static_bad("action")
 
+    def test_feature_branch_builds_cancel_stale_runs_but_releases_are_protected(self):
+        self.static_ok()
+        workflow = self.workflow().read_text(encoding="utf-8")
+        self.assertIn("cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}", workflow)
+
     def test_workflow_developer_dir_drift_is_rejected(self):
         workflow = self.workflow()
         self.static_ok()

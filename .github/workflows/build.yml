@@ -18,7 +18,8 @@ permissions:
 
 concurrency:
   group: build-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  # Keep release builds on main/master; stale feature-branch runs waste scarce macOS capacity.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
 
 env:
   HOMEBREW_NO_AUTO_UPDATE: 1
