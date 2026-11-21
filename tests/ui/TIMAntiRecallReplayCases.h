@@ -50,7 +50,6 @@ static void timantirecall_testMessageReplay(UIView *root) {
         BOOL first=timantirecall_testReplayCapture(row,outside,2);
         BOOL second=timantirecall_testReplayCapture(row,outside,2.1);
         timantirecall_check(first&&second&&timantirecall_testReplayComplete(row,outside),@"pure text sends once from incoming right-side whitespace");
-        UIView *incomingBubble=[TIMAntiRecallRecordBridge timantirecall_replayViewsForRow:row][@"content"];
         outside=CGPointMake(CGRectGetMaxX(host.contentView.bounds)-12,CGRectGetMaxY(host.contentView.bounds)-5);
         timantirecall_check(timantirecall_testReplayCapture(row,outside,2.2)&&timantirecall_testReplayCapture(row,outside,2.3)&&timantirecall_testReplayComplete(row,outside),@"incoming replay accepts far horizontal whitespace across row height");
         outside=CGPointMake(180,30);
