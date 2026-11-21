@@ -64,7 +64,13 @@ static NSString *timantirecall_plainTextForRecord(id record) {
         if([value isKindOfClass:NSString.class]) {if([value length]!=0){timantirecall_replayTrace(@"text",@{@"reason":@"metadata-nonempty",@"field":[NSString stringWithUTF8String:metadata[i]]});return nil;}continue;}
         BOOL nativeDefaultZero=(strcmp(metadata[i],"subElementType")==0||strcmp(metadata[i],"atChannelId")==0);
         if(nativeDefaultZero&&[value isKindOfClass:NSNumber.class]&&CFGetTypeID((__bridge CFTypeRef)value)!=CFBooleanGetTypeID()&&[value isEqualToNumber:@0])continue;
-        timantirecall_replayTrace(@"text",@{@"reason":@"metadata-type",@"field":[NSString stringWithUTF8String:metadata[i]]});return nil;
+        NSString *valueClass=NSStringFromClass([value class])?:@"unknown";NSString *valueKind=@"other";
+        if([value isKindOfClass:NSNumber.class]) {
+            if(CFGetTypeID((__bridge CFTypeRef)value)==CFBooleanGetTypeID())valueKind=@"number-boolean";
+            else valueKind=[value isEqualToNumber:@0]?@"number-zero":@"number-nonzero";
+        } else if([value isKindOfClass:NSString.class])valueKind=@"string";
+        else if([value isKindOfClass:NSNull.class])valueKind=@"null-object";
+        timantirecall_replayTrace(@"text",@{@"reason":@"metadata-type",@"field":[NSString stringWithUTF8String:metadata[i]],@"valueClass":valueClass,@"valueKind":valueKind});return nil;
     }
     NSString *content=timantirecall_replayObject(text,"content",&valid);
     if(!valid){timantirecall_replayTrace(@"text",@{@"reason":@"content-abi",@"field":@"content"});return nil;}

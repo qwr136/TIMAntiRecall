@@ -39,7 +39,7 @@ void timantirecall_replayTrace(NSString *stage,NSDictionary *fields) {
     static NSSet *stages,*names,*numbers;static dispatch_once_t once;
     dispatch_once(&once,^{
         stages=[NSSet setWithArray:@[@"sync",@"attach",@"gate",@"text",@"touch",@"capture",@"action",@"send",@"settings"]];
-        names=[NSSet setWithArray:@[@"reason",@"field",@"shape",@"rowClass",@"hostClass",@"contentClass",@"controllerClass",@"modelClass"]];
+        names=[NSSet setWithArray:@[@"reason",@"field",@"shape",@"rowClass",@"hostClass",@"contentClass",@"controllerClass",@"modelClass",@"valueClass",@"valueKind"]];
         numbers=[NSSet setWithArray:@[@"samples",@"tapCount",@"state",@"accepted",@"x",@"y",@"hw",@"hh",@"bx",@"by",@"bw",@"bh"]];
     });
     if(![stages containsObject:stage])return;
