@@ -33,7 +33,7 @@ class MessageReplayContractTests(unittest.TestCase):
         self.assertNotIn('UnsafePointer',s)
     def test_native_boxed_zero_metadata_is_narrowly_allowed(self):
         s=strip_comments((ROOT/'Sources/TIMAntiRecallReplay.m').read_text())
-        self.assertIn('strcmp(metadata[i],"subElementType")==0||strcmp(metadata[i],"atChannelId")==0',s)
+        self.assertIn('strcmp(metadata[i],"subElementType")==0||strcmp(metadata[i],"atChannelId")==0||strcmp(metadata[i],"atRoleId")==0',s)
         self.assertIn('CFGetTypeID((__bridge CFTypeRef)value)!=CFBooleanGetTypeID()',s)
         self.assertIn('[value isEqualToNumber:@0]',s)
         self.assertIn('text.subElementType=@0;text.atChannelId=@0',
