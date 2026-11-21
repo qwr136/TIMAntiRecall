@@ -55,6 +55,9 @@ class MessageReplayContractTests(unittest.TestCase):
         self.assertIn('@"number-nonzero"',replay)
         self.assertIn('@"number-boolean"',replay)
         self.assertIn('metadata[i]',replay)
+        self.assertIn('@"reason":@"metadata-nonempty"',replay)
+        self.assertIn('@"valueKind":@"string"',replay)
+        self.assertIn('valueClass',replay.split('@"reason":@"metadata-nonempty"',1)[1].split('return nil',1)[0])
     def test_default_off_and_ui_regressions_remain_mandatory(self):
         settings=(ROOT/'Sources/TIMAntiRecallSettings.m').read_text()
         self.assertIn('return [self.timantirecall_snapshot[@"messageReplay"] boolValue]',settings)
