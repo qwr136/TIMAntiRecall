@@ -712,6 +712,8 @@ static void timantirecall_start(void) {
         // UIKit posts active notifications after the delegate callback; test after
         // that cycle, with no synthetic notification or forced layout refresh.
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.25*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
+            timantirecall_check(timantirecall_backgroundReceiptsObserved,@"scene cannot resume before both background native receipts");
+            if(!timantirecall_backgroundReceiptsObserved){timantirecall_finish();return;}
             timantirecall_check(scene.activationState==UISceneActivationStateForegroundActive,@"scene truly returned foreground active");
             timantirecall_count(self.window.rootViewController.view,2,@"production observers restore frames on real scene activation");
             timantirecall_count(timantirecall_demoRows[1].superview,0,@"unmarked row stays clean across scene lifecycle");

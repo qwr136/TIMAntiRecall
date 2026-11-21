@@ -79,6 +79,9 @@ class ResultGateTests(unittest.TestCase):
         self.assertIn('@"packet-background-before-resume"',packet)
         self.assertIn('timantirecall_backgroundReceiptsObserved && timantirecall_backgroundTask!=UIBackgroundTaskInvalid',foreground)
         self.assertIn('timantirecall_backgroundReceiptsObserved=YES',packet)
+        active=source.split('- (void)sceneDidBecomeActive:(UIScene *)scene',1)[1].split('- (void)sceneWillResignActive:',1)[0]
+        self.assertIn('scene cannot resume before both background native receipts',active)
+        self.assertIn('if(!timantirecall_backgroundReceiptsObserved){timantirecall_finish();return;}',active)
         self.assertIn('scene truly returned foreground active',source)
 
     def test_screenshot_retries_only_three_times(self):
