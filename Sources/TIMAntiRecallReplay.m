@@ -183,7 +183,7 @@ static BOOL timantirecall_replayContextAtPoint(TIMAntiRecallReplayContext *state
     NSDictionary *payload=timantirecall_replayContent(record);
     if(!payload){timantirecall_replayTrace(@"gate",@{@"reason":@"message-not-eligible",@"field":@"payload"});return NO;}
     NSDictionary *identity=timantirecall_recordIdentity(record,owner);
-    if(!identity){timantirecall_replayTrace(@"gate",@{@"reason":@"message-identity-rejected",@"field":@"record",@"valueClass":record?NSStringFromClass([record class]):@"nil"});return NO;}
+    if(!identity){timantirecall_replayTrace(@"gate",@{@"reason":@"message-identity-rejected",@"field":@"record"});return NO;}
     UIViewController *controller=timantirecall_replayController(row);
     if(!controller||!controller.isViewLoaded||controller.view.window!=host.window||controller.view.hidden||
        ![row isDescendantOfView:controller.view]||controller.presentedViewController){timantirecall_replayTrace(@"gate",@{@"reason":@"chat-controller-invalid"});return NO;}

@@ -25,11 +25,13 @@ static void timantirecall_testRichDiagnostics(UIView *root) {
         OCPicElement *pic=[OCPicElement new];pic.sourcePath=@"TIMANTIRECALL_SECRET_PATH/image.png";
         record.elements=@[timantirecall_richElement(pic,@"picElement",2)];
         timantirecall_check(!timantirecall_richReplaySnapshot(record),@"unavailable photo remains rejected without exposing source path");
+        record.elements=@[timantirecall_richElement(timantirecall_richFace(),@"faceElement",68417)];
+        timantirecall_check(!timantirecall_richReplaySnapshot(record),@"unknown raw element enum remains rejected and must log only other");
         chat=[TIMAntiRecallSwiftFixture timantirecall_replayControllerWithPeer:@"diag_peer" type:1];chat.view.frame=root.bounds;[root addSubview:chat.view];
         UITableViewCell *host=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
         host.frame=CGRectMake(0,80,root.bounds.size.width,64);[chat.view addSubview:host];[host layoutIfNeeded];
         row=[TIMAntiRecallSwiftFixture timantirecall_replayRowWithFrame:host.contentView.bounds];[host.contentView addSubview:row];
-        record=timantirecall_record(1,1302,@"diag_peer",0);record.msgId=0;
+        record=timantirecall_record(1,1302,@"diag_peer",0);record.msgId=0;record.peerUin=78901;
         record.elements=@[timantirecall_richElement(timantirecall_richFace(),@"faceElement",3)];
         [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];timantirecall_updateReplayRow(row,@"self_uid");
         NSUInteger before=[QQMsgService getInstance].timantirecall_sendCalls;
@@ -39,7 +41,7 @@ static void timantirecall_testRichDiagnostics(UIView *root) {
     timantirecall_step(^{
         NSURL *url=timantirecall_replayTraceExport();NSData *bytes=[NSData dataWithContentsOfURL:url];
         NSString *log=[[NSString alloc] initWithData:bytes encoding:NSUTF8StringEncoding];
-        BOOL abi=NO,shape=NO,photo=NO,identity=NO,ready=NO;
+        BOOL abi=NO,shape=NO,photo=NO,identity=NO,ready=NO,other=NO,noRawEnum=YES;
         for(NSString *line in [log componentsSeparatedByString:@"\n"]) {
             if(!line.length)continue;
             NSDictionary *event=[NSJSONSerialization JSONObjectWithData:[line dataUsingEncoding:NSUTF8StringEncoding] options:0 error:NULL];
@@ -50,7 +52,11 @@ static void timantirecall_testRichDiagnostics(UIView *root) {
             if([event[@"reason"] isEqual:@"photo-path-shape"])photo=YES;
             if([event[@"reason"] isEqual:@"message-identity-rejected"])identity=YES;
             if([event[@"reason"] isEqual:@"snapshot-ready"])ready=YES;
+            if([event[@"reason"] isEqual:@"element-entered"]&&[event[@"shape"] isEqual:@"other"])other=YES;
+            if(event[@"elementType"])noRawEnum=NO;
+            for(id value in event.allValues)if([value isKindOfClass:NSNumber.class]&&[value isEqual:@68417])noRawEnum=NO;
         }
+        timantirecall_check(other&&noRawEnum,@"unknown element type is reduced to other without persisting raw enum");
         timantirecall_check(abi&&shape&&photo&&identity&&ready,@"rich diagnostic exported events distinguish exact ABI, field shape, photo gate, successful snapshot and failed identity");
         timantirecall_check([log containsString:@"replay-rich-reject-v2"]&&![log containsString:@"TIMANTIRECALL_SECRET_BODY"]&&![log containsString:@"TIMANTIRECALL_SECRET_PATH"]&&![log containsString:@"diag_peer"],@"rich diagnostics have new schema and never serialize content, paths or peer IDs");
         timantirecall_clearReplayRow(row);[chat.view removeFromSuperview];

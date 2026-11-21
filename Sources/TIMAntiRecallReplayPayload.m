@@ -15,9 +15,16 @@ typedef struct { const char *name,*encoding,*objectClass; } TIMAntiRecallReplayF
 static NSString *timantirecall_richABIKind(const char *encoding) {
     if(!encoding)return @"missing";
     switch(encoding[0]) {
-        case '@':return @"object";case 'i':return @"int32";case 'I':return @"uint32";
+        case '@':return encoding[1]=='?'?@"block":@"object";case 'i':return @"int32";case 'I':return @"uint32";
         case 'q':return @"int64";case 'Q':return @"uint64";case 'B':return @"bool";
         case 'v':return @"void";case '^':return @"pointer";default:return @"other";
+    }
+}
+static NSString *timantirecall_richElementKind(int32_t type) {
+    switch(type) {
+        case 0:return @"none";case 1:return @"text";case 2:return @"photo";
+        case 3:return @"face";case 5:return @"face-alt";case 7:return @"reply";
+        case 11:return @"market-face";default:return @"other";
     }
 }
 static void timantirecall_richRejectTrace(NSString *reason,NSString *field,id value,NSString *expected) {
@@ -51,7 +58,8 @@ static IMP timantirecall_richGetter(id obj,const char *name,const char *encoding
         char actual[128]={0};if(m)method_getReturnType(m,actual,sizeof(actual));
         timantirecall_replayTrace(@"rich",@{@"reason":m?@"getter-abi-mismatch":@"getter-missing",@"field":@(name),
             @"valueClass":NSStringFromClass([obj class]),@"valueKind":@"unread",@"expectedABI":timantirecall_richABIKind(encoding),
-            @"actualABI":m?timantirecall_richABIKind(actual):@"missing",@"argumentCount":@(m?method_getNumberOfArguments(m):0)});
+            @"actualABI":m?timantirecall_richABIKind(actual):@"missing",@"argumentCount":@(m?method_getNumberOfArguments(m):0),
+            @"shape":!m?@"missing":method_getNumberOfArguments(m)!=2?@"argument-count":strcmp(actual,encoding)!=0?@"return-type":@"argument-type"});
     }
     return NULL;
 }
@@ -190,7 +198,8 @@ NSDictionary *timantirecall_richReplaySnapshot(id record) {
         if(!valid)return nil;
         if(![elements isKindOfClass:NSArray.class]||[elements count]<1||[elements count]>32)
             TIMANTIRECALL_RICH_REJECT("elements-shape-or-count","elements",elements,"NSArray-1-to-32");
-        timantirecall_replayTrace(@"rich",@{@"reason":@"snapshot-entered",@"elementCount":@([elements count])});
+        if([timantirecall_settings() timantirecall_replayDiagnostics])
+            timantirecall_replayTrace(@"rich",@{@"reason":@"snapshot-entered",@"elementCount":@([elements count])});
         static const char *slots[]={"textElement","faceElement","marketFaceElement","replyElement","picElement","pttElement","videoElement","grayTipElement","arkElement","fileElement","liveGiftElement","markdownElement","structLongMsgElement","multiForwardMsgElement","giphyElement","walletElement","inlineKeyboardElement","textGiftElement","calendarElement","yoloGameResultElement","avRecordElement","structMsgElement","faceBubbleElement","shareLocationElement","tofuRecordElement","taskTopMsgElement","recommendedMsgElement","actionBarElement","prologueMsgElement"};
         NSArray *classes=@[@"OCTextElement",@"OCFaceElement",@"OCMarketFaceElement",@"OCReplyElement",@"OCPicElement"];
         NSMutableArray *descriptions=[NSMutableArray array];NSUInteger budget=2048,rich=0,replies=0,textSize=0;
@@ -198,7 +207,8 @@ NSDictionary *timantirecall_richReplaySnapshot(id record) {
             if(![element isKindOfClass:ec])
                 TIMANTIRECALL_RICH_REJECT("element-class-rejected","element",element,"OCMsgElement");
             id type=timantirecall_richRead(element,"elementType","i",&valid);if(!valid)return nil;
-            timantirecall_replayTrace(@"rich",@{@"reason":@"element-entered",@"elementType":type});
+            if([timantirecall_settings() timantirecall_replayDiagnostics])
+                timantirecall_replayTrace(@"rich",@{@"reason":@"element-entered",@"shape":timantirecall_richElementKind([type intValue])});
             id payload=nil;NSInteger slot=-1;
             for(NSUInteger i=0;i<sizeof(slots)/sizeof(slots[0]);i++) {
                 id item=timantirecall_richRead(element,slots[i],"@",&valid);
@@ -371,8 +381,5 @@ BOOL timantirecall_richReplaySend(id service,id contact,id record,NSDictionary *
     // Native local branch loads UIImage and NSData synchronously before it
     // returns; the async upload owns those new objects, not this temporary path.
     [NSFileManager.defaultManager removeItemAtPath:path error:NULL];
-    return YES;
-}
-path error:NULL];
     return YES;
 }

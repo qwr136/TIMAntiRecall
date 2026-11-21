@@ -38,6 +38,26 @@ class RichRejectDiagnosticTests(unittest.TestCase):
             self.assertIn(token,trace)
         self.assertIn('timantirecall_replayTraceCount>=192',trace)
         self.assertIn('repetitions>=4',trace)
+        self.assertNotIn('@"elementType"',trace)
+        self.assertIn('default:return @"other"',function_body(s,'timantirecall_richElementKind'))
+        self.assertIn('encoding[1]==\'?\'?@"block":@"object"',function_body(s,'timantirecall_richABIKind'))
+        self.assertIn('if([timantirecall_settings() timantirecall_replayDiagnostics])\n                timantirecall_replayTrace(@"rich",@{@"reason":@"element-entered"',s)
+
+    def test_diagnostic_translation_units_have_no_trailing_fragment(self):
+        from source_checks import mask_literals
+        for filename in ('TIMAntiRecallReplayPayload.m','TIMAntiRecallReplay.m','TIMAntiRecallReplayTrace.m'):
+            source=strip_comments((ROOT/'Sources'/filename).read_text())
+            depth=0
+            for token in mask_literals(source):
+                if token=='{':depth+=1
+                elif token=='}':depth-=1
+                self.assertGreaterEqual(depth,0,filename)
+            self.assertEqual(depth,0,filename)
+        source=strip_comments((ROOT/'Sources/TIMAntiRecallReplayPayload.m').read_text())
+        start=source.index('BOOL timantirecall_richReplaySend(')
+        brace=source.index('{',start)
+        body=function_body(source,'timantirecall_richReplaySend')
+        self.assertEqual(source[brace+1:].strip(),(body+'}').strip())
 
     def test_diagnostic_events_and_redaction_are_mandatory_uikit_coverage(self):
         cases=(ROOT/'tests/ui/TIMAntiRecallReplayDiagnosticCases.h').read_text()

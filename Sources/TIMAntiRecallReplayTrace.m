@@ -40,7 +40,7 @@ void timantirecall_replayTrace(NSString *stage,NSDictionary *fields) {
     dispatch_once(&once,^{
         stages=[NSSet setWithArray:@[@"sync",@"attach",@"gate",@"text",@"rich",@"touch",@"capture",@"action",@"send",@"settings"]];
         names=[NSSet setWithArray:@[@"reason",@"field",@"shape",@"rowClass",@"hostClass",@"contentClass",@"controllerClass",@"modelClass",@"valueClass",@"valueKind",@"expectedABI",@"actualABI"]];
-        numbers=[NSSet setWithArray:@[@"samples",@"tapCount",@"state",@"accepted",@"x",@"y",@"hw",@"hh",@"bx",@"by",@"bw",@"bh",@"elementType",@"elementCount",@"argumentCount"]];
+        numbers=[NSSet setWithArray:@[@"samples",@"tapCount",@"state",@"accepted",@"x",@"y",@"hw",@"hh",@"bx",@"by",@"bw",@"bh",@"elementCount",@"argumentCount"]];
     });
     if(![stages containsObject:stage])return;
     NSMutableDictionary *safe=[@{@"stage":stage,@"schema":@"replay-rich-reject-v2"} mutableCopy];
