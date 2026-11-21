@@ -66,7 +66,7 @@ static NSString *timantirecall_plainTextForRecord(id record) {
             if([value length]!=0){timantirecall_replayTrace(@"text",@{@"reason":@"metadata-nonempty",@"field":[NSString stringWithUTF8String:metadata[i]],@"valueClass":valueClass,@"valueKind":@"string"});return nil;}
             continue;
         }
-        BOOL nativePlainTextZero=(strcmp(metadata[i],"subElementType")==0||strcmp(metadata[i],"atChannelId")==0||strcmp(metadata[i],"atRoleId")==0);
+        BOOL nativePlainTextZero=(strcmp(metadata[i],"subElementType")==0||strcmp(metadata[i],"atChannelId")==0||strcmp(metadata[i],"atRoleId")==0||strcmp(metadata[i],"atRoleColor")==0);
         if(nativePlainTextZero&&[value isKindOfClass:NSNumber.class]&&CFGetTypeID((__bridge CFTypeRef)value)!=CFBooleanGetTypeID()&&[value isEqualToNumber:@0])continue;
         NSString *valueKind=@"other";
         if([value isKindOfClass:NSNumber.class]) {

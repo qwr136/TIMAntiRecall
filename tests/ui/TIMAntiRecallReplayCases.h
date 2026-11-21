@@ -28,7 +28,7 @@ static void timantirecall_testMessageReplay(UIView *root) {
         host=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
         host.frame=CGRectMake(0,80,root.bounds.size.width,64);[scroll addSubview:host];[host layoutIfNeeded];
         row=[TIMAntiRecallSwiftFixture timantirecall_replayRowWithFrame:host.contentView.bounds];[host.contentView addSubview:row];
-        text=[OCTextElement new];text.content=@"复读原文";text.atNtUid=@"";text.subElementType=@0;text.atChannelId=@0;text.atRoleId=@0;
+        text=[OCTextElement new];text.content=@"复读原文";text.atNtUid=@"";text.subElementType=@0;text.atChannelId=@0;text.atRoleId=@0;text.atRoleColor=@0;
         element=[OCMsgElement new];element.textElement=text;
         record=timantirecall_record(1,1201,@"peer_a",0);record.elements=@[element];
         [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];
@@ -60,7 +60,8 @@ static void timantirecall_testMessageReplay(UIView *root) {
         element.faceElement=NSObject.new;timantirecall_check(!timantirecall_testReplayCapture(row,outside,4),@"mixed rich message never sends");element.faceElement=nil;
         text.atRoleId=@YES;timantirecall_check(!timantirecall_testReplayCapture(row,outside,4),@"boolean atRoleId is not numeric zero");text.atRoleId=@0;
         text.atRoleId=@1;timantirecall_check(!timantirecall_testReplayCapture(row,outside,4),@"nonzero atRoleId remains rejected");text.atRoleId=@0;
-        text.atRoleColor=@0;timantirecall_check(!timantirecall_testReplayCapture(row,outside,4),@"zero atRoleColor remains rejected");text.atRoleColor=nil;
+        text.atRoleColor=@YES;timantirecall_check(!timantirecall_testReplayCapture(row,outside,4),@"boolean atRoleColor is not numeric zero");text.atRoleColor=@0;
+        text.atRoleColor=@1;timantirecall_check(!timantirecall_testReplayCapture(row,outside,4),@"nonzero atRoleColor remains rejected");text.atRoleColor=@0;
         text.atNtUid=@0;timantirecall_check(!timantirecall_testReplayCapture(row,outside,4),@"zero NSNumber in nondefault metadata remains rejected");text.atNtUid=@"";
         UIView *status=[TIMAntiRecallRecordBridge timantirecall_replayViewsForRow:row][@"status"];
         status.frame=CGRectMake(165,8,36,44);status.hidden=NO;
