@@ -1,4 +1,15 @@
 #import "TIMAntiRecallReplayPhotoFixture.h"
+@implementation TIMAntiRecallReceivedPic
+- (NSString *)fetchOriginalImgPathWithCreateFolder:(BOOL)create {
+    self.timantirecall_cacheCalls++;self.timantirecall_createRequested|=create;
+    return self.timantirecall_originalPath;
+}
+@end
+@implementation TIMAntiRecallReceivedPicWrongABI
+- (NSString *)fetchOriginalImgPathWithCreateFolder:(int64_t)create {
+    (void)create;self.timantirecall_wrongCalls++;return @"/must-not-be-called";
+}
+@end
 @implementation NTAIOContact
 - (OCContact *)convertToOCContact {
     OCContact *contact=[OCContact new];contact.chatType=(int32_t)self.chatType;contact.guildId=@"";

@@ -1,6 +1,16 @@
 #pragma once
 #import "TIMAntiRecallFixture.h"
 #import "TIMAntiRecallReplayRichFixture.h"
+@interface TIMAntiRecallReceivedPic : OCPicElement
+@property(nonatomic,copy) NSString *timantirecall_originalPath;
+@property(nonatomic) NSUInteger timantirecall_cacheCalls;
+@property(nonatomic) BOOL timantirecall_createRequested;
+- (NSString *)fetchOriginalImgPathWithCreateFolder:(BOOL)create;
+@end
+@interface TIMAntiRecallReceivedPicWrongABI : OCPicElement
+@property(nonatomic) NSUInteger timantirecall_wrongCalls;
+- (NSString *)fetchOriginalImgPathWithCreateFolder:(int64_t)create;
+@end
 @interface NTAIOContact : NSObject
 @property(nonatomic) int64_t chatType;
 @property(nonatomic,copy) NSString *uin,*groupCode,*guildID;

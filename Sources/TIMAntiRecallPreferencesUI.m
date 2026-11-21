@@ -82,7 +82,7 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
     NSError *error=[timantirecall_settings() timantirecall_lastError]?:[timantirecall_sharedMarks() timantirecall_lastError];
     if(error)return [@"保存/读取失败：" stringByAppendingString:error.localizedDescription];
     if(self.timantirecall_mode==1)return @"先打开目标聊天即可识别。关闭只放行此聊天之后的撤回；不会删除已经保留的消息。总开关关闭时所有聊天均放行。";
-    if(section==0)return @"自动领取处理 TIM 新到的群聊和私聊普通红包，不呈现普通领取小窗；资格与验证仍由 TIM 原生流程判定。后台仅在 TIM 进程确实得到执行时间并收到消息时尝试，不保活或唤醒。本人发送红包须同时开启两个领取开关；两个领取开关及诊断日志均默认关闭。气泡外侧双击复读默认关闭；支持文字、表情、已下载到本地的单张图片，以及保留原引用关系的整条回复；对方右侧、自己左侧，文字本身双击功能保留。原图未下载、闪照、过期资源、红包、文件与未知格式不发送；图片最大24MB。复读诊断单独开启，日志不含正文和联系人。单独@文字与链接仍不复读。";
+    if(section==0)return @"自动领取处理 TIM 新到的群聊和私聊普通红包，不呈现普通领取小窗；资格与验证仍由 TIM 原生流程判定。后台仅在 TIM 进程确实得到执行时间并收到消息时尝试，不保活或唤醒。本人发送红包须同时开启两个领取开关；两个领取开关及诊断日志均默认关闭。气泡外侧双击复读默认关闭；支持文字、表情、已下载到本地的单张图片，以及保留原引用关系的整条回复；对方右侧、自己左侧，文字本身双击功能保留。原图未下载、闪照、过期资源、红包、文件与未知格式不发送；图片最大24MB。复读诊断单独开启，日志不含正文和联系人。多段文字与有明确目标的普通@消息按原生元素重建，保留提及关系；链接、独立全员@、频道/角色提及和视频暂不复读。";
     return @"标记与开关保存在TIM沙盒，仅本机有效，不上传；不恢复TIM已删除的原消息。移除插件不会删除TIM聊天记录。";
 }
 - (void)timantirecall_icon:(NSString *)name cell:(UITableViewCell *)cell {

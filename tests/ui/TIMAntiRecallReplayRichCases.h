@@ -220,29 +220,29 @@ static void timantirecall_testRichReplay(UIView *root) {
         OCMsgElement *file=[OCMsgElement new];file.elementType=4;file.fileElement=[NSObject new];
         OCMsgElement *wrongType=timantirecall_richElement(face,@"faceElement",999);
         OCMsgElement *wrongClass=timantirecall_richElement([NSObject new],@"faceElement",3);
+        OCMsgElement *videoTypeFace=timantirecall_richElement(face,@"faceElement",5);
         NSArray *valid=record.elements;
-        for(OCMsgElement *bad in @[unsupported,wallet,multi,file,wrongType,wrongClass]) {
+        for(OCMsgElement *bad in @[unsupported,wallet,multi,file,wrongType,wrongClass,videoTypeFace]) {
             record.elements=@[bad];[row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];timantirecall_updateReplayRow(row,@"self_uid");
             timantirecall_check(timantirecall_richReplaySnapshot(record)==nil && !timantirecall_testReplayCapture(row,outside,41) && !timantirecall_testReplayComplete(row,outside),@"unknown, wallet, multi-payload, file and mismatched payloads fail closed without send");
         }
-        OCTextElement *mention=timantirecall_richText(@"@someone");mention.atType=1;mention.atNtUid=@"someone";
+        OCTextElement *mention=timantirecall_richText(@"@someone");mention.atType=2;mention.atNtUid=@"someone";
         record.elements=@[timantirecall_richElement(mention,@"textElement",1)];
-        timantirecall_check(timantirecall_richReplaySnapshot(record)==nil,@"rich fallback cannot bypass single-text mention rejection");
+        timantirecall_check(timantirecall_richReplaySnapshot(record)!=nil,@"targeted mention preserves original recipient through element fallback");
         record.elements=@[valid.firstObject];
         timantirecall_check(timantirecall_richReplaySnapshot(record)==nil,@"a quote descriptor alone cannot send only the quoted original");
         record.elements=valid;[row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];timantirecall_updateReplayRow(row,@"self_uid");
         timantirecall_check(service.timantirecall_sendCalls==sent && [originalValues isEqual:timantirecall_richFixtureValue(record.elements)] && record.msgAttrs==oldAttrs,@"all unsupported rich cases leave sender and original full reply untouched");
-        // Explicit group and own-message direction coverage; type 5 uses the
-        // same verified face payload family, not a text downgrade.
+        // Explicit group and own-message direction coverage using verified face type 3.
         record.chatType=2;record.peerUin=7001;record.peerUid=@"7001";record.senderUid=@"self_uid";
         [TIMAntiRecallSwiftFixture timantirecall_setReplayPeer:@"7001" controller:chat type:2];
         NSDictionary *views=[TIMAntiRecallRecordBridge timantirecall_replayViewsForRow:row];
         UIView *bubble=views[@"content"],*avatar=views[@"avatar"];
         bubble.frame=CGRectMake(host.contentView.bounds.size.width-156,8,100,44);
         avatar.frame=CGRectMake(host.contentView.bounds.size.width-44,8,36,36);
-        outside=CGPointMake(12,30);record.elements=@[timantirecall_richElement(face,@"faceElement",5)];
+        outside=CGPointMake(12,30);record.elements=@[timantirecall_richElement(face,@"faceElement",3)];
         [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];timantirecall_updateReplayRow(row,@"self_uid");
-        timantirecall_check(timantirecall_richDoubleTap(row,outside,42)&&service.timantirecall_sendCalls==sent+1,@"own group native face type 5 replays from left whitespace");
+        timantirecall_check(timantirecall_richDoubleTap(row,outside,42)&&service.timantirecall_sendCalls==sent+1,@"own group native face type 3 replays from left whitespace");
         record.elements=valid;
         [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];timantirecall_updateReplayRow(row,@"self_uid");
         timantirecall_check(timantirecall_richDoubleTap(row,outside,43)&&service.timantirecall_sendCalls==sent+2&&service.timantirecall_lastContact.chatType==2&&[service.timantirecall_lastContact.peerUid isEqual:@"7001"],@"own group quote replays whole reply through current group contact");
