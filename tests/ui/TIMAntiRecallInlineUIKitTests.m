@@ -738,9 +738,19 @@ static void timantirecall_start(void) {
         timantirecall_count(timantirecall_demoRows[1].superview,0,@"unmarked row stays clean in background snapshot");
         timantirecall_backgroundObserved=YES;[timantirecall_coverage addObject:@"real-scene-background"];
         timantirecall_beginSilentBackground(scene,^{
-            // Keep the TEST-only lease until the same scene actually resumes;
-            // simctl launch is asynchronous and must not silently create a new PID.
+            if(!timantirecall_backgroundReceiptsObserved) {
+                timantirecall_stage(@"background-receipts-failed");
+                if(timantirecall_backgroundTask!=UIBackgroundTaskInvalid) {
+                    [UIApplication.sharedApplication endBackgroundTask:timantirecall_backgroundTask];timantirecall_backgroundTask=UIBackgroundTaskInvalid;
+                }
+                timantirecall_finish();return;
+            }
+            // Persist the trigger before releasing the TEST-only lease. Receipt
+            // work is done; the same process/scene must still resume below.
             timantirecall_stage(@"background-observed");
+            if(timantirecall_backgroundTask!=UIBackgroundTaskInvalid) {
+                [UIApplication.sharedApplication endBackgroundTask:timantirecall_backgroundTask];timantirecall_backgroundTask=UIBackgroundTaskInvalid;
+            }
         });
     });
 }

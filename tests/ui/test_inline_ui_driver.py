@@ -71,13 +71,12 @@ class ResultGateTests(unittest.TestCase):
     def test_background_test_lease_is_released_only_after_receipts_on_foreground_transition(self):
         source=(Path(__file__).with_name("TIMAntiRecallInlineUIKitTests.m")).read_text()
         packet=(Path(__file__).with_name("TIMAntiRecallPacketSilentCases.h")).read_text()
-        self.assertIn('timantirecall_stage(@"background-observed")',source)
-        self.assertIn('- (void)sceneWillEnterForeground:(UIScene *)scene',source)
-        foreground=source.split('- (void)sceneWillEnterForeground:(UIScene *)scene',1)[1].split('- (void)sceneDidBecomeActive:',1)[0]
-        self.assertIn('endBackgroundTask:timantirecall_backgroundTask',foreground)
-        self.assertIn('timantirecall_stage(@"test-background-lease-released")',foreground)
+        background=source.split('- (void)sceneDidEnterBackground:(UIScene *)scene',1)[1].split('\n}\n@end',1)[0]
+        self.assertIn('timantirecall_stage(@"background-observed")',background)
+        self.assertIn('timantirecall_backgroundReceiptsObserved',background)
+        self.assertIn('endBackgroundTask:timantirecall_backgroundTask',background)
+        self.assertLess(background.index('timantirecall_stage(@"background-observed")'),background.index('endBackgroundTask:timantirecall_backgroundTask'))
         self.assertIn('@"packet-background-before-resume"',packet)
-        self.assertIn('timantirecall_backgroundReceiptsObserved && timantirecall_backgroundTask!=UIBackgroundTaskInvalid',foreground)
         self.assertIn('timantirecall_backgroundReceiptsObserved=YES',packet)
         active=source.split('- (void)sceneDidBecomeActive:(UIScene *)scene',1)[1].split('- (void)sceneWillResignActive:',1)[0]
         self.assertIn('scene cannot resume before both background native receipts',active)
