@@ -142,17 +142,19 @@ static NSString *timantirecall_accountScope(NSDictionary *chat) {
 }
 - (BOOL)timantirecall_shouldBlockData:(NSData *)data owner:(NSString *)owner {
     if(![self timantirecall_enabled])return NO;
-    @synchronized(self){if(!self.timantirecall_overrides.count)return YES;}
-    if(!timantirecall_validUID(owner)||![data isKindOfClass:NSData.class])return YES;
+    if(!timantirecall_validUID(owner)||![data isKindOfClass:NSData.class])return NO;
+    char actor[129]={0};
+    if(!timantirecall_extractRecallActor(data.bytes,data.length,actor)||
+       [@(actor) isEqual:owner])return NO;
     TIMAntiRecallWireEvent scope={0};
-    if(!timantirecall_extractRecallScope(data.bytes,data.length,&scope))return YES;
+    if(!timantirecall_extractRecallScope(data.bytes,data.length,&scope))return NO;
     NSMutableDictionary *chat=[@{@"owner":owner,@"kind":@(scope.kind)} mutableCopy];
     if(scope.kind==2)chat[@"group"]=@(scope.group);
     else {
         NSString *from=@(scope.from),*to=@(scope.to);
         if([from isEqual:owner])chat[@"peer"]=to;
         else if([to isEqual:owner])chat[@"peer"]=from;
-        else return YES;
+        else return NO;
     }
     return [self timantirecall_enabledForChat:chat];
 }

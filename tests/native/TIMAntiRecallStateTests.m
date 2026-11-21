@@ -20,20 +20,63 @@ static NSData *timantirecall_var(uint64_t n){NSMutableData *d=[NSMutableData dat
 static NSData *timantirecall_int(unsigned f,uint64_t n){NSMutableData *d=[timantirecall_var((uint64_t)f<<3) mutableCopy];[d appendData:timantirecall_var(n)];return d;}
 static NSData *timantirecall_blob(unsigned f,NSData *v){NSMutableData *d=[timantirecall_var(((uint64_t)f<<3)|2) mutableCopy];[d appendData:timantirecall_var(v.length)];[d appendData:v];return d;}
 static NSData *timantirecall_join(NSArray *a){NSMutableData *d=[NSMutableData data];for(NSData *v in a)[d appendData:v];return d;}
-static NSData *timantirecall_packet(BOOL group,BOOL author){
+static NSData *timantirecall_actorPacket(BOOL group,NSString *actor,NSString *author){
     NSData *content;
     if(group){
         NSData *message=timantirecall_int(1,42);
-        if(author)message=timantirecall_join(@[message,timantirecall_blob(6,[@"member" dataUsingEncoding:4])]);
-        NSData *notify=timantirecall_join(@[timantirecall_int(1,7),timantirecall_int(4,99),timantirecall_blob(11,timantirecall_blob(3,message))]);
+        if(author)message=timantirecall_join(@[message,timantirecall_blob(6,[author dataUsingEncoding:4])]);
+        NSData *recall=timantirecall_blob(3,message);
+        if(actor)recall=timantirecall_join(@[timantirecall_blob(1,[actor dataUsingEncoding:4]),recall]);
+        NSData *notify=timantirecall_join(@[timantirecall_int(1,7),timantirecall_int(4,99),timantirecall_blob(11,recall)]);
         uint8_t prefix[]={0,0,0,99,0,(uint8_t)(notify.length>>8),(uint8_t)notify.length};
         content=timantirecall_join(@[[NSData dataWithBytes:prefix length:7],notify]);
-    }else content=timantirecall_blob(1,timantirecall_join(@[timantirecall_blob(1,[@"peer" dataUsingEncoding:4]),timantirecall_blob(2,[@"owner" dataUsingEncoding:4]),timantirecall_int(20,42)]));
+    }else{
+        NSData *info=timantirecall_join(@[timantirecall_blob(2,[@"owner" dataUsingEncoding:4]),timantirecall_int(20,42)]);
+        if(actor)info=timantirecall_join(@[timantirecall_blob(1,[actor dataUsingEncoding:4]),info]);
+        content=timantirecall_blob(1,info);
+    }
     NSData *head=timantirecall_join(@[timantirecall_int(1,group?732:528),timantirecall_int(2,group?17:138)]);
     return timantirecall_blob(1,timantirecall_join(@[timantirecall_blob(2,head),timantirecall_blob(3,timantirecall_blob(2,content))]));
 }
+static NSData *timantirecall_packet(BOOL group,BOOL author){
+    return timantirecall_actorPacket(group,group?@"third_actor":@"peer",author?@"member":nil);
+}
 static NSDictionary *timantirecall_private(void){return @{@"owner":@"owner",@"kind":@1,@"seq":@42,@"id":@9001,@"random":@123,@"time":@1700000000,@"peer":@"peer",@"from":@"peer",@"to":@"owner",@"author":@"peer",@"text":@"NEVER-SAVE-CONTENT"};}
 static NSDictionary *timantirecall_group(void){return @{@"owner":@"owner",@"kind":@2,@"seq":@43,@"id":@9002,@"group":@99,@"author":@"member",@"random":@33,@"time":@1700000000};}
+static NSArray<NSDictionary *> *timantirecall_oldMarks(void) {
+    // Written raw, bypassing addEvents, to represent an archive from 8.00.
+    return @[
+        @{@"owner":@"owner",@"kind":@1,@"seq":@701,@"from":@"owner",@"to":@"peer",@"capturedAt":@1700000001},
+        @{@"owner":@"owner",@"kind":@2,@"seq":@702,@"group":@99,@"author":@"member",@"operator":@"owner",@"capturedAt":@1700000002},
+        @{@"owner":@"owner",@"kind":@1,@"seq":@703,@"from":@"peer",@"to":@"owner",@"capturedAt":@1700000003},
+        @{@"owner":@"owner",@"kind":@2,@"seq":@704,@"group":@99,@"author":@"owner",@"operator":@"third_actor",@"capturedAt":@1700000004},
+        @{@"owner":@"owner",@"kind":@2,@"seq":@705,@"group":@99,@"author":@"owner",@"capturedAt":@1700000005}];
+}
+static void timantirecall_restoreOldMarks(void) {
+    NSError *error=nil;NSURL *url=timantirecall_stateURL(@"old-own-marks.plist");
+    TIMAntiRecallMarkStore *old=[[TIMAntiRecallMarkStore alloc] initWithURL:url persistent:YES];
+    CHECK(![old timantirecall_lastError]);
+    CHECK([old timantirecall_eventsForOwner:@"owner"].count==3);
+    NSArray *raw=timantirecall_oldMarks();
+    for(NSUInteger i=0;i<raw.count;i++) {
+        NSDictionary *event=raw[i];BOOL group=[event[@"kind"] isEqual:@2];
+        NSMutableDictionary *identity=[@{@"owner":@"owner",@"kind":event[@"kind"],@"seq":event[@"seq"],
+            @"id":@(9000+i),@"random":@33,@"time":@1700000000,@"author":group?event[@"author"]:event[@"from"]} mutableCopy];
+        identity[group?@"group":@"peer"]=group?@99:@"peer";
+        BOOL retained=i>=2;
+        CHECK([old timantirecall_containsRecallEventForIdentity:identity]==retained);
+        CHECK([old timantirecall_containsIdentity:identity]==retained);
+        CHECK(([old timantirecall_displayCandidateForIdentity:identity]!=nil)==retained);
+    }
+    [old timantirecall_addEvents:raw owner:@"owner"];
+    CHECK([old timantirecall_eventsForOwner:@"owner"].count==3);
+    CHECK([old timantirecall_flush:&error]);CHECK(!error);
+    NSDictionary *saved=timantirecall_readState(url,&error);CHECK(!error);
+    CHECK([saved[@"events"] count]==3);
+    for(NSDictionary *event in saved[@"events"])CHECK([event[@"seq"] unsignedIntValue]>=703);
+    TIMAntiRecallMarkStore *again=[[TIMAntiRecallMarkStore alloc] initWithURL:url persistent:YES];
+    CHECK(![again timantirecall_lastError] && [again timantirecall_eventsForOwner:@"owner"].count==3);
+}
 int main(int argc,const char **argv){@autoreleasepool {
     CHECK(argc==2);NSString *mode=@(argv[1]);NSError *error=nil;
     NSURL *settingsURL=timantirecall_stateURL(@"preferences.plist"),*marksURL=timantirecall_stateURL(@"marks.plist");
@@ -50,9 +93,20 @@ int main(int argc,const char **argv){@autoreleasepool {
         CHECK([settings timantirecall_autoClaimRedPackets]);
         CHECK([settings timantirecall_setPacketOption:@"claimOwn" enabled:YES owner:@"owner" error:&error]);
         CHECK([settings timantirecall_claimOwnRedPackets]);
+        for(NSNumber *kind in @[@NO,@YES]) {
+            BOOL group=kind.boolValue;
+            CHECK([settings timantirecall_shouldBlockData:timantirecall_packet(group,YES) owner:@"owner"]);
+            CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(group,YES) owner:nil]);
+            CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(group,YES) owner:@""]);
+            CHECK(![settings timantirecall_shouldBlockData:timantirecall_actorPacket(group,nil,@"owner") owner:@"owner"]);
+            CHECK(![settings timantirecall_shouldBlockData:timantirecall_actorPacket(group,@"owner",@"member") owner:@"owner"]);
+        }
+        CHECK([settings timantirecall_shouldBlockData:timantirecall_actorPacket(YES,@"third_actor",@"owner") owner:@"owner"]);
+        CHECK([settings timantirecall_shouldBlockData:timantirecall_actorPacket(YES,@"third_actor",nil) owner:@"owner"]);
         CHECK([settings timantirecall_setChat:timantirecall_private() enabled:NO error:&error]);CHECK(!error);
         CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(NO,YES) owner:@"owner"]);
-        CHECK([settings timantirecall_shouldBlockData:timantirecall_packet(NO,YES) owner:@"other"]);
+        // A private recall outside this owner's two-party scope cannot block.
+        CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(NO,YES) owner:@"other"]);
         CHECK([settings timantirecall_shouldBlockData:timantirecall_packet(YES,NO) owner:@"owner"]);
         CHECK([settings timantirecall_setChat:timantirecall_group() enabled:NO error:&error]);
         CHECK(![settings timantirecall_shouldBlockData:timantirecall_packet(YES,NO) owner:@"owner"]);
@@ -72,9 +126,11 @@ int main(int argc,const char **argv){@autoreleasepool {
         CHECK([saved[@"events"] count]==2);
         for(NSDictionary *event in saved[@"events"])CHECK(!event[@"text"] && !event[@"image"] && !event[@"content"]);
         CHECK(timantirecall_writeState(@{@"first":before[@"capturedAt"]},timantirecall_stateURL(@"expected.plist"),&error));
+        CHECK(timantirecall_writeState(@{@"schema":@1,@"events":timantirecall_oldMarks()},timantirecall_stateURL(@"old-own-marks.plist"),&error));
         NSLog(@"PASS %u state seed checks; separate process restore required",timantirecall_checks);return 0;
     }
     if([mode isEqual:@"restore"]){
+        timantirecall_restoreOldMarks();
         CHECK(![settings timantirecall_lastError] && ![store timantirecall_lastError]);
         CHECK([settings timantirecall_autoClaimRedPackets] && [settings timantirecall_packetDiagnostics] && [settings timantirecall_claimOwnRedPackets]);
         QQAccountsManager.GetInstance.currentUid=@"other";

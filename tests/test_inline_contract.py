@@ -53,10 +53,10 @@ class InlineContractTests(unittest.TestCase):
         self.assertIn('![identity[@"author"] isEqual:candidate[@"author"]]',inline)
         ui=(ROOT/'tests/ui/TIMAntiRecallInlineUIKitTests.m').read_text()
         block=function_body(ui,'timantirecall_testAmbiguousSequence')
-        self.assertIn('target.senderUid=@"self_uid"',block)
+        self.assertIn('collision.senderUid=@"self_uid"',block)
         self.assertIn('collision.msgId++;',block)
         self.assertIn('collision=timantirecall_record(1,779,@"peer_a",0)',block)
-        self.assertIn('timantirecall_private(@"self_uid",@"peer_a",779)',block)
+        self.assertIn('timantirecall_private(@"peer_a",@"self_uid",779)',block)
         self.assertIn('cross-author recall ambiguity',block)
 
     def test_cold_recall_protection_is_exact_setter_only(self):

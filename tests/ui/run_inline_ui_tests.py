@@ -43,7 +43,7 @@ SWIFT = ("Sources/TIMAntiRecallRecordBridge.swift",
 FIXTURES = ("TIMAntiRecallFixture.m", "TIMAntiRecallInlineUIKitTests.m")
 FRAMEWORKS = ("Foundation", "UIKit", "QuartzCore")
 REQUIRED_COVERAGE = {
-    "swift-reflection", "session-owner", "bind-abi", "private-identity",
+    "swift-reflection", "session-owner", "bind-abi", "private-identity", "own-recall-forwarded",
     "group-identity", "account-isolation", "reuse-lifecycle", "row-geometry",
     "touch-routing", "weak-release", "real-scene-background", "real-scene-resume",
     "swift-direct-binding", "legacy-conversion-binding", "push-to-row", "startup-owner",

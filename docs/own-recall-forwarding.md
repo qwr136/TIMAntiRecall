@@ -1,0 +1,19 @@
+# Own recall forwarding (candidate from 8.00 / 8d797be)
+
+User intent: messages that were never recalled must not acquire a red recall marker; the user's own recall operation must execute normally in TIM, in private and group chats. Hiding the visual marker while blocking the original notification does not satisfy this requirement. Existing enlarged replay whitespace and wallet behavior are retained.
+
+## Actor and decision
+
+The original push classifier and its frozen digest are unchanged. A separate bounded actor extractor reads C2C `content.info.from` (field 1), or group `NotifyMessageBody.recall` (field 11), `GroupRecall.OperatorUid` (field 1). The group message author's field 6 is never used as an operator fallback. The outer Notify field 21 is not a substitute. Field types, duplicate fields, UID alphabet, framing and truncation must all validate. These definitions are corroborated by fixed Lagrange.Core `e1bd4baa16fa86ef000154e3eecb7816a29b63a7`, `Internal/Packets/Notify/{FriendRecall,GroupRecall,NotifyMessageBody}.cs` and the corresponding processors. Existing TIM binary evidence corroborates dispatch/framing; a real device actor capture is still absent.
+
+The decision uses the receiving session's captured owner, not whichever account is foreground. Own actor, unavailable owner, unavailable actor or invalid scope forwards the original command, buffer and extra objects exactly once. A known different actor still follows global/per-chat switches. With an enabled group, an administrator recalling a self-authored message is a third-party recall; conversely our operator recalling someone else's group message is our recall. A missing display-author field alone cannot override an otherwise known third-party operator.
+
+## Marks and cold protection
+
+Own callbacks do not call markIntercepted. Store insertion and loading skip known own private/group events. This also prevents those events from entering containsRecallEventForIdentity and the existing cold setter protection, rather than merely returning no UI candidate. Legacy group events without operator data cannot be retrospectively attributed to us. A confirmed current own callback removes matching owner/chat/sequence events before TIM consumes it. A supplied author must agree; an absent group author is accepted only by the separate cleanup parser, never by display-mark insertion. Conflicting random/time values present in both records prevent deletion. Unknown historical group authors in that exact sequence slot can therefore lose protection, but other chats, sequences and owners survive. The deletion is flushed before forwarding; failure remains in the store error and never suppresses the native recall. With a write failure, a legacy group mark may remain on disk and reappear after restart; no crash-safe persistence success is claimed. A state-change notification refreshes existing frames. No message text/media is read or changed by this path.
+
+The broader false-marker complaint has not been tied to one real event by a runtime capture. This change closes the confirmed self-interception defect and known own private legacy marks, while retaining 8.00's cross-author visible collision check. It does not prove every possible private-sequence collision is eliminated.
+
+## Regression
+
+C parser tests cover private 138/139, group 16/17, actor/author disagreement, absent/invalid/duplicate actor, outer-field non-substitution and all truncations. macOS tests use actual session-owner and push hooks, check exact original-object forwarding, preserved third-party interception, unavailable actor/owner pass-through, old persisted mark filtering and cold setter behavior. UIKit `own-recall-forwarded` is mandatory and covers ordinary adjacent rows, rebind, visible/hidden old group marks and third-party recalls. These are synthetic TIM fixtures; real TIM device acceptance is separate.

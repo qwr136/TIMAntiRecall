@@ -76,8 +76,59 @@ static void timantirecall_testRowIsolation(void) {
     [collisionStore timantirecall_addEvents:@[@{@"kind":@1,@"seq":@501,@"from":@"owner",@"to":@"peer"}] owner:@"owner"];
     CHECK([collisionStore timantirecall_eventForIdentity:same]==nil);
 }
+static void timantirecall_testOwnMarks(void) {
+    TIMAntiRecallMarkStore *store=[TIMAntiRecallMarkStore new];
+    NSDictionary *ownPrivate=@{@"kind":@1,@"seq":@601,@"from":@"owner",@"to":@"peer"};
+    NSDictionary *ownGroup=@{@"kind":@2,@"group":@99,@"seq":@602,@"author":@"peer",@"operator":@"owner"};
+    [store timantirecall_addEvents:@[ownPrivate,ownGroup] owner:@"owner"];
+    CHECK([store timantirecall_eventsForOwner:@"owner"].count==0);
+    NSDictionary *ownAuthor=@{@"kind":@2,@"group":@99,@"seq":@603,@"author":@"owner",@"operator":@"third_actor"};
+    NSDictionary *legacy=@{@"kind":@2,@"group":@99,@"seq":@604,@"author":@"peer",@"displayAmbiguous":@YES};
+    [store timantirecall_addEvents:@[ownAuthor,legacy] owner:@"owner"];
+    NSDictionary *ownIdentity=@{@"owner":@"owner",@"kind":@2,@"group":@99,@"seq":@603,@"author":@"owner",@"id":@1603,@"random":@3,@"time":@1700000000};
+    CHECK([store timantirecall_containsIdentity:ownIdentity]);
+    CHECK([store timantirecall_containsRecallEventForIdentity:ownIdentity]);
+    NSDictionary *identity=@{@"owner":@"owner",@"kind":@2,@"group":@99,@"seq":@604,@"author":@"peer",@"id":@1604,@"random":@3,@"time":@1700000000};
+    CHECK([store timantirecall_containsRecallEventForIdentity:identity]);
+    CHECK([store timantirecall_displayCandidateForIdentity:identity]==nil);
+    // An own callback must not use display eligibility as the deletion key.
+    // Scope, sequence, author, and owner stay isolated while binding is absent.
+    NSMutableArray *keep=[NSMutableArray array];
+    for(NSString *key in @[@"seq",@"group",@"author"]) {
+        NSMutableDictionary *other=legacy.mutableCopy;
+        other[key]=[key isEqual:@"author"]?(id)@"other_author":@605;
+        [keep addObject:other.copy];
+    }
+    [store timantirecall_addEvents:keep owner:@"owner"];
+    [store timantirecall_addEvents:@[legacy] owner:@"other_owner"];
+    NSDictionary *callback=@{@"kind":@2,@"group":@99,@"seq":@604,@"author":@"peer",@"operator":@"owner"};
+    [store timantirecall_forgetEvents:@[callback] owner:@"owner"];
+    CHECK(![store timantirecall_containsRecallEventForIdentity:identity]);
+    CHECK([store timantirecall_eventsForOwner:@"owner"].count==4);
+    CHECK([store timantirecall_eventsForOwner:@"other_owner"].count==1);
+    CHECK([store timantirecall_containsIdentity:ownIdentity]);
+    for(NSDictionary *other in keep) {
+        NSMutableDictionary *candidate=identity.mutableCopy;
+        for(NSString *key in @[@"seq",@"group",@"author"])candidate[key]=other[key];
+        CHECK([store timantirecall_containsRecallEventForIdentity:candidate]);
+    }
+    [store timantirecall_forgetEvents:@[callback] owner:@"owner"];
+    CHECK([store timantirecall_eventsForOwner:@"owner"].count==4);
+    // Missing author may only clear this owner's exact group/sequence slot.
+    NSDictionary *noAuthor=@{@"kind":@2,@"group":@99,@"seq":@604,@"operator":@"owner"};
+    [store timantirecall_forgetEvents:@[noAuthor] owner:@"owner"];
+    CHECK([store timantirecall_eventsForOwner:@"owner"].count==3);
+    CHECK([store timantirecall_eventsForOwner:@"other_owner"].count==1);
+    CHECK([store timantirecall_containsIdentity:ownIdentity]);
+    NSDictionary *precise=@{@"kind":@2,@"group":@99,@"seq":@606,@"author":@"peer",@"random":@44,@"time":@1700000000};
+    [store timantirecall_addEvents:@[precise] owner:@"owner"];
+    [store timantirecall_forgetEvents:@[@{@"kind":@2,@"group":@99,@"seq":@606,@"operator":@"owner",@"random":@45}] owner:@"owner"];
+    CHECK([store timantirecall_eventsForOwner:@"owner"].count==4);
+    [store timantirecall_forgetEvents:@[@{@"kind":@2,@"group":@99,@"seq":@606,@"operator":@"owner",@"random":@44}] owner:@"owner"];
+    CHECK([store timantirecall_eventsForOwner:@"owner"].count==3);
+}
 int main(void) {
-    @autoreleasepool {timantirecall_testRowIsolation();}
+    @autoreleasepool {timantirecall_testRowIsolation();timantirecall_testOwnMarks();}
  @autoreleasepool {
     NSString *owner=@"self_uid";
     QQAccountsManager.GetInstance.currentUid=owner;
@@ -106,7 +157,9 @@ int main(void) {
     NSDictionary *outbound=@{@"kind":@1,@"seq":@42,@"from":owner,@"to":@"peer_uid"};
     [store timantirecall_addEvents:@[outbound] owner:owner];
     record.senderUid=owner;
-    CHECK([store timantirecall_containsIdentity:timantirecall_recordIdentity(record,owner)]);
+    CHECK(![store timantirecall_containsIdentity:timantirecall_recordIdentity(record,owner)]);
+    CHECK(![store timantirecall_containsRecallEventForIdentity:timantirecall_recordIdentity(record,owner)]);
+    CHECK([store timantirecall_eventsForOwner:owner].count==0);
     [store timantirecall_clear];
     record.chatType=2;record.peerUin=5566;record.senderUid=@"member_uid";
     identity=timantirecall_recordIdentity(record,owner);

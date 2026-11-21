@@ -33,6 +33,10 @@ static NSDictionary *timantirecall_normalizedMark(NSDictionary *input,NSString *
         e[@"kind"]=@1;e[@"from"]=[from copy];e[@"to"]=[to copy];e[@"author"]=[from copy];e[@"peer"]=[peer copy];
     }else if([input[@"kind"] isEqual:@2] && timantirecall_uintValue(input[@"group"],YES) && timantirecall_validUID(input[@"author"])) {
         e[@"kind"]=@2;e[@"group"]=input[@"group"];e[@"author"]=[input[@"author"] copy];
+        if(input[@"operator"]) {
+            if(!timantirecall_validUID(input[@"operator"]))return nil;
+            e[@"operator"]=[input[@"operator"] copy];
+        }
         for(NSString *key in @[@"random",@"time"]) {
             if(input[key] && !timantirecall_uintValue(input[key],NO))return nil;
             if(input[key])e[key]=input[key];
@@ -46,9 +50,13 @@ static NSDictionary *timantirecall_normalizedMark(NSDictionary *input,NSString *
     if([input[@"displayAmbiguous"] isEqual:@YES])e[@"displayAmbiguous"]=@YES;
     return [e copy];
 }
+static BOOL timantirecall_isOwnRecallMark(NSDictionary *event) {
+    NSString *actor=[event[@"kind"] isEqual:@1]?event[@"from"]:event[@"operator"];
+    return timantirecall_validUID(actor)&&[actor isEqual:event[@"owner"]];
+}
 static NSDictionary *timantirecall_markKey(NSDictionary *event) {
     NSMutableDictionary *key=[event mutableCopy];
-    [key removeObjectsForKeys:@[@"capturedAt",@"binding",@"displayAmbiguous"]];
+    [key removeObjectsForKeys:@[@"capturedAt",@"binding",@"displayAmbiguous",@"operator"]];
     return [key copy];
 }
 BOOL timantirecall_recallEventMatchesIdentity(NSDictionary *event,NSDictionary *identity) {
@@ -88,7 +96,7 @@ BOOL timantirecall_recallEventMatchesIdentity(NSDictionary *event,NSDictionary *
             if(![event isKindOfClass:NSDictionary.class]||![event[@"capturedAt"] isKindOfClass:NSNumber.class]){error=timantirecall_storageError(@"撤回标记条目异常");break;}
             NSDictionary *normal=timantirecall_normalizedMark(event,event[@"owner"],[event[@"capturedAt"] doubleValue]);
             if(!normal){error=timantirecall_storageError(@"撤回标记身份异常");break;}
-            [_timantirecall_events addObject:normal];
+            if(!timantirecall_isOwnRecallMark(normal))[_timantirecall_events addObject:normal];
         }
     }
     if(error){[_timantirecall_events removeAllObjects];[_timantirecall_keys removeAllObjects];}
@@ -146,7 +154,7 @@ BOOL timantirecall_recallEventMatchesIdentity(NSDictionary *event,NSDictionary *
     BOOL changed=NO;
     @synchronized(self) {
         for(NSDictionary *input in events) {
-            NSDictionary *e=timantirecall_normalizedMark(input,owner,now);if(!e)continue;
+            NSDictionary *e=timantirecall_normalizedMark(input,owner,now);if(!e||timantirecall_isOwnRecallMark(e))continue;
             NSDictionary *key=timantirecall_markKey(e);
             if([self.timantirecall_keys containsObject:key])continue;
             [self.timantirecall_keys addObject:key];[self.timantirecall_events addObject:e];changed=YES;
@@ -247,6 +255,38 @@ BOOL timantirecall_recallEventMatchesIdentity(NSDictionary *event,NSDictionary *
             if([e[@"owner"] isEqual:owner])[result addObject:e];
         return [result copy];
     }
+}
+- (void)timantirecall_forgetEvents:(NSArray<NSDictionary *> *)events owner:(NSString *)owner {
+    if(!timantirecall_validUID(owner)||![events isKindOfClass:NSArray.class])return;
+    BOOL changed=NO;
+    @synchronized(self) {
+        for(NSDictionary *input in events) {
+            if(![input isKindOfClass:NSDictionary.class])continue;
+            NSDictionary *target=nil;
+            if([input[@"kind"] isEqual:@2]) {
+                if(![input[@"operator"] isEqual:owner]||!timantirecall_uintValue(input[@"seq"],YES)||
+                   !timantirecall_uintValue(input[@"group"],YES))continue;
+                if(input[@"author"]&&!timantirecall_validUID(input[@"author"]))continue;
+                if((input[@"random"]&&!timantirecall_uintValue(input[@"random"],NO))||
+                   (input[@"time"]&&!timantirecall_uintValue(input[@"time"],NO)))continue;
+                NSMutableDictionary *cleanup=input.mutableCopy;cleanup[@"owner"]=owner;target=cleanup.copy;
+            }else target=timantirecall_normalizedMark(input,owner,NSDate.date.timeIntervalSince1970);
+            if(!target||!timantirecall_isOwnRecallMark(target))continue;
+            NSString *scope=[target[@"kind"] isEqual:@1]?@"peer":@"group";
+            for(NSUInteger i=self.timantirecall_events.count;i>0;i--) {
+                NSDictionary *stored=self.timantirecall_events[i-1];
+                if(![stored[@"owner"] isEqual:owner]||![stored[@"kind"] isEqual:target[@"kind"]]||
+                   ![stored[@"seq"] isEqual:target[@"seq"]]||![stored[scope] isEqual:target[scope]])continue;
+                if(target[@"author"]&&![stored[@"author"] isEqual:target[@"author"]])continue;
+                if(target[@"random"]&&stored[@"random"]&&![stored[@"random"] isEqual:target[@"random"]])continue;
+                if(target[@"time"]&&stored[@"time"]&&![stored[@"time"] isEqual:target[@"time"]])continue;
+                [self.timantirecall_keys removeObject:timantirecall_markKey(stored)];
+                [self.timantirecall_events removeObjectAtIndex:i-1];changed=YES;
+            }
+        }
+        if(changed&&self.timantirecall_persistent)[self timantirecall_scheduleWrite];
+    }
+    if(changed)[self timantirecall_notify];
 }
 - (void)timantirecall_clear {
     @synchronized(self){

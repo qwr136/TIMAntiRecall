@@ -147,8 +147,19 @@ static bool timantirecall_optionalNumber(TIMAntiRecallSpan input, unsigned numbe
     return true;
 }
 
-size_t timantirecall_extractRecallEvents(const uint8_t *bytes, size_t length,
-                                         TIMAntiRecallWireEvent *events, size_t capacity) {
+static bool timantirecall_cleanupAuthor(TIMAntiRecallSpan input,char output[129]) {
+    size_t position=0;unsigned seen=0;
+    while(position<input.length) {
+        TIMAntiRecallField field;
+        if(!timantirecall_next(input,&position,&field))return false;
+        if(field.number==6) {
+            if(seen++||field.wire!=2)return false;
+        }
+    }
+    return !seen||timantirecall_copyUID(input,6,output);
+}
+static size_t timantirecall_parseRecallEvents(const uint8_t *bytes,size_t length,
+        TIMAntiRecallWireEvent *events,size_t capacity,bool cleanupOnly) {
     TIMAntiRecallDecision kind=timantirecall_classifyPush(bytes,length);
     if (kind==TIMAntiRecallPass || !events || !capacity) return 0;
     TIMAntiRecallSpan input={bytes,length},message,body,content;
@@ -171,7 +182,7 @@ size_t timantirecall_extractRecallEvents(const uint8_t *bytes, size_t length,
         if (field.wire!=2 || used>=capacity) return 0;
         TIMAntiRecallWireEvent event={0};event.kind=2;event.group=group;
         if (!timantirecall_number(field.span,1,&event.sequence)||!event.sequence||
-            !timantirecall_copyUID(field.span,6,event.author)||
+            !(cleanupOnly?timantirecall_cleanupAuthor(field.span,event.author):timantirecall_copyUID(field.span,6,event.author))||
             !timantirecall_optionalNumber(field.span,3,&event.random,&event.hasRandom)||
             !timantirecall_optionalNumber(field.span,2,&event.time,&event.hasTime)) return 0;
         events[used++]=event;
@@ -179,6 +190,12 @@ size_t timantirecall_extractRecallEvents(const uint8_t *bytes, size_t length,
     return used;
 }
 
+size_t timantirecall_extractRecallEvents(const uint8_t *bytes,size_t length,TIMAntiRecallWireEvent *events,size_t capacity) {
+    return timantirecall_parseRecallEvents(bytes,length,events,capacity,false);
+}
+size_t timantirecall_extractRecallCleanupTargets(const uint8_t *bytes,size_t length,TIMAntiRecallWireEvent *events,size_t capacity) {
+    return timantirecall_parseRecallEvents(bytes,length,events,capacity,true);
+}
 int timantirecall_extractRecallScope(const uint8_t *bytes,size_t length,TIMAntiRecallWireEvent *scope) {
     if(!scope)return 0;
     TIMAntiRecallDecision kind=timantirecall_classifyPush(bytes,length);
@@ -196,4 +213,24 @@ int timantirecall_extractRecallScope(const uint8_t *bytes,size_t length,TIMAntiR
         if(!timantirecall_number(notify,4,&result.group)||!result.group)return 0;
     }
     *scope=result;return 1;
+}
+
+int timantirecall_extractRecallActor(const uint8_t *bytes,size_t length,char actor[129]) {
+    if(!actor)return 0;
+    actor[0]=0;
+    TIMAntiRecallDecision kind=timantirecall_classifyPush(bytes,length);
+    if(kind==TIMAntiRecallPass)return 0;
+    TIMAntiRecallSpan input={bytes,length},message,body,content,actorContainer;
+    if(!timantirecall_span(input,1,&message)||!timantirecall_span(message,3,&body)||
+       !timantirecall_span(body,2,&content))return 0;
+    if(kind==TIMAntiRecallPrivate) {
+        if(!timantirecall_span(content,1,&actorContainer))return 0;
+    }else {
+        TIMAntiRecallSpan notify={content.bytes+7,content.length-7};
+        if(!timantirecall_span(notify,11,&actorContainer))return 0;
+    }
+    char candidate[129]={0};
+    if(!timantirecall_copyUID(actorContainer,1,candidate))return 0;
+    for(size_t i=0;i<sizeof(candidate);i++)actor[i]=candidate[i];
+    return 1;
 }

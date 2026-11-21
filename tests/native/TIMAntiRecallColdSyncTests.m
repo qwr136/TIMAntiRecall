@@ -53,6 +53,16 @@ int main(void){@autoreleasepool {
     OCMsgRecord *other=[OCMsgRecord new];other.chatType=1;other.msgId=9002;other.msgSeq=43;other.msgRandom=124;other.msgTime=1700000000;other.peerUid=@"peer_uid";other.senderUid=@"peer_uid";
     [other setRecallTime:1700000001];CHECK(other.recallTime==1700000001 && other.setterCalls==1);
     [marked setRecallTime:0];CHECK(marked.recallTime==0 && marked.setterCalls==1);
+    NSDictionary *own=@{@"kind":@1,@"seq":@44,@"from":owner,@"to":@"peer_uid"};
+    [store timantirecall_addEvents:@[own] owner:owner];
+    OCMsgRecord *ownRecord=[OCMsgRecord new];ownRecord.chatType=1;ownRecord.msgId=9044;ownRecord.msgSeq=44;
+    ownRecord.msgRandom=44;ownRecord.msgTime=1700000000;ownRecord.peerUid=@"peer_uid";ownRecord.senderUid=owner;
+    [ownRecord setRecallTime:1700000010];CHECK(ownRecord.recallTime==1700000010&&ownRecord.setterCalls==1);
+    NSDictionary *ownGroup=@{@"kind":@2,@"group":@5566,@"seq":@77,@"author":@"member_uid",@"operator":owner};
+    [store timantirecall_forgetEvents:@[ownGroup] owner:owner];
+    [markedGroup setRecallTime:1700000011];CHECK(markedGroup.recallTime==1700000011&&markedGroup.setterCalls==1);
+    CHECK(![store timantirecall_containsRecallEventForIdentity:timantirecall_recordIdentity(markedGroup,owner)]);
+    CHECK([store timantirecall_containsRecallEventForIdentity:markedIdentity]);
     QQAccountsManager.GetInstance.currentUid=@"other_uid";OCMsgRecord *cross=[OCMsgRecord new];cross.chatType=1;cross.msgId=9001;cross.msgSeq=42;cross.msgRandom=123;cross.msgTime=1700000000;cross.peerUid=@"peer_uid";cross.senderUid=@"peer_uid";
     [cross setRecallTime:1700000001];CHECK(cross.recallTime==1700000001 && cross.setterCalls==1);
     NSLog(@"PASS %u cold recall setter protection checks; device untested",checks);return 0;

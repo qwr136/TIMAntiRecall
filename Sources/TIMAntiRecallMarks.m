@@ -39,21 +39,43 @@ NSString *timantirecall_currentAccount(void) {
     id uid=timantirecall_object(manager,@"currentUid");
     return timantirecall_uid(uid)?[uid copy]:nil;
 }
-NSArray<NSDictionary *> *timantirecall_recallEvents(NSData *data) {
+static NSArray<NSDictionary *> *timantirecall_eventsWithPolicy(NSData *data,BOOL cleanupOnly) {
     if(![data isKindOfClass:NSData.class])return @[];
     TIMAntiRecallWireEvent events[64];
-    size_t count=timantirecall_extractRecallEvents(data.bytes,data.length,events,64);
+    size_t count=cleanupOnly?timantirecall_extractRecallCleanupTargets(data.bytes,data.length,events,64):
+        timantirecall_extractRecallEvents(data.bytes,data.length,events,64);
+    char actor[129]={0};
+    BOOL hasActor=timantirecall_extractRecallActor(data.bytes,data.length,actor)!=0;
     NSMutableArray *result=[NSMutableArray arrayWithCapacity:count];
     for(size_t i=0;i<count;i++) {
         TIMAntiRecallWireEvent e=events[i];
         NSMutableDictionary *event=[@{@"kind":@(e.kind),@"seq":@(e.sequence)} mutableCopy];
         if(e.kind==1) {event[@"from"]=@(e.from);event[@"to"]=@(e.to);}
-        else {event[@"group"]=@(e.group);event[@"author"]=@(e.author);
+        else {event[@"group"]=@(e.group);
+            if(e.author[0])event[@"author"]=@(e.author);
+            if(hasActor)event[@"operator"]=@(actor);
             if(e.hasRandom)event[@"random"]=@(e.random);
             if(e.hasTime)event[@"time"]=@(e.time);}
         [result addObject:event];
     }
     return result;
+}
+NSArray<NSDictionary *> *timantirecall_recallEvents(NSData *data) {
+    return timantirecall_eventsWithPolicy(data,NO);
+}
+BOOL timantirecall_forgetOwnRecall(NSData *data,NSString *owner) {
+    if(!timantirecall_uid(owner)||![data isKindOfClass:NSData.class])return NO;
+    char actor[129]={0};
+    if(!timantirecall_extractRecallActor(data.bytes,data.length,actor)||![@(actor) isEqual:owner])return NO;
+    NSArray *events=timantirecall_eventsWithPolicy(data,YES);
+    if(events.count) {
+        TIMAntiRecallMarkStore *store=timantirecall_sharedMarks();
+        [store timantirecall_forgetEvents:events owner:owner];
+        // Await the attempted removal before TIM consumes the recall.
+        // I/O failure remains in store.lastError, but must never block an own recall.
+        [store timantirecall_flush:NULL];
+    }
+    return YES;
 }
 NSDictionary *timantirecall_recordIdentity(id record,NSString *owner) {
     Class cls=objc_getClass("OCMsgRecord");

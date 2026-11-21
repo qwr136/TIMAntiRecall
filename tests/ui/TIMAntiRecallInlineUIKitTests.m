@@ -134,7 +134,7 @@ static NSData *timantirecall_group(uint64_t group, NSString *author, uint64_t se
     NSData *message=timantirecall_join(@[timantirecall_number(1,seq),timantirecall_number(2,timestamp),
         timantirecall_number(3,random),timantirecall_string(6,author)]);
     NSData *notify=timantirecall_join(@[timantirecall_number(1,7),timantirecall_number(4,group),
-        timantirecall_blob(11,timantirecall_blob(3,message))]);
+        timantirecall_blob(11,timantirecall_join(@[timantirecall_string(1,@"third_actor"),timantirecall_blob(3,message)]))]);
     uint8_t prefix[7]={(uint8_t)(group>>24),(uint8_t)(group>>16),(uint8_t)(group>>8),(uint8_t)group,
         0,(uint8_t)(notify.length>>8),(uint8_t)notify.length};
     NSMutableData *content=[NSMutableData dataWithBytes:prefix length:7];[content appendData:notify];
@@ -451,6 +451,7 @@ static void timantirecall_testPushToRow(UIView *root) {
     });
 }
 
+#import "TIMAntiRecallOwnRecallCases.h"
 #import "TIMAntiRecallPreferencesCases.h"
 #import "TIMAntiRecallPacketCases.h"
 #import "TIMAntiRecallPacketOpenCases.h"
@@ -523,11 +524,11 @@ static void timantirecall_testAmbiguousSequence(UIView *host) {
     timantirecall_step(^{
         first=timantirecall_row(host,CGRectMake(8,80,host.bounds.size.width-16,84));
         second=timantirecall_row(host,CGRectMake(8,170,host.bounds.size.width-16,84));
-        OCMsgRecord *target=timantirecall_record(1,779,@"peer_a",0);target.senderUid=@"self_uid";
-        OCMsgRecord *collision=timantirecall_record(1,779,@"peer_a",0);collision.msgId++;
+        OCMsgRecord *target=timantirecall_record(1,779,@"peer_a",0);
+        OCMsgRecord *collision=timantirecall_record(1,779,@"peer_a",0);collision.msgId++;collision.senderUid=@"self_uid";
         [first bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:target]];
         [second bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:collision]];
-        timantirecall_mark(timantirecall_private(@"self_uid",@"peer_a",779),@"self_uid");
+        timantirecall_mark(timantirecall_private(@"peer_a",@"self_uid",779),@"self_uid");
     });
     timantirecall_step(^{
         timantirecall_count(first,0,@"same-sequence collision never marks the first row");
@@ -644,6 +645,7 @@ static void timantirecall_start(void) {
         timantirecall_testLegacyRows(root);
         timantirecall_testStartupOwner(root);
         timantirecall_testPushToRow(root);
+        timantirecall_testOwnRecall(root);
         timantirecall_testGeometry(root);
         timantirecall_testAmbiguousSequence(root);
         timantirecall_testWeakRelease(root);

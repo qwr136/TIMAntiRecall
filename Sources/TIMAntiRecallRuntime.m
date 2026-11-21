@@ -51,8 +51,11 @@ static void timantirecall_receivePush(id receiver, SEL selector, id command, id 
             timantirecall_bootstrapEvent("olpush-pass-selected");
         }
     }
-    // Explicitly disabled chats reach TIM unchanged, exactly once. Unknown
-    // identities retain the accepted 0.80 behavior; never guess a different peer.
+    // Clear an old protection entry before TIM consumes our own recall. Use
+    // this push session's owner, never the foreground account as a substitute.
+    if (decision != TIMAntiRecallPass &&
+        timantirecall_forgetOwnRecall(buffer,timantirecall_sessionOwner(receiver)))decision=TIMAntiRecallPass;
+    // Disabled chats, unknown actors/owners and our own recalls pass unchanged.
     if (decision != TIMAntiRecallPass &&
         !timantirecall_shouldBlockRecall(buffer,timantirecall_sessionOwner(receiver)))decision=TIMAntiRecallPass;
     if (decision != TIMAntiRecallPass) {

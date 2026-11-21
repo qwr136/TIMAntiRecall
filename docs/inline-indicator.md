@@ -6,7 +6,7 @@ Baseline: 0.60 / fb7fd59bcc789b7ba013f6c6def2719e957f4e9b. Target remains TIM4.1
 
 ## Runtime connection
 
-- Existing pre-kernel onMsfPush classifier is byte-for-byte unchanged. Exact source prefix digest is regression checked. Supplemental extraction runs only after a block and never changes forwarding decisions.
+- Existing pre-kernel onMsfPush classifier is byte-for-byte unchanged. Exact source prefix digest is regression checked. Actor extraction precedes blocking: own/unknown actors and unavailable session owners forward untouched; only known third-party recalls pass through the existing chat settings. See [own-recall-forwarding.md](own-recall-forwarding.md).
 - `OCIQQNTWrapperSession -init:depends:dispatcherDepends:listener:` own method v48@0:8@16@24@32@40 obtains owner from its config's typed `OCInitSessionConfig -selfUid` (@16@0:8). Four original parameters are forwarded once. `-close:` v24@0:8@16 clears owner then forwards once. Wrong signature declines tracking, without disabling anti-recall.
 - Static binary evidence: init IMP10a195c50 passes config through conversion10a186ae8 (OCInitSessionConfig getWrapperConfig); selfUid10a1867e0; close10a195dc8. `QQAccountsManager +GetInstance` @16@0:8 IMP10010c44c and `-currentUid` @16@0:8 IMP1012502a0 identify currently visible account; sender session owner is never substituted by current account.
 - Bounded extractor copies at most64 recall identities: private info fields1/2/20 = from/to/sequence; group Notify1=7,4=group,11→repeated3 with1=seq,2=time,3=random,6=author. Both recognized kinds still block if identity details cannot be safely extracted. Field definitions cross-checked against fixed Lagrange.Core e1bd4baa16fa86ef000154e3eecb7816a29b63a7, not a live TIM capture.

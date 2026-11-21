@@ -4,6 +4,8 @@
 #import "TIMAntiRecallWire.h"
 #import "TIMAntiRecallBootstrap.h"
 #import "TIMAntiRecallImage.h"
+#import "TIMAntiRecallMarks.h"
+#import "TIMAntiRecallSettings.h"
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -34,23 +36,47 @@ static NSData *timantirecall_packet(uint64_t type, uint64_t subtype, NSData *pay
     NSData *message = timantirecall_join(@[timantirecall_bytes(2, head), timantirecall_bytes(3, timantirecall_bytes(2, payload))]);
     return timantirecall_bytes(1, message);
 }
+static NSData *timantirecall_privateActorPacket(uint64_t subtype, NSString *actor, NSString *to, uint64_t sequence) {
+    NSMutableArray *pieces=[NSMutableArray arrayWithObjects:timantirecall_bytes(2,[to dataUsingEncoding:4]),timantirecall_int(20,sequence),nil];
+    if(actor)[pieces addObject:timantirecall_bytes(1,[actor dataUsingEncoding:4])];
+    return timantirecall_packet(528,subtype,timantirecall_bytes(1,timantirecall_join(pieces)));
+}
 static NSData *timantirecall_privatePacket(uint64_t subtype) {
-    NSData *info = timantirecall_join(@[timantirecall_bytes(1, [@"u_one" dataUsingEncoding:4]),
-        timantirecall_bytes(2, [@"u_two" dataUsingEncoding:4]), timantirecall_int(20, 42)]);
-    return timantirecall_packet(528, subtype, timantirecall_bytes(1, info));
+    return timantirecall_privateActorPacket(subtype,@"u_one",@"u_two",42);
+}
+static NSData *timantirecall_groupActorPacket(uint64_t subtype, unsigned notifyType, NSString *actor, NSString *author, uint64_t sequence) {
+    NSData *message=timantirecall_int(1,sequence);
+    if(author)message=timantirecall_join(@[message,timantirecall_bytes(6,[author dataUsingEncoding:4])]);
+    NSData *recall=timantirecall_bytes(3,message);
+    if(actor)recall=timantirecall_join(@[timantirecall_bytes(1,[actor dataUsingEncoding:4]),recall]);
+    NSData *notify=timantirecall_join(@[timantirecall_int(1,notifyType),timantirecall_int(4,9),timantirecall_bytes(11,recall)]);
+    uint8_t prefix[]={0,0,0,9,0,(uint8_t)(notify.length>>8),(uint8_t)notify.length};
+    return timantirecall_packet(732,subtype,timantirecall_join(@[[NSData dataWithBytes:prefix length:7],notify]));
 }
 static NSData *timantirecall_groupPacket(uint64_t subtype, unsigned notifyType) {
-    NSData *recall = timantirecall_bytes(3, timantirecall_int(1, 42));
-    NSData *notify = timantirecall_join(@[timantirecall_int(1, notifyType), timantirecall_int(4, 9), timantirecall_bytes(11, recall)]);
-    uint8_t prefix[] = {0, 0, 0, 9, 0, (uint8_t)(notify.length >> 8), (uint8_t)notify.length};
-    NSData *content = timantirecall_join(@[[NSData dataWithBytes:prefix length:7], notify]);
-    return timantirecall_packet(732, subtype, content);
+    // Operator is explicit and independent of the recalled message's author.
+    return timantirecall_groupActorPacket(subtype,notifyType,@"third_actor",@"u_one",42);
 }
 
+@interface OCInitSessionConfig : NSObject
+@property(nonatomic,copy) NSString *selfUid;
+@end
+@implementation OCInitSessionConfig @end
+static unsigned timantirecall_initCalls, timantirecall_closeCalls;
+static NSArray *timantirecall_sessionArguments;
 @interface TIMAntiRecallTestTarget : NSObject
+- (void)init:(id)config depends:(id)depends dispatcherDepends:(id)dispatcher listener:(id)listener __attribute__((objc_method_family(none)));
+- (void)close:(id)callback;
 - (void)onMsfPush:(id)command msgBuffer:(id)buffer pushExtraInfo:(id)extra;
 @end
 @implementation TIMAntiRecallTestTarget
+- (void)init:(id)config depends:(id)depends dispatcherDepends:(id)dispatcher listener:(id)listener {
+    timantirecall_initCalls++;
+    timantirecall_sessionArguments=@[config?:NSNull.null,depends?:NSNull.null,dispatcher?:NSNull.null,listener?:NSNull.null];
+}
+- (void)close:(id)callback {
+    timantirecall_closeCalls++;timantirecall_sessionArguments=@[callback?:NSNull.null];
+}
 - (void)onMsfPush:(id)command msgBuffer:(id)buffer pushExtraInfo:(id)extra {
     timantirecall_calls++; timantirecall_lastCommand=command; timantirecall_lastBuffer=buffer; timantirecall_lastExtra=extra;
 }
@@ -63,6 +89,64 @@ static NSData *timantirecall_groupPacket(uint64_t subtype, unsigned notifyType) 
 @implementation TIMAntiRecallTestWrong
 - (BOOL)onMsfPush:(id)command msgBuffer:(id)buffer pushExtraInfo:(id)extra { (void)command; (void)buffer; (void)extra; return YES; }
 @end
+
+static void timantirecall_assertForward(TIMAntiRecallTestTarget *target, id command, id data, id extra) {
+    unsigned before=timantirecall_calls;
+    [target onMsfPush:command msgBuffer:data pushExtraInfo:extra];
+    CHECK(timantirecall_calls==before+1);
+    CHECK(timantirecall_lastCommand==command && timantirecall_lastBuffer==data && timantirecall_lastExtra==extra);
+}
+static void timantirecall_testOwnRecall(TIMAntiRecallTestTarget *target, NSString *command, id extra) {
+    TIMAntiRecallMarkStore *store=timantirecall_sharedMarks();
+    for(NSNumber *subtype in @[@138,@139,@16,@17]) {
+        BOOL group=subtype.unsignedIntValue<100;
+        NSData *data=group?timantirecall_groupActorPacket(subtype.unsignedIntValue,7,@"u_two",@"u_one",73):
+            timantirecall_privateActorPacket(subtype.unsignedIntValue,@"u_two",@"u_one",73);
+        CHECK(timantirecall_classifyPush(data.bytes,data.length)==(group?TIMAntiRecallGroup:TIMAntiRecallPrivate));
+        [store timantirecall_clear];
+        timantirecall_assertForward(target,command,data,extra);
+        CHECK([store timantirecall_eventsForOwner:@"u_two"].count==0);
+    }
+    // A third-party operator recalling our message is still intercepted. An
+    // absent author only prevents display; it must not bypass the network gate.
+    for(id author in @[@"u_two",NSNull.null]) {
+        NSData *data=timantirecall_groupActorPacket(17,7,@"third_actor",author==NSNull.null?nil:author,74);
+        CHECK(timantirecall_classifyPush(data.bytes,data.length)==TIMAntiRecallGroup);
+        unsigned before=timantirecall_calls;
+        [target onMsfPush:command msgBuffer:data pushExtraInfo:extra];
+        CHECK(timantirecall_calls==before);
+    }
+    for(NSData *data in @[timantirecall_privateActorPacket(138,nil,@"u_two",75),
+                          timantirecall_groupActorPacket(17,7,nil,@"u_two",75)]) {
+        timantirecall_assertForward(target,command,data,extra);
+    }
+    // Old group marks contain no operator. A hidden/ambiguous mark must be
+    // removed even though displayCandidateForIdentity returns nil.
+    [store timantirecall_clear];
+    NSDictionary *legacy=@{@"kind":@2,@"group":@9,@"seq":@76,@"author":@"u_one",@"displayAmbiguous":@YES};
+    NSDictionary *neighbor=@{@"kind":@2,@"group":@9,@"seq":@77,@"author":@"u_one"};
+    NSDictionary *identity=@{@"owner":@"u_two",@"kind":@2,@"group":@9,@"seq":@76,@"author":@"u_one",@"id":@176,@"random":@3,@"time":@1700000000};
+    [store timantirecall_addEvents:@[legacy,neighbor] owner:@"u_two"];
+    CHECK([store timantirecall_containsRecallEventForIdentity:identity]);
+    CHECK([store timantirecall_displayCandidateForIdentity:identity]==nil);
+    timantirecall_assertForward(target,command,timantirecall_groupActorPacket(17,7,@"u_two",nil,76),extra);
+    CHECK(![store timantirecall_containsRecallEventForIdentity:identity]);
+    CHECK([store timantirecall_eventsForOwner:@"u_two"].count==1);
+    CHECK([[store timantirecall_eventsForOwner:@"u_two"].firstObject[@"seq"] isEqual:@77]);
+    [store timantirecall_clear];
+    NSError *error=nil;
+    CHECK([timantirecall_settings() timantirecall_updateOptions:@{@"enabled":@NO} error:&error]);
+    timantirecall_assertForward(target,command,timantirecall_privatePacket(138),extra);
+    timantirecall_assertForward(target,command,timantirecall_groupPacket(17,7),extra);
+    CHECK([store timantirecall_eventsForOwner:@"u_two"].count==0);
+    CHECK([timantirecall_settings() timantirecall_updateOptions:@{@"enabled":@YES} error:&error]);
+    [target close:extra];
+    CHECK(timantirecall_closeCalls==1 && timantirecall_sessionArguments.firstObject==extra);
+    CHECK(timantirecall_sessionOwner(target)==nil);
+    timantirecall_assertForward(target,command,timantirecall_privatePacket(138),extra);
+    timantirecall_assertForward(target,command,timantirecall_groupPacket(17,7),extra);
+    CHECK([store timantirecall_eventsForOwner:@"u_two"].count==0);
+}
 
 static NSData *timantirecall_imageHeader(uint32_t filetype, cpu_type_t cpu, cpu_subtype_t subtype,
                                            BOOL duplicateUUID, BOOL invalidCommand) {
@@ -102,6 +186,7 @@ int main(void) {
         CHECK([NSFileManager.defaultManager createDirectoryAtPath:testTmp withIntermediateDirectories:YES attributes:nil error:NULL]);
         CHECK(setenv("HOME",testHome.fileSystemRepresentation,1)==0);
         CHECK(setenv("TMPDIR",testTmp.fileSystemRepresentation,1)==0);
+        CHECK(setenv("TIMANTIRECALL_TEST_STATE_DIR",testTmp.fileSystemRepresentation,1)==0);
         CHECK(timantirecall_bootstrapEvent("constructor-test-enter"));
         NSString *bootstrap=[testHome stringByAppendingPathComponent:@"Documents/TIMAntiRecall/TIMAntiRecall-bootstrap.log"];
         CHECK([[NSString stringWithContentsOfFile:bootstrap encoding:NSUTF8StringEncoding error:NULL] containsString:@"constructor-test-enter"]);
@@ -137,6 +222,15 @@ int main(void) {
         CHECK(timantirecall_installOnClass(TIMAntiRecallTestTarget.class));
         CHECK(!timantirecall_installOnClass(TIMAntiRecallTestWrong.class));
         TIMAntiRecallTestTarget *target = [TIMAntiRecallTestTarget new];
+        timantirecall_installSessionTracking(TIMAntiRecallTestTarget.class);
+        OCInitSessionConfig *config=[OCInitSessionConfig new];config.selfUid=@"u_two";
+        NSObject *depends=NSObject.new,*dispatcher=NSObject.new,*listener=NSObject.new;
+        [target init:config depends:depends dispatcherDepends:dispatcher listener:listener];
+        CHECK(timantirecall_initCalls==1 && [timantirecall_sessionOwner(target) isEqual:@"u_two"]);
+        CHECK(timantirecall_sessionArguments[0]==config && timantirecall_sessionArguments[1]==depends &&
+              timantirecall_sessionArguments[2]==dispatcher && timantirecall_sessionArguments[3]==listener);
+        config.selfUid=@"changed_uid";
+        CHECK([timantirecall_sessionOwner(target) isEqual:@"u_two"]);
         NSString *command = @"trpc.msg.olpush.OlPushService.MsgPush";
         NSObject *extra = [NSObject new];
         NSArray *blocked = @[timantirecall_privatePacket(138), timantirecall_privatePacket(139),
@@ -154,7 +248,7 @@ int main(void) {
             CHECK(timantirecall_calls==before+1);
             CHECK(timantirecall_lastCommand==command && timantirecall_lastBuffer==data && timantirecall_lastExtra==extra);
         }
-        NSData *recallList=timantirecall_bytes(11,timantirecall_bytes(3,timantirecall_int(1,42)));
+        NSData *recallList=timantirecall_bytes(11,timantirecall_join(@[timantirecall_bytes(1,[@"third_actor" dataUsingEncoding:4]),timantirecall_bytes(3,timantirecall_int(1,42))]));
         NSArray *invalidIdentities=@[[NSData data],timantirecall_int(4,0),timantirecall_bytes(4,[@"9" dataUsingEncoding:4]),
             timantirecall_join(@[timantirecall_int(4,9),timantirecall_int(4,9)])];
         for (NSData *identity in invalidIdentities) {
@@ -179,6 +273,8 @@ int main(void) {
                 CHECK(timantirecall_classifyPush(truncated.bytes,truncated.length)==TIMAntiRecallPass);
             }
         }
+        timantirecall_testOwnRecall(target,command,extra);
+        CHECK([timantirecall_sharedMarks() timantirecall_flush:NULL]);
         NSString *startupLog=[NSString stringWithContentsOfFile:bootstrap encoding:NSUTF8StringEncoding error:NULL];
         CHECK([startupLog containsString:@"push-entered"]);
         CHECK([startupLog containsString:@"olpush-entered-data"]);
