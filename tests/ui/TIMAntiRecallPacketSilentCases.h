@@ -111,6 +111,7 @@ static void timantirecall_checkSilentBackground(UIScene *scene,NSUInteger attemp
                            @"background callbacks never present a packet, grey mask or details controller");
         timantirecall_check(!timantirecall_findPacketToast(),@"no amount overlay is placed into another foreground app or queued for return");
         [timantirecall_settings() timantirecall_setPacketOption:@"autoClaim" enabled:NO owner:@"self_uid" error:NULL];
+        timantirecall_backgroundReceiptsObserved=YES;
         [timantirecall_coverage addObjectsFromArray:@[@"packet-background-receive",@"packet-background-before-resume"]];
         done();return;
     }

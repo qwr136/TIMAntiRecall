@@ -333,7 +333,9 @@ void timantirecall_updateReplayRow(UIView *row,NSString *boundOwner) {
     }
     UIView *host=timantirecall_replayHost(row);
     TIMAntiRecallReplayContext *state=objc_getAssociatedObject(row,&timantirecall_replayRowKey);
-    if(state&&state.timantirecall_host==host&&state.timantirecall_boundModel==model&&[state.timantirecall_owner isEqual:owner])return;
+    if(state&&state.timantirecall_host==host&&state.timantirecall_boundModel==model&&[state.timantirecall_owner isEqual:owner]){
+        timantirecall_replayTrace(@"attach",@{@"reason":@"already-installed",@"rowClass":NSStringFromClass(row.class),@"hostClass":NSStringFromClass(host.class)});return;
+    }
     timantirecall_clearReplayRow(row);
     NSHashTable *candidates=objc_getAssociatedObject(host,&timantirecall_replayCandidatesKey);
     if(!candidates){candidates=[NSHashTable weakObjectsHashTable];objc_setAssociatedObject(host,&timantirecall_replayCandidatesKey,candidates,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}

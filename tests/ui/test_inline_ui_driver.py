@@ -68,6 +68,19 @@ class ResultGateTests(unittest.TestCase):
             self.assertEqual(json.loads((Path(directory)/'tim-inline-settings-captured.json').read_text())['runToken'],'token')
             self.assertTrue(all("--terminate-running-process" not in command for command in commands))
 
+    def test_background_test_lease_is_released_only_after_receipts_on_foreground_transition(self):
+        source=(Path(__file__).with_name("TIMAntiRecallInlineUIKitTests.m")).read_text()
+        packet=(Path(__file__).with_name("TIMAntiRecallPacketSilentCases.h")).read_text()
+        self.assertIn('timantirecall_stage(@"background-observed")',source)
+        self.assertIn('- (void)sceneWillEnterForeground:(UIScene *)scene',source)
+        foreground=source.split('- (void)sceneWillEnterForeground:(UIScene *)scene',1)[1].split('- (void)sceneDidBecomeActive:',1)[0]
+        self.assertIn('endBackgroundTask:timantirecall_backgroundTask',foreground)
+        self.assertIn('timantirecall_stage(@"test-background-lease-released")',foreground)
+        self.assertIn('@"packet-background-before-resume"',packet)
+        self.assertIn('timantirecall_backgroundReceiptsObserved && timantirecall_backgroundTask!=UIBackgroundTaskInvalid',foreground)
+        self.assertIn('timantirecall_backgroundReceiptsObserved=YES',packet)
+        self.assertIn('scene truly returned foreground active',source)
+
     def test_screenshot_retries_only_three_times(self):
         with mock.patch.object(DRIVER, "run", side_effect=[RuntimeError("busy"), RuntimeError("busy"), "captured"]) as run:
             DRIVER.run_screenshot("device", Path("screen.png"))

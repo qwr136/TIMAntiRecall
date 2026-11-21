@@ -58,6 +58,9 @@ static void timantirecall_testMessageReplay(UIView *root) {
         timantirecall_check([NTAIOContentDoubleTapService timantirecall_originalCalls]==2&&service.timantirecall_sendCalls==1,@"enabled outside replay leaves original TIM text double tap untouched");
         text.atType=1;timantirecall_check(!timantirecall_testReplayCapture(row,outside,4),@"mention message never sends");text.atType=0;
         element.faceElement=NSObject.new;timantirecall_check(!timantirecall_testReplayCapture(row,outside,4),@"mixed rich message never sends");element.faceElement=nil;
+        text.subElementType=@YES;timantirecall_check(!timantirecall_testReplayCapture(row,outside,4),@"boolean is not native numeric zero metadata");text.subElementType=@0;
+        text.subElementType=@1;timantirecall_check(!timantirecall_testReplayCapture(row,outside,4),@"nonzero subElementType is rejected");text.subElementType=@0;
+        text.atNtUid=@0;timantirecall_check(!timantirecall_testReplayCapture(row,outside,4),@"zero NSNumber in nondefault metadata remains rejected");text.atNtUid=@"";
         UIView *status=[TIMAntiRecallRecordBridge timantirecall_replayViewsForRow:row][@"status"];
         status.frame=CGRectMake(165,8,36,44);status.hidden=NO;
         timantirecall_check(!timantirecall_testReplayCapture(row,outside,4),@"status and tail UI are excluded from whitespace");status.hidden=YES;

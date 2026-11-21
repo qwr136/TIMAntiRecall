@@ -6,9 +6,28 @@ static dispatch_queue_t timantirecall_replayTraceQueue(void) {
     static dispatch_queue_t queue;static dispatch_once_t once;
     dispatch_once(&once,^{queue=dispatch_queue_create("com.minis.timantirecall.replay-diagnostic",DISPATCH_QUEUE_SERIAL);});return queue;
 }
+static NSObject *timantirecall_replayTraceLock(void) {
+    static NSObject *lock;static dispatch_once_t once;dispatch_once(&once,^{lock=[NSObject new];});return lock;
+}
+static NSUInteger timantirecall_replayTraceGeneration=1;
+static NSMutableDictionary<NSData *,NSNumber *> *timantirecall_replayTraceSeen;
+static unsigned timantirecall_replayTraceCount;
 NSURL *timantirecall_replayTraceURL(void) {
     NSURL *documents=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
     return [[documents URLByAppendingPathComponent:@"TIMAntiRecall" isDirectory:YES] URLByAppendingPathComponent:@"TIMAntiRecall-replay.log"];
+}
+void timantirecall_replayTraceStartSession(void) {
+    @synchronized(timantirecall_replayTraceLock()) { timantirecall_replayTraceGeneration++; }
+    dispatch_sync(timantirecall_replayTraceQueue(),^{
+        timantirecall_replayTraceSeen=[NSMutableDictionary dictionary];timantirecall_replayTraceCount=0;
+        NSURL *url=timantirecall_replayTraceURL();
+        [NSFileManager.defaultManager removeItemAtURL:url error:NULL];
+        [NSFileManager.defaultManager removeItemAtURL:[url URLByAppendingPathExtension:@"1"] error:NULL];
+    });
+    if([timantirecall_settings() timantirecall_replayDiagnostics]) {
+        timantirecall_replayTrace(@"settings",@{@"reason":@"session-start"});
+        dispatch_sync(timantirecall_replayTraceQueue(),^{});
+    }
 }
 static BOOL timantirecall_replayTraceToken(id value) {
     if(![value isKindOfClass:NSString.class]||[value length]>160)return NO;
@@ -33,12 +52,18 @@ void timantirecall_replayTrace(NSString *stage,NSDictionary *fields) {
     }
     NSData *fingerprint=[NSJSONSerialization dataWithJSONObject:safe options:NSJSONWritingSortedKeys error:NULL];
     if(!fingerprint)return;
+    __block NSUInteger generation=0;
+    @synchronized(timantirecall_replayTraceLock()) { generation=timantirecall_replayTraceGeneration; }
     dispatch_async(timantirecall_replayTraceQueue(),^{@autoreleasepool {
-        static NSMutableDictionary<NSData *,NSNumber *> *seen;static unsigned count;
-        if(!seen)seen=[NSMutableDictionary dictionary];
-        unsigned repetitions=[seen[fingerprint] unsignedIntValue];
-        if(count>=192||repetitions>=4)return;
-        seen[fingerprint]=@(repetitions+1);count++;
+        __block BOOL current=NO;
+        @synchronized(timantirecall_replayTraceLock()) {
+            current=generation==timantirecall_replayTraceGeneration&&[timantirecall_settings() timantirecall_replayDiagnostics];
+        }
+        if(!current)return;
+        if(!timantirecall_replayTraceSeen)timantirecall_replayTraceSeen=[NSMutableDictionary dictionary];
+        unsigned repetitions=[timantirecall_replayTraceSeen[fingerprint] unsignedIntValue];
+        if(timantirecall_replayTraceCount>=192||repetitions>=4)return;
+        timantirecall_replayTraceSeen[fingerprint]=@(repetitions+1);timantirecall_replayTraceCount++;
         safe[@"time"]=@([NSDate.date timeIntervalSince1970]);
         NSData *json=[NSJSONSerialization dataWithJSONObject:safe options:NSJSONWritingSortedKeys error:NULL];
         if(!json)return;

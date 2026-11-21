@@ -19,7 +19,7 @@ static NSMutableSet<NSString *> *timantirecall_coverage;
 static NSUInteger timantirecall_checks;
 static NSDictionary *timantirecall_build;
 static BOOL timantirecall_started, timantirecall_waitingForBackground;
-static BOOL timantirecall_backgroundObserved, timantirecall_resumeObserved;
+static BOOL timantirecall_backgroundObserved, timantirecall_backgroundReceiptsObserved, timantirecall_resumeObserved;
 static UIBackgroundTaskIdentifier timantirecall_backgroundTask;
 static BOOL timantirecall_previewWritten, timantirecall_finished;
 static UIWindow *timantirecall_window;
@@ -697,6 +697,13 @@ static void timantirecall_start(void) {
     self.window.rootViewController=[UIViewController new];
     self.window.rootViewController.view.backgroundColor=UIColor.systemBackgroundColor;
     timantirecall_window=self.window;[self.window makeKeyAndVisible];
+}
+- (void)sceneWillEnterForeground:(UIScene *)scene {
+    (void)scene;
+    if(timantirecall_backgroundReceiptsObserved && timantirecall_backgroundTask!=UIBackgroundTaskInvalid) {
+        [UIApplication.sharedApplication endBackgroundTask:timantirecall_backgroundTask];timantirecall_backgroundTask=UIBackgroundTaskInvalid;
+        timantirecall_stage(@"test-background-lease-released");
+    }
 }
 - (void)sceneDidBecomeActive:(UIScene *)scene {
     if(!timantirecall_started) {

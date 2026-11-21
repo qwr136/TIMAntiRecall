@@ -1,5 +1,6 @@
 #import "TIMAntiRecallSettings.h"
 #import "TIMAntiRecallPreferencesUI.h"
+#import "TIMAntiRecallReplayTrace.h"
 
 static void timantirecall_testRecallSettings(UIView *root) {
     TIMAntiRecallTestSession *session=[TIMAntiRecallTestSession new];
@@ -131,6 +132,18 @@ static void timantirecall_testPreferencesPanel(void) {
             timantirecall_check(saved && !value,@"packet option commits on the same panel");
             packet.on=NO;[packet sendActionsForControlEvents:UIControlEventValueChanged];
         }
+        NSIndexPath *replayDiagnosticsPath=[NSIndexPath indexPathForRow:7 inSection:0];
+        [panel.tableView scrollToRowAtIndexPath:replayDiagnosticsPath atScrollPosition:UITableViewScrollPositionMiddle animated:NO];
+        [panel.tableView layoutIfNeeded];
+        UISwitch *replayDiagnostics=(UISwitch *)[panel.tableView cellForRowAtIndexPath:replayDiagnosticsPath].accessoryView;
+        timantirecall_check(replayDiagnostics.window==timantirecall_window&&[replayDiagnostics.accessibilityIdentifier isEqual:@"replayDiagnostics"]&&!replayDiagnostics.isOn,
+                           @"replay diagnostics switch is visible and defaults off");
+        replayDiagnostics.on=YES;[replayDiagnostics sendActionsForControlEvents:UIControlEventValueChanged];
+        NSURL *traceURL=timantirecall_replayTraceURL();NSString *trace=[NSString stringWithContentsOfURL:traceURL encoding:NSUTF8StringEncoding error:NULL];
+        timantirecall_check([timantirecall_settings() timantirecall_replayDiagnostics]&&[trace containsString:@"session-start"],
+                           @"diagnostics starts a fresh trace session with an opt-in marker");
+        replayDiagnostics.on=NO;[replayDiagnostics sendActionsForControlEvents:UIControlEventValueChanged];
+        timantirecall_check(![timantirecall_settings() timantirecall_replayDiagnostics],@"replay diagnostics can be disabled from the panel");
         NSIndexPath *replayPath=[NSIndexPath indexPathForRow:6 inSection:0];
         [panel.tableView scrollToRowAtIndexPath:replayPath atScrollPosition:UITableViewScrollPositionMiddle animated:NO];
         [panel.tableView layoutIfNeeded];

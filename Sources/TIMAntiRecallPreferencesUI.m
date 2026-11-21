@@ -158,6 +158,7 @@ static NSString *timantirecall_chatTitle(NSDictionary *chat) {
             ok=[timantirecall_settings() timantirecall_updateOptions:@{@"messageReplay":@(control.isOn)} error:&error];
         }else if(control.tag==7) {
             ok=[timantirecall_settings() timantirecall_updateOptions:@{@"replayDiagnostics":@(control.isOn)} error:&error];
+            if(ok && control.isOn)timantirecall_replayTraceStartSession();
         }
     }
     if(!ok)[self timantirecall_error:error];[self timantirecall_reload];
