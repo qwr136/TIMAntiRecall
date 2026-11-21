@@ -61,7 +61,7 @@
             UITapGestureRecognizer *native=[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(timantirecall_nativeDoubleTap:)];
             native.numberOfTapsRequired=2;[content addGestureRecognizer:native];
         }
-        CGFloat x=i?CGRectGetMinX(content.frame)-32:CGRectGetMaxX(content.frame)+12;
+        CGFloat x=i?12:width-36;
         UIView *blank=[[UIView alloc] initWithFrame:CGRectMake(x,12,24,32)];
         blank.isAccessibilityElement=YES;blank.accessibilityIdentifier=i?@"replay-outgoing-area":@"replay-incoming-area";
         blank.accessibilityLabel=i?@"本人气泡外侧":@"对方气泡外侧";

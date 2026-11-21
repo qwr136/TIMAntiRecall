@@ -18,6 +18,17 @@ class MessageReplayContractTests(unittest.TestCase):
         s=strip_comments((ROOT/'Sources/TIMAntiRecallReplay.m').read_text())
         for token in ('numberOfTapsRequired=2','numberOfTouchesRequired=1','cancelsTouchesInView=NO','delaysTouchesBegan=NO','delaysTouchesEnded=NO','requireGestureRecognizerToFail:scroll.panGestureRecognizer','CGRectContainsPoint(band,point)','CGRectContainsRect(host.bounds,bubble)','isKindOfClass:UIControl.class'):
             self.assertIn(token,s)
+    def test_outside_band_covers_only_available_row_whitespace(self):
+        source=strip_comments((ROOT/'Sources/TIMAntiRecallReplay.m').read_text())
+        for token in ('CGRectGetMinX(host.bounds)+6','CGRectGetMaxX(bubble)+6','CGRectGetMinX(bubble)-6','CGRectGetMaxX(host.bounds)-6','CGRectInset(host.bounds,0,4)','CGRectContainsPoint(band,point)'):
+            self.assertIn(token,source)
+        self.assertNotIn('bubble)-120',source)
+        cases=(ROOT/'tests/ui/TIMAntiRecallReplayCases.h').read_text()
+        self.assertIn('incoming replay accepts far horizontal whitespace',cases)
+        self.assertIn('outgoing replay sends from far left row-height whitespace',cases)
+        touch=(ROOT/'tests/ui/TIMAntiRecallReplayTouchHost.h').read_text()
+        self.assertIn('CGFloat x=i?12:width-36;',touch)
+
     def test_current_binding_and_transition_guards(self):
         s=strip_comments((ROOT/'Sources/TIMAntiRecallReplay.m').read_text())
         for token in ('timantirecall_firstModel','timantirecall_boundModel','timantirecall_firstIdentity','timantirecall_firstController','timantirecall_firstScroll','timantirecall_firstOffset','timantirecall_replayEpoch','timantirecall_replayHostUnique','timantirecall_samples=2','removeGestureRecognizer:'):

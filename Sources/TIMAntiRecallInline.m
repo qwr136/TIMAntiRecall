@@ -72,6 +72,17 @@ static NSDictionary *timantirecall_identityForModel(UIView *view,id model,NSStri
     if(legacy)return timantirecall_legacyRowIdentity(model,owner);
     return timantirecall_recordIdentity([TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model],owner);
 }
+static BOOL timantirecall_eventSharesDisplaySlot(NSDictionary *event,NSDictionary *identity) {
+    if(![event[@"owner"] isEqual:identity[@"owner"]]||![event[@"kind"] isEqual:identity[@"kind"]]||
+       ![event[@"seq"] isEqual:identity[@"seq"]])return NO;
+    BOOL group=[event[@"kind"] intValue]==2;
+    if(group&&![event[@"author"] isEqual:identity[@"author"]])return NO;
+    NSString *scope=group?@"group":@"peer";
+    if(![event[scope] isEqual:identity[scope]])return NO;
+    if(event[@"random"] && ![event[@"random"] isEqual:identity[@"random"]])return NO;
+    if(event[@"time"] && ![event[@"time"] isEqual:identity[@"time"]])return NO;
+    return YES;
+}
 static BOOL timantirecall_slotIsAmbiguous(TIMAntiRecallRowContext *context,NSDictionary *identity,NSDictionary *event,NSString *owner) {
     BOOL ambiguous=NO;
     NSMutableArray<TIMAntiRecallRowContext *> *matches=[NSMutableArray arrayWithObject:context];
@@ -82,10 +93,10 @@ static BOOL timantirecall_slotIsAmbiguous(TIMAntiRecallRowContext *context,NSDic
         id model=timantirecall_boundModel(view);
         if(!model || model!=other.timantirecall_model)continue;
         NSDictionary *candidate=timantirecall_identityForModel(view,model,owner);
-        if(!timantirecall_recallEventMatchesIdentity(event,candidate))continue;
+        if(!timantirecall_eventSharesDisplaySlot(event,candidate))continue;
         [matches addObject:other];
         if(![identity[@"id"] isEqual:candidate[@"id"]] || ![identity[@"random"] isEqual:candidate[@"random"]] ||
-           ![identity[@"time"] isEqual:candidate[@"time"]])ambiguous=YES;
+           ![identity[@"time"] isEqual:candidate[@"time"]] || ![identity[@"author"] isEqual:candidate[@"author"]])ambiguous=YES;
     }
     if(ambiguous) {
         [timantirecall_marks timantirecall_suppressDisplayForEvent:event];

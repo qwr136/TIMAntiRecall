@@ -191,9 +191,10 @@ static BOOL timantirecall_replayContextAtPoint(TIMAntiRecallReplayContext *state
         timantirecall_replayTrace(@"gate",@{@"reason":@"bubble-rect-invalid",@"bw":@(bubble.size.width),@"bh":@(bubble.size.height),@"hw":@(host.bounds.size.width),@"hh":@(host.bounds.size.height)});return NO;
     }
     BOOL outgoing=[identity[@"author"] isEqual:owner];
-    CGFloat left=outgoing?MAX(CGRectGetMinX(host.bounds)+6,CGRectGetMinX(bubble)-72):CGRectGetMaxX(bubble)+6;
-    CGFloat right=outgoing?CGRectGetMinX(bubble)-6:MIN(CGRectGetMaxX(host.bounds)-6,CGRectGetMaxX(bubble)+72);
-    CGRect band=CGRectMake(left,CGRectGetMinY(bubble),right-left,bubble.size.height);
+    CGFloat left=outgoing?CGRectGetMinX(host.bounds)+6:CGRectGetMaxX(bubble)+6;
+    CGFloat right=outgoing?CGRectGetMinX(bubble)-6:CGRectGetMaxX(host.bounds)-6;
+    CGRect rowArea=CGRectInset(host.bounds,0,4);
+    CGRect band=CGRectMake(left,CGRectGetMinY(rowArea),right-left,rowArea.size.height);
     if(!timantirecall_replayRectValid(band)||!CGRectContainsPoint(band,point)){timantirecall_replayTrace(@"gate",@{@"reason":@"point-outside-bubble-side-band",@"x":@(point.x),@"y":@(point.y),@"bx":@(CGRectGetMinX(bubble)),@"by":@(CGRectGetMinY(bubble)),@"bw":@(bubble.size.width),@"bh":@(bubble.size.height),@"hw":@(host.bounds.size.width),@"hh":@(host.bounds.size.height)});return NO;}
     for(UIView *excluded in views.allValues) {
         if(excluded.window!=host.window||excluded.hidden||excluded.alpha<0.01)continue;

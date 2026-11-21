@@ -523,11 +523,11 @@ static void timantirecall_testAmbiguousSequence(UIView *host) {
     timantirecall_step(^{
         first=timantirecall_row(host,CGRectMake(8,80,host.bounds.size.width-16,84));
         second=timantirecall_row(host,CGRectMake(8,170,host.bounds.size.width-16,84));
-        OCMsgRecord *target=timantirecall_record(1,779,@"peer_a",0);
+        OCMsgRecord *target=timantirecall_record(1,779,@"peer_a",0);target.senderUid=@"self_uid";
         OCMsgRecord *collision=timantirecall_record(1,779,@"peer_a",0);collision.msgId++;
         [first bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:target]];
         [second bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_message:collision]];
-        timantirecall_mark(timantirecall_private(@"peer_a",@"self_uid",779),@"self_uid");
+        timantirecall_mark(timantirecall_private(@"self_uid",@"peer_a",779),@"self_uid");
     });
     timantirecall_step(^{
         timantirecall_count(first,0,@"same-sequence collision never marks the first row");
@@ -535,7 +535,7 @@ static void timantirecall_testAmbiguousSequence(UIView *host) {
         NSDictionary *event=nil;
         for(NSDictionary *stored in [timantirecall_sharedMarks() timantirecall_eventsForOwner:@"self_uid"])
             if([stored[@"seq"] isEqual:@779] && [stored[@"kind"] isEqual:@1]){event=stored;break;}
-        timantirecall_check([event[@"displayAmbiguous"] boolValue],@"ambiguous wire identity is persisted fail-closed");
+        timantirecall_check([event[@"displayAmbiguous"] boolValue],@"same-sequence cross-author recall ambiguity is persisted fail-closed");
         [first removeFromSuperview];[second removeFromSuperview];
         [timantirecall_coverage addObject:@"same-sequence-ambiguous"];
     });

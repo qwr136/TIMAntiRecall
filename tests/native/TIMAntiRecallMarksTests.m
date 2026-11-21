@@ -63,9 +63,13 @@ static void timantirecall_testRowIsolation(void) {
     CHECK([collisionStore timantirecall_displayCandidateForIdentity:same]!=nil);
     NSMutableDictionary *other=same.mutableCopy;other[@"id"]=@502;
     CHECK([collisionStore timantirecall_displayCandidateForIdentity:other]!=nil);
+    NSDictionary *crossAuthor=@{@"owner":@"owner",@"kind":@1,@"seq":@501,@"author":@"owner",@"peer":@"peer",@"id":@503,@"random":@9,@"time":@1700000000};
+    CHECK([collisionStore timantirecall_displayCandidateForIdentity:crossAuthor]==nil);
     [collisionStore timantirecall_suppressDisplayForEvent:[collisionStore timantirecall_eventForIdentity:same]];
     CHECK([collisionStore timantirecall_displayCandidateForIdentity:same]==nil);
-    NSDictionary *ambiguousStored=[[collisionStore timantirecall_eventsForOwner:@"owner"] firstObject];
+    NSDictionary *ambiguousStored=nil;
+    for(NSDictionary *stored in [collisionStore timantirecall_eventsForOwner:@"owner"])
+        if([stored[@"seq"] isEqual:@501]){ambiguousStored=stored;break;}
     CHECK([ambiguousStored[@"displayAmbiguous"] boolValue]);
     CHECK([collisionStore timantirecall_eventForIdentity:same]==nil);
     CHECK([collisionStore timantirecall_containsIdentity:same]);

@@ -43,6 +43,22 @@ class InlineContractTests(unittest.TestCase):
         for token in ('Sources/TIMAntiRecallInline.m','Sources/TIMAntiRecallIndicatorView.m','TIMAntiRecallMarksTests.m'):
             self.assertIn(token,source)
         self.assertNotIn("'Sources/TIMAntiRecallMarks.m'",source)
+    def test_private_sequence_cross_author_collision_is_display_ambiguous(self):
+        inline=strip_comments((ROOT/'Sources/TIMAntiRecallInline.m').read_text())
+        helper=function_body(inline,'timantirecall_eventSharesDisplaySlot')
+        self.assertIn('@"owner"',helper);self.assertIn('@"seq"',helper);self.assertIn('@"peer"',helper)
+        self.assertIn('BOOL group=',helper)
+        self.assertIn('if(group&&![event[@"author"] isEqual:identity[@"author"]])return NO;',helper)
+        self.assertIn('timantirecall_eventSharesDisplaySlot(event,candidate)',inline)
+        self.assertIn('![identity[@"author"] isEqual:candidate[@"author"]]',inline)
+        ui=(ROOT/'tests/ui/TIMAntiRecallInlineUIKitTests.m').read_text()
+        block=function_body(ui,'timantirecall_testAmbiguousSequence')
+        self.assertIn('target.senderUid=@"self_uid"',block)
+        self.assertIn('collision.msgId++;',block)
+        self.assertIn('collision=timantirecall_record(1,779,@"peer_a",0)',block)
+        self.assertIn('timantirecall_private(@"self_uid",@"peer_a",779)',block)
+        self.assertIn('cross-author recall ambiguity',block)
+
     def test_cold_recall_protection_is_exact_setter_only(self):
         source=strip_comments((ROOT/'Sources/TIMAntiRecallColdSync.m').read_text())
         self.assertIn('setRecallTime:',source);self.assertIn('timantirecall_recordIdentity',source)
