@@ -10,6 +10,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic) int chatType, msgType;
 @property(nonatomic) BOOL isOnlineMsg, isImportMsg;
 @property(nonatomic,copy,nullable) NSArray<OCMsgElement *> *elements;
+@property(nonatomic,strong,nullable) NSDictionary *msgAttrs; // QQ ivar @"NSDictionary".
 @property(nonatomic,copy) NSString *senderUid, *peerUid;
 @end
 @interface QQAccountsManager : NSObject
@@ -88,6 +89,9 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 @interface OCMsgElement : NSObject
 @property(nonatomic) int32_t elementType;
+@property(nonatomic) int32_t elementGroupId;
+@property(nonatomic) int64_t elementId;
+@property(nonatomic,strong,nullable) NSData *extBufForUI;
 @property(nonatomic,strong,nullable) OCWalletElement *walletElement;
 @property(nonatomic,strong,nullable) OCTextElement *textElement;
 @property(nonatomic,strong,nullable) id faceElement;
@@ -138,6 +142,12 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 @interface QQMsgService : NSObject
 @property(nonatomic) NSUInteger timantirecall_sendCalls;
+@property(nonatomic) NSUInteger timantirecall_richSendCalls;
+@property(nonatomic,strong,nullable) NSArray<OCMsgElement *> *timantirecall_lastElements;
+@property(nonatomic,strong,nullable) NSDictionary *timantirecall_lastMsgAttributeInfos;
+@property(nonatomic) BOOL timantirecall_sendWasMainThread;
+// Verified QQ selector v48@0:8@16@24@32@?40; callback descriptor is int32 + NSString.
+- (void)sendMsgWithOCContact:(OCContact *)contact msgElems:(NSArray *)elements msgAttributeInfos:(nullable NSDictionary *)attributes callBack:(nullable void(^)(int32_t,NSString *))callback;
 @property(nonatomic,copy,nullable) NSString *timantirecall_lastText;
 @property(nonatomic,strong,nullable) OCContact *timantirecall_lastContact;
 @property(nonatomic) BOOL timantirecall_callbackWasNil;

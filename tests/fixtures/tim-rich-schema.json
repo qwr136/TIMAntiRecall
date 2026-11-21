@@ -1,0 +1,962 @@
+{
+  "OCFaceElement": [
+    {
+      "name": "faceIndex",
+      "type": "I",
+      "getter": "I16@0:8",
+      "setter": "v20@0:8I16",
+      "address": "0x10a0926e4",
+      "write_address": "0x10a0926ec"
+    },
+    {
+      "name": "faceType",
+      "type": "i",
+      "getter": "i16@0:8",
+      "setter": "v20@0:8i16",
+      "address": "0x10a092708",
+      "write_address": "0x10a092710"
+    },
+    {
+      "name": "faceText",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a0926f4",
+      "write_address": "0x10a0926fc"
+    },
+    {
+      "name": "packId",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a092718",
+      "write_address": "0x10a092720"
+    },
+    {
+      "name": "stickerId",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a09272c",
+      "write_address": "0x10a092734"
+    },
+    {
+      "name": "sourceType",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a092740",
+      "write_address": "0x10a092748"
+    },
+    {
+      "name": "stickerType",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a092754",
+      "write_address": "0x10a09275c"
+    },
+    {
+      "name": "resultId",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a092768",
+      "write_address": "0x10a092770"
+    },
+    {
+      "name": "surpriseId",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a09277c",
+      "write_address": "0x10a092784"
+    },
+    {
+      "name": "randomType",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a092790",
+      "write_address": "0x10a092798"
+    },
+    {
+      "name": "imageType",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a0927a4",
+      "write_address": "0x10a0927ac"
+    },
+    {
+      "name": "pokeType",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a0927b8",
+      "write_address": "0x10a0927c0"
+    },
+    {
+      "name": "spokeSummary",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a0927cc",
+      "write_address": "0x10a0927d4"
+    },
+    {
+      "name": "doubleHit",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a0927e0",
+      "write_address": "0x10a0927e8"
+    },
+    {
+      "name": "vaspokeId",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a0927f4",
+      "write_address": "0x10a0927fc"
+    },
+    {
+      "name": "vaspokeName",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a092808",
+      "write_address": "0x10a092810"
+    },
+    {
+      "name": "vaspokeMinver",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a09281c",
+      "write_address": "0x10a092824"
+    },
+    {
+      "name": "pokeStrength",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a092830",
+      "write_address": "0x10a092838"
+    },
+    {
+      "name": "msgType",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a092844",
+      "write_address": "0x10a09284c"
+    },
+    {
+      "name": "faceBubbleCount",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a092858",
+      "write_address": "0x10a092860"
+    },
+    {
+      "name": "oldVersionStr",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a09286c",
+      "write_address": "0x10a092874"
+    },
+    {
+      "name": "pokeFlag",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a092880",
+      "write_address": "0x10a092888"
+    },
+    {
+      "name": "chainCount",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a092894",
+      "write_address": "0x10a09289c"
+    }
+  ],
+  "OCMarketFaceElement": [
+    {
+      "name": "itemType",
+      "type": "I",
+      "getter": "I16@0:8",
+      "setter": "v20@0:8I16",
+      "address": "0x10a1b0e88",
+      "write_address": "0x10a1b0e90"
+    },
+    {
+      "name": "faceInfo",
+      "type": "I",
+      "getter": "I16@0:8",
+      "setter": "v20@0:8I16",
+      "address": "0x10a1b0e98",
+      "write_address": "0x10a1b0ea0"
+    },
+    {
+      "name": "emojiPackageId",
+      "type": "I",
+      "getter": "I16@0:8",
+      "setter": "v20@0:8I16",
+      "address": "0x10a1b0ea8",
+      "write_address": "0x10a1b0eb0"
+    },
+    {
+      "name": "subType",
+      "type": "I",
+      "getter": "I16@0:8",
+      "setter": "v20@0:8I16",
+      "address": "0x10a1b0eb8",
+      "write_address": "0x10a1b0ec0"
+    },
+    {
+      "name": "mediaType",
+      "type": "I",
+      "getter": "I16@0:8",
+      "setter": "v20@0:8I16",
+      "address": "0x10a1b0ec8",
+      "write_address": "0x10a1b0ed0"
+    },
+    {
+      "name": "imageWidth",
+      "type": "I",
+      "getter": "I16@0:8",
+      "setter": "v20@0:8I16",
+      "address": "0x10a1b0ed8",
+      "write_address": "0x10a1b0ee0"
+    },
+    {
+      "name": "imageHeight",
+      "type": "I",
+      "getter": "I16@0:8",
+      "setter": "v20@0:8I16",
+      "address": "0x10a1b0ee8",
+      "write_address": "0x10a1b0ef0"
+    },
+    {
+      "name": "faceName",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b0ef8",
+      "write_address": "0x10a1b0f00"
+    },
+    {
+      "name": "emojiId",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b0f0c",
+      "write_address": "0x10a1b0f14"
+    },
+    {
+      "name": "key",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b0f20",
+      "write_address": "0x10a1b0f28"
+    },
+    {
+      "name": "param",
+      "type": "@\"NSData\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b0f34",
+      "write_address": "0x10a1b0f3c"
+    },
+    {
+      "name": "mobileParam",
+      "type": "@\"NSData\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b0f48",
+      "write_address": "0x10a1b0f50"
+    },
+    {
+      "name": "sourceType",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b0f5c",
+      "write_address": "0x10a1b0f64"
+    },
+    {
+      "name": "startTime",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b0f70",
+      "write_address": "0x10a1b0f78"
+    },
+    {
+      "name": "endTime",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b0f84",
+      "write_address": "0x10a1b0f8c"
+    },
+    {
+      "name": "emojiType",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b0f98",
+      "write_address": "0x10a1b0fa0"
+    },
+    {
+      "name": "hasIpProduct",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b0fac",
+      "write_address": "0x10a1b0fb4"
+    },
+    {
+      "name": "voiceItemHeightArr",
+      "type": "@\"NSArray\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b0fc0",
+      "write_address": "0x10a1b0fc8"
+    },
+    {
+      "name": "sourceName",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b0fd4",
+      "write_address": "0x10a1b0fdc"
+    },
+    {
+      "name": "sourceJumpUrl",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b0fe8",
+      "write_address": "0x10a1b0ff0"
+    },
+    {
+      "name": "sourceTypeName",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b0ffc",
+      "write_address": "0x10a1b1004"
+    },
+    {
+      "name": "backColor",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b1010",
+      "write_address": "0x10a1b1018"
+    },
+    {
+      "name": "volumeColor",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b1024",
+      "write_address": "0x10a1b102c"
+    },
+    {
+      "name": "staticFacePath",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b1038",
+      "write_address": "0x10a1b1040"
+    },
+    {
+      "name": "dynamicFacePath",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b104c",
+      "write_address": "0x10a1b1054"
+    },
+    {
+      "name": "supportSize",
+      "type": "@\"NSArray\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b1060",
+      "write_address": "0x10a1b1068"
+    },
+    {
+      "name": "apngSupportSize",
+      "type": "@\"NSArray\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1b1074",
+      "write_address": "0x10a1b107c"
+    }
+  ],
+  "OCPicElement": [
+    {
+      "name": "original",
+      "type": "B",
+      "getter": "B16@0:8",
+      "setter": "v20@0:8B16",
+      "address": "0x10a1d88e4",
+      "write_address": "0x10a1d88f4"
+    },
+    {
+      "name": "picSubType",
+      "type": "i",
+      "getter": "i16@0:8",
+      "setter": "v20@0:8i16",
+      "address": "0x10a1d8890",
+      "write_address": "0x10a1d8898"
+    },
+    {
+      "name": "picWidth",
+      "type": "i",
+      "getter": "i16@0:8",
+      "setter": "v20@0:8i16",
+      "address": "0x10a1d88c4",
+      "write_address": "0x10a1d88cc"
+    },
+    {
+      "name": "picHeight",
+      "type": "i",
+      "getter": "i16@0:8",
+      "setter": "v20@0:8i16",
+      "address": "0x10a1d88d4",
+      "write_address": "0x10a1d88dc"
+    },
+    {
+      "name": "thumbFileSize",
+      "type": "I",
+      "getter": "I16@0:8",
+      "setter": "v20@0:8I16",
+      "address": "0x10a1d89b0",
+      "write_address": "0x10a1d89b8"
+    },
+    {
+      "name": "storeID",
+      "type": "I",
+      "getter": "I16@0:8",
+      "setter": "v20@0:8I16",
+      "address": "0x10a1d8ab0",
+      "write_address": "0x10a1d8ab8"
+    },
+    {
+      "name": "fileName",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d88a0",
+      "write_address": "0x10a1d88a8"
+    },
+    {
+      "name": "fileSize",
+      "type": "Q",
+      "getter": "Q16@0:8",
+      "setter": "v24@0:8Q16",
+      "address": "0x10a1d88b4",
+      "write_address": "0x10a1d88bc"
+    },
+    {
+      "name": "md5HexStr",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d88fc",
+      "write_address": "0x10a1d8904"
+    },
+    {
+      "name": "sourcePath",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d8910",
+      "write_address": "0x10a1d8918"
+    },
+    {
+      "name": "thumbPath",
+      "type": "@\"NSDictionary\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d8924",
+      "write_address": "0x10a1d892c"
+    },
+    {
+      "name": "transferStatus",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d8938",
+      "write_address": "0x10a1d8940"
+    },
+    {
+      "name": "progress",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d894c",
+      "write_address": "0x10a1d8954"
+    },
+    {
+      "name": "picType",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d8960",
+      "write_address": "0x10a1d8968"
+    },
+    {
+      "name": "invalidState",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d8974",
+      "write_address": "0x10a1d897c"
+    },
+    {
+      "name": "fileUuid",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d8988",
+      "write_address": "0x10a1d8990"
+    },
+    {
+      "name": "fileSubId",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d899c",
+      "write_address": "0x10a1d89a4"
+    },
+    {
+      "name": "fileBizId",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d89c0",
+      "write_address": "0x10a1d89c8"
+    },
+    {
+      "name": "downloadIndex",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d89d4",
+      "write_address": "0x10a1d89dc"
+    },
+    {
+      "name": "summary",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d89e8",
+      "write_address": "0x10a1d89f0"
+    },
+    {
+      "name": "emojiFrom",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d89fc",
+      "write_address": "0x10a1d8a04"
+    },
+    {
+      "name": "emojiWebUrl",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d8a10",
+      "write_address": "0x10a1d8a18"
+    },
+    {
+      "name": "emojiAd",
+      "type": "@\"OCEmojiAD\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d8a24",
+      "write_address": "0x10a1d8a2c"
+    },
+    {
+      "name": "emojiMall",
+      "type": "@\"OCEmojiMall\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d8a38",
+      "write_address": "0x10a1d8a40"
+    },
+    {
+      "name": "emojiZplan",
+      "type": "@\"OCEmojiZPlan\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d8a4c",
+      "write_address": "0x10a1d8a54"
+    },
+    {
+      "name": "originImageMd5",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d8a60",
+      "write_address": "0x10a1d8a68"
+    },
+    {
+      "name": "originImageUrl",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d8a74",
+      "write_address": "0x10a1d8a7c"
+    },
+    {
+      "name": "importRichMediaContext",
+      "type": "@\"NSData\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d8a88",
+      "write_address": "0x10a1d8a90"
+    },
+    {
+      "name": "isFlashPic",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1d8a9c",
+      "write_address": "0x10a1d8aa4"
+    }
+  ],
+  "OCReplyAbsElement": [
+    {
+      "name": "replyAbsElemType",
+      "type": "i",
+      "getter": "i16@0:8",
+      "setter": "v20@0:8i16",
+      "address": "0x10a1f874c",
+      "write_address": "0x10a1f8754"
+    },
+    {
+      "name": "textElemContent",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f875c",
+      "write_address": "0x10a1f8764"
+    },
+    {
+      "name": "faceElem",
+      "type": "@\"OCReplyAbsFaceElement\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f8770",
+      "write_address": "0x10a1f8778"
+    },
+    {
+      "name": "picElem",
+      "type": "@\"OCReplyAbsPicElement\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f8784",
+      "write_address": "0x10a1f878c"
+    }
+  ],
+  "OCReplyAbsFaceElement": [
+    {
+      "name": "faceIndex",
+      "type": "I",
+      "getter": "I16@0:8",
+      "setter": "v20@0:8I16",
+      "address": "0x10a1f8d2c",
+      "write_address": "0x10a1f8d34"
+    },
+    {
+      "name": "faceType",
+      "type": "i",
+      "getter": "i16@0:8",
+      "setter": "v20@0:8i16",
+      "address": "0x10a1f8d50",
+      "write_address": "0x10a1f8d58"
+    },
+    {
+      "name": "faceText",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f8d3c",
+      "write_address": "0x10a1f8d44"
+    }
+  ],
+  "OCReplyAbsPicElement": [
+    {
+      "name": "picWidth",
+      "type": "I",
+      "getter": "I16@0:8",
+      "setter": "v20@0:8I16",
+      "address": "0x10a1f9038",
+      "write_address": "0x10a1f9040"
+    },
+    {
+      "name": "picHeight",
+      "type": "I",
+      "getter": "I16@0:8",
+      "setter": "v20@0:8I16",
+      "address": "0x10a1f9048",
+      "write_address": "0x10a1f9050"
+    },
+    {
+      "name": "picText",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f9058",
+      "write_address": "0x10a1f9060"
+    }
+  ],
+  "OCReplyElement": [
+    {
+      "name": "sourceMsgIsIncPic",
+      "type": "B",
+      "getter": "B16@0:8",
+      "setter": "v20@0:8B16",
+      "address": "0x10a1f9870",
+      "write_address": "0x10a1f9878"
+    },
+    {
+      "name": "sourceMsgExpired",
+      "type": "B",
+      "getter": "B16@0:8",
+      "setter": "v20@0:8B16",
+      "address": "0x10a1f9880",
+      "write_address": "0x10a1f9888"
+    },
+    {
+      "name": "replyMsgRevokeType",
+      "type": "I",
+      "getter": "I16@0:8",
+      "setter": "v20@0:8I16",
+      "address": "0x10a1f9860",
+      "write_address": "0x10a1f9868"
+    },
+    {
+      "name": "replayMsgId",
+      "type": "q",
+      "getter": "q16@0:8",
+      "setter": "v24@0:8q16",
+      "address": "0x10a1f9774",
+      "write_address": "0x10a1f977c"
+    },
+    {
+      "name": "replayMsgSeq",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f9784",
+      "write_address": "0x10a1f978c"
+    },
+    {
+      "name": "replayMsgRootSeq",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f9798",
+      "write_address": "0x10a1f97a0"
+    },
+    {
+      "name": "replayMsgRootMsgId",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f97ac",
+      "write_address": "0x10a1f97b4"
+    },
+    {
+      "name": "replayMsgRootCommentCnt",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f97c0",
+      "write_address": "0x10a1f97c8"
+    },
+    {
+      "name": "sourceMsgIdInRecords",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f97d4",
+      "write_address": "0x10a1f97dc"
+    },
+    {
+      "name": "sourceMsgText",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f97e8",
+      "write_address": "0x10a1f97f0"
+    },
+    {
+      "name": "sourceMsgTextElems",
+      "type": "@\"NSArray\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f97fc",
+      "write_address": "0x10a1f9804"
+    },
+    {
+      "name": "senderUid",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f9810",
+      "write_address": "0x10a1f9818"
+    },
+    {
+      "name": "senderUidStr",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f9824",
+      "write_address": "0x10a1f982c"
+    },
+    {
+      "name": "replyMsgClientSeq",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f9838",
+      "write_address": "0x10a1f9840"
+    },
+    {
+      "name": "replyMsgTime",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f984c",
+      "write_address": "0x10a1f9854"
+    },
+    {
+      "name": "anonymousNickName",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f9890",
+      "write_address": "0x10a1f9898"
+    },
+    {
+      "name": "originalMsgState",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a1f98a4",
+      "write_address": "0x10a1f98ac"
+    }
+  ],
+  "OCTextElement": [
+    {
+      "name": "atType",
+      "type": "i",
+      "getter": "i16@0:8",
+      "setter": "v20@0:8i16",
+      "address": "0x10a254a78",
+      "write_address": "0x10a254a80"
+    },
+    {
+      "name": "content",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a254a64",
+      "write_address": "0x10a254a6c"
+    },
+    {
+      "name": "atUid",
+      "type": "q",
+      "getter": "q16@0:8",
+      "setter": "v24@0:8q16",
+      "address": "0x10a254a88",
+      "write_address": "0x10a254a90"
+    },
+    {
+      "name": "atTinyId",
+      "type": "q",
+      "getter": "q16@0:8",
+      "setter": "v24@0:8q16",
+      "address": "0x10a254a98",
+      "write_address": "0x10a254aa0"
+    },
+    {
+      "name": "atNtUid",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a254aa8",
+      "write_address": "0x10a254ab0"
+    },
+    {
+      "name": "subElementType",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a254abc",
+      "write_address": "0x10a254ac4"
+    },
+    {
+      "name": "atChannelId",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a254ad0",
+      "write_address": "0x10a254ad8"
+    },
+    {
+      "name": "linkInfo",
+      "type": "@\"OCLinkInfo\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a254ae4",
+      "write_address": "0x10a254aec"
+    },
+    {
+      "name": "atRoleId",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a254af8",
+      "write_address": "0x10a254b00"
+    },
+    {
+      "name": "atRoleColor",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a254b0c",
+      "write_address": "0x10a254b14"
+    },
+    {
+      "name": "atRoleName",
+      "type": "@\"NSString\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a254b20",
+      "write_address": "0x10a254b28"
+    },
+    {
+      "name": "needNotify",
+      "type": "@\"NSNumber\"",
+      "getter": "@16@0:8",
+      "setter": "v24@0:8@16",
+      "address": "0x10a254b34",
+      "write_address": "0x10a254b3c"
+    }
+  ]
+}

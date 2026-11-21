@@ -36,13 +36,14 @@ PRODUCTION = (
     "Sources/TIMAntiRecallRuntime.m", "Sources/TIMAntiRecallColdSync.m", "Sources/TIMAntiRecallSettings.m",
     "Sources/TIMAntiRecallStorage.m", "Sources/TIMAntiRecallMarkStore.m",
     "Sources/TIMAntiRecallPreferencesUI.m", "Sources/TIMAntiRecallPreferencesEntry.m",
-    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m", "Sources/TIMAntiRecallPacketOpen.m", "Sources/TIMAntiRecallPacketWallet.m", "Sources/TIMAntiRecallPacketToast.m", "Sources/TIMAntiRecallPacketSilent.m", "Sources/TIMAntiRecallReplay.m", "Sources/TIMAntiRecallReplayTrace.m",
+    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m", "Sources/TIMAntiRecallPacketOpen.m", "Sources/TIMAntiRecallPacketWallet.m", "Sources/TIMAntiRecallPacketToast.m", "Sources/TIMAntiRecallPacketSilent.m", "Sources/TIMAntiRecallReplay.m", "Sources/TIMAntiRecallReplayPayload.m", "Sources/TIMAntiRecallReplayTrace.m",
 )
 SWIFT = ("Sources/TIMAntiRecallRecordBridge.swift",
          "tests/ui/TIMAntiRecallSwiftFixture.swift")
-FIXTURES = ("TIMAntiRecallFixture.m", "TIMAntiRecallInlineUIKitTests.m")
+FIXTURES = ("TIMAntiRecallFixture.m", "TIMAntiRecallReplayRichFixture.m", "TIMAntiRecallReplayPhotoFixture.m", "TIMAntiRecallInlineUIKitTests.m")
 FRAMEWORKS = ("Foundation", "UIKit", "QuartzCore")
 REQUIRED_COVERAGE = {
+    "rich-message-replay", "rich-message-replay-quote", "rich-message-replay-deep-copy", "rich-message-replay-guards", "rich-message-replay-photo",
     "swift-reflection", "session-owner", "bind-abi", "private-identity", "own-recall-forwarded",
     "group-identity", "account-isolation", "reuse-lifecycle", "row-geometry",
     "touch-routing", "weak-release", "real-scene-background", "real-scene-resume",
@@ -114,6 +115,7 @@ def choose_runtime(sdk: str, runtimes: dict, devices: dict) -> tuple[str, str, s
 def source_receipt() -> dict:
     paths = [ROOT / item for item in (*PRODUCTION, *SWIFT)]
     paths += sorted((ROOT / "Headers").glob("*.h"))
+    paths += sorted((ROOT / "Sources").glob("*.inc"))
     paths += sorted(path for path in UI.iterdir() if path.is_file() and path.suffix in {".m", ".h", ".swift", ".py"})
     hashes = {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
               for path in sorted(set(paths))}

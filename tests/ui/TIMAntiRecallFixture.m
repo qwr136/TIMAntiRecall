@@ -105,6 +105,13 @@ static NSUInteger timantirecall_testOriginalDoubleTapCalls;
 @end
 @implementation QQMsgService
 + (instancetype)getInstance {static QQMsgService *service;static dispatch_once_t once;dispatch_once(&once,^{service=[QQMsgService new];});return service;}
+- (void)sendMsgWithOCContact:(OCContact *)contact msgElems:(NSArray *)elements msgAttributeInfos:(NSDictionary *)attributes callBack:(void(^)(int32_t,NSString *))callback {
+    self.timantirecall_sendCalls++;self.timantirecall_richSendCalls++;
+    self.timantirecall_lastElements=elements;self.timantirecall_lastMsgAttributeInfos=attributes;
+    self.timantirecall_lastContact=contact;self.timantirecall_lastText=nil;
+    self.timantirecall_callbackWasNil=callback==nil;self.timantirecall_sendWasMainThread=NSThread.isMainThread;
+    if(callback)callback(0,@"fixture success");
+}
 - (void)sendTextMsgByOCContact:(OCContact *)contact richText:(NSString *)text callBack:(void(^)(void))callback {
     self.timantirecall_sendCalls++;self.timantirecall_lastText=text;self.timantirecall_lastContact=contact;self.timantirecall_callbackWasNil=callback==nil;
 }

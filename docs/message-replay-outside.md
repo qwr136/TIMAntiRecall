@@ -12,7 +12,7 @@ Baseline: plugin 6.40 / `5963c5b02facef602e777377b9f2ca8a876e0199`. The plugin v
 - Do NOT use AIOLib `sendInputText:`: inspected base code inserts a local table model; this is not proof of native message submission.
 
 ## Scope and limits
-Existing `messageReplay` preference is retained, default OFF for fresh settings. An existing ON value stays ON; the row label now describes outside-bubble triggering. Only one-element pure text passes; mentions, mixed media, cards, replies and unsupported metadata fail closed. Original native parsing remains in force, including native emoticon interpretation. Native service invocation is not delivery confirmation.
+Existing `messageReplay` preference is retained, default OFF for fresh settings. An existing ON value stays ON. Plain text retains its native parsing path. From the 8.10 baseline, [rich-message-replay.md](rich-message-replay.md) adds cloned face/market-face/whole-quoted-reply elements and local single-image native upload. Unsupported formats fail closed rather than losing payloads. Native service invocation is not delivery confirmation.
 
 Packet ingress, wallet/open/silent/amount/toast modules are unchanged. Unknown/legacy chat controllers or unavailable fields/ABI skip replay. A row with no unobstructed side whitespace remains untappable; no overlay, label or button is injected into the target row.
 

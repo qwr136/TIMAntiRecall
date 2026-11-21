@@ -1,5 +1,6 @@
 #import "TIMAntiRecallReplay.h"
 #import "TIMAntiRecallReplayTrace.h"
+#import "TIMAntiRecallReplayPayload.h"
 #import "TIMAntiRecallSettings.h"
 #import "TIMAntiRecallMarks.h"
 #import <UIKit/UIKit.h>
@@ -83,6 +84,10 @@ static NSString *timantirecall_plainTextForRecord(id record) {
     return content;
 }
 #undef REPLAY_REJECT
+static NSDictionary *timantirecall_replayContent(id record) {
+    NSString *text=timantirecall_plainTextForRecord(record);
+    return text?@{@"mode":@"text",@"text":[text copy]}:timantirecall_richReplaySnapshot(record);
+}
 static BOOL timantirecall_replayWindowActive(UIWindow *window) {
     if(!window||window.hidden||window.alpha<0.01)return NO;
     if(window.windowScene)return window.windowScene.activationState==UISceneActivationStateForegroundActive;
@@ -103,7 +108,7 @@ static BOOL timantirecall_replayWindowActive(UIWindow *window) {
 @property(nonatomic,weak) UIScrollView *timantirecall_firstScroll;
 @property(nonatomic,weak) id timantirecall_firstChatContext;
 @property(nonatomic,copy) NSString *timantirecall_owner;
-@property(nonatomic,copy) NSDictionary *timantirecall_firstIdentity;
+@property(nonatomic,copy) NSDictionary *timantirecall_firstIdentity,*timantirecall_firstPayload;
 @property(nonatomic) CGPoint timantirecall_firstPoint,timantirecall_firstOffset;
 @property(nonatomic) CGRect timantirecall_firstBubble;
 @property(nonatomic) NSTimeInterval timantirecall_firstTime;
@@ -159,7 +164,7 @@ static BOOL timantirecall_replayHostUnique(UIView *host,UIView *row) {
 }
 static id timantirecall_replayContact(id record,UIViewController *controller);
 static BOOL timantirecall_replayContextAtPoint(TIMAntiRecallReplayContext *state,CGPoint point,
-        id *modelOut,NSDictionary **identityOut,UIViewController **controllerOut,CGRect *bubbleOut) {
+        id *modelOut,NSDictionary **identityOut,UIViewController **controllerOut,CGRect *bubbleOut,NSDictionary **payloadOut) {
     UIView *row=state.timantirecall_row,*host=state.timantirecall_host;
     NSString *owner=timantirecall_currentAccount();
     if(!NSThread.isMainThread){timantirecall_replayTrace(@"gate",@{@"reason":@"off-main-thread"});return NO;}
@@ -175,7 +180,8 @@ static BOOL timantirecall_replayContextAtPoint(TIMAntiRecallReplayContext *state
     id model=[TIMAntiRecallRecordBridge timantirecall_currentModelForView:row];
     if(!model||model!=state.timantirecall_boundModel){timantirecall_replayTrace(@"gate",@{@"reason":@"model-not-current"});return NO;}
     id record=[TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model];
-    NSString *text=timantirecall_plainTextForRecord(record);NSDictionary *identity=text?timantirecall_recordIdentity(record,owner):nil;
+    NSDictionary *payload=timantirecall_replayContent(record);
+    NSDictionary *identity=payload?timantirecall_recordIdentity(record,owner):nil;
     if(!identity){timantirecall_replayTrace(@"gate",@{@"reason":@"message-not-eligible"});return NO;}
     UIViewController *controller=timantirecall_replayController(row);
     if(!controller||!controller.isViewLoaded||controller.view.window!=host.window||controller.view.hidden||
@@ -207,6 +213,7 @@ static BOOL timantirecall_replayContextAtPoint(TIMAntiRecallReplayContext *state
     for(UIView *v=hit;v&&v!=host;v=v.superview)
         if([v isKindOfClass:UIControl.class]||[v isKindOfClass:UITextView.class]||[v isKindOfClass:UILabel.class]||[v isKindOfClass:UIImageView.class]){timantirecall_replayTrace(@"gate",@{@"reason":@"hit-test-excluded-view",@"contentClass":NSStringFromClass(v.class)});return NO;}
     if(modelOut)*modelOut=model;if(identityOut)*identityOut=identity;
+    if(payloadOut)*payloadOut=payload;
     if(controllerOut)*controllerOut=controller;if(bubbleOut)*bubbleOut=bubble;
     return YES;
 }
@@ -226,15 +233,17 @@ static id timantirecall_replayContact(id record,UIViewController *controller) {
     if(!valid||![currentPeer isKindOfClass:NSString.class]||![recordPeer isEqual:currentPeer])return nil;
     return contact;
 }
-static BOOL timantirecall_replaySend(id record,UIViewController *controller,NSString *text) {
+static BOOL timantirecall_replaySend(id record,UIViewController *controller,NSDictionary *payload) {
     id contact=timantirecall_replayContact(record,controller);
-    if(!contact||!text.length)return NO;
+    if(!contact||!payload||![payload isEqual:timantirecall_replayContent(record)])return NO;
     Class cls=objc_getClass("QQMsgService");SEL shared=sel_registerName("getInstance");
     const char *getterArgs[]={"@",":"};
     Method getter=cls?class_getClassMethod(cls,shared):NULL;
     if(!timantirecall_methodTypes(getter,"@",2,getterArgs))return NO;
     id service=((id(*)(id,SEL))method_getImplementation(getter))(cls,shared);
     if(!service||![service isKindOfClass:cls])return NO;
+    if(![payload[@"mode"] isEqual:@"text"])return timantirecall_richReplaySend(service,contact,record,payload);
+    NSString *text=payload[@"text"];if(!text.length)return NO;
     SEL selector=sel_registerName("sendTextMsgByOCContact:richText:callBack:");
     Method method=class_getInstanceMethod(object_getClass(service),selector);
     const char *args[]={"@",":","@","@","@?"};
@@ -258,18 +267,19 @@ static BOOL timantirecall_replaySend(id record,UIViewController *controller,NSSt
     else if(host&&tap)dispatch_async(dispatch_get_main_queue(),^{[host removeGestureRecognizer:tap];});
 }
 - (void)timantirecall_clear {
-    self.timantirecall_firstModel=nil;self.timantirecall_firstIdentity=nil;
+    self.timantirecall_firstModel=nil;self.timantirecall_firstIdentity=nil;self.timantirecall_firstPayload=nil;
     self.timantirecall_firstController=nil;self.timantirecall_firstScroll=nil;self.timantirecall_firstChatContext=nil;
     self.timantirecall_samples=0;self.timantirecall_firstTime=0;
 }
 - (BOOL)timantirecall_capture:(CGPoint)point time:(NSTimeInterval)time {
-    id model=nil;NSDictionary *identity=nil;UIViewController *controller=nil;CGRect bubble=CGRectZero;
-    if(!timantirecall_replayContextAtPoint(self,point,&model,&identity,&controller,&bubble)) {
+    id model=nil;NSDictionary *identity=nil,*payload=nil;UIViewController *controller=nil;CGRect bubble=CGRectZero;
+    if(!timantirecall_replayContextAtPoint(self,point,&model,&identity,&controller,&bubble,&payload)) {
         [self timantirecall_clear];return NO;
     }
     UIScrollView *scroll=timantirecall_replayScroll(self.timantirecall_host);
     if(self.timantirecall_samples==0||time-self.timantirecall_firstTime>0.7) {
         [self timantirecall_clear];self.timantirecall_firstModel=model;self.timantirecall_firstIdentity=identity;
+        self.timantirecall_firstPayload=payload;
         self.timantirecall_firstController=controller;self.timantirecall_firstScroll=scroll;
         self.timantirecall_firstChatContext=[TIMAntiRecallRecordBridge timantirecall_replayChatContextForController:controller];
         self.timantirecall_firstOffset=(scroll?scroll.contentOffset:CGPointZero);self.timantirecall_firstBubble=bubble;
@@ -277,7 +287,7 @@ static BOOL timantirecall_replaySend(id record,UIViewController *controller,NSSt
         self.timantirecall_epoch=timantirecall_replayEpoch;self.timantirecall_samples=1;return YES;
     }
     BOOL same=self.timantirecall_samples==1&&model==self.timantirecall_firstModel&&
-        controller==self.timantirecall_firstController&&
+        [payload isEqual:self.timantirecall_firstPayload]&&controller==self.timantirecall_firstController&&
         [TIMAntiRecallRecordBridge timantirecall_replayChatContextForController:controller]==self.timantirecall_firstChatContext&&[identity isEqualToDictionary:self.timantirecall_firstIdentity]&&
         self.timantirecall_epoch==timantirecall_replayEpoch&&time>=self.timantirecall_firstTime&&
         scroll==self.timantirecall_firstScroll&&CGPointEqualToPoint((scroll?scroll.contentOffset:CGPointZero),self.timantirecall_firstOffset)&&
@@ -287,17 +297,17 @@ static BOOL timantirecall_replaySend(id record,UIViewController *controller,NSSt
     self.timantirecall_samples=2;return YES;
 }
 - (BOOL)timantirecall_complete:(CGPoint)point {
-    id model=nil;NSDictionary *identity=nil;UIViewController *controller=nil;CGRect bubble=CGRectZero;
+    id model=nil;NSDictionary *identity=nil,*payload=nil;UIViewController *controller=nil;CGRect bubble=CGRectZero;
     BOOL valid=self.timantirecall_samples==2&&self.timantirecall_epoch==timantirecall_replayEpoch&&
-        timantirecall_replayContextAtPoint(self,point,&model,&identity,&controller,&bubble)&&
+        timantirecall_replayContextAtPoint(self,point,&model,&identity,&controller,&bubble,&payload)&&
         model==self.timantirecall_firstModel&&controller==self.timantirecall_firstController&&
         [TIMAntiRecallRecordBridge timantirecall_replayChatContextForController:controller]==self.timantirecall_firstChatContext&&
-        [identity isEqualToDictionary:self.timantirecall_firstIdentity]&&CGRectEqualToRect(bubble,self.timantirecall_firstBubble);
+        [payload isEqual:self.timantirecall_firstPayload]&&[identity isEqualToDictionary:self.timantirecall_firstIdentity]&&CGRectEqualToRect(bubble,self.timantirecall_firstBubble);
     UIScrollView *scroll=timantirecall_replayScroll(self.timantirecall_host);
     valid=valid&&scroll==self.timantirecall_firstScroll&&CGPointEqualToPoint((scroll?scroll.contentOffset:CGPointZero),self.timantirecall_firstOffset);
-    NSString *text=valid?timantirecall_plainTextForRecord([TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model]):nil;
+    NSDictionary *accepted=valid?payload:nil;
     [self timantirecall_clear];
-    BOOL submitted=text?timantirecall_replaySend([TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model],controller,text):NO;
+    BOOL submitted=accepted?timantirecall_replaySend([TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model],controller,accepted):NO;
     timantirecall_replayTrace(@"send",@{@"reason":submitted?@"native-submit-called":@"completed-context-or-service-rejected"});
     return submitted;
 }
