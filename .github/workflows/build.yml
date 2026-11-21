@@ -14,7 +14,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build-${{ github.workflow }}-${{ github.ref }}
@@ -177,8 +177,10 @@ jobs:
           path: reports/
           if-no-files-found: warn
 
+      # Routine main builds produce verified artifacts only. Formal publishing
+      # requires a separately authorized publishing workflow; never create tags here.
       - name: Create Release
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        if: ${{ false }}
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
           token: ${{ github.token }}

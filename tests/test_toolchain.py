@@ -131,6 +131,14 @@ class StaticTests(ProjectFixture):
         workflow = self.workflow().read_text(encoding="utf-8")
         self.assertIn("cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}", workflow)
 
+    def test_main_builds_do_not_publish_releases_implicitly(self):
+        self.static_ok()
+        workflow = self.workflow().read_text(encoding="utf-8")
+        self.assertIn("permissions:\n  contents: read", workflow)
+        self.assertNotIn("contents: write", workflow)
+        release_step = workflow.split("- name: Create Release", 1)[1].split("  replay-touch:", 1)[0]
+        self.assertIn("if: ${{ false }}", release_step)
+
     def test_workflow_developer_dir_drift_is_rejected(self):
         workflow = self.workflow()
         self.static_ok()
