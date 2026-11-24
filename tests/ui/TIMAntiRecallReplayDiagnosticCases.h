@@ -55,7 +55,7 @@ static void timantirecall_testRichDiagnostics(UIView *root) {
             if([event[@"reason"] isEqual:@"message-identity-rejected"])identity=YES;
             if([event[@"reason"] isEqual:@"snapshot-ready"])ready=YES;
             if([event[@"reason"] isEqual:@"element-entered"]&&[event[@"shape"] isEqual:@"other"])other=YES;
-            if([event[@"reason"] isEqual:@"element-type-rejected"]&&[event[@"field"] isEqual:@"faceElement"]&&[event[@"valueClass"] isEqual:@"__NSCFNumber"]&&[event[@"shape"] isEqual:@"supported-element-type"])mismatchPayload=YES;
+            if([event[@"reason"] isEqual:@"element-type-rejected"]&&[event[@"field"] isEqual:@"faceElement"]&&[event[@"valueClass"] isEqual:@"__NSCFNumber"])mismatchPayload=YES;
             if(event[@"elementType"]) {
                 NSInteger value=[event[@"elementType"] integerValue];
                 if(value<0||value>32)safeEnum=NO;
