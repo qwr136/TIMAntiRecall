@@ -55,7 +55,7 @@ static void timantirecall_testRichDiagnostics(UIView *root) {
             if([event[@"reason"] isEqual:@"message-identity-rejected"])identity=YES;
             if([event[@"reason"] isEqual:@"snapshot-ready"])ready=YES;
             if([event[@"reason"] isEqual:@"element-entered"]&&[event[@"shape"] isEqual:@"other"])other=YES;
-            if([event[@"reason"] isEqual:@"element-type-rejected"]&&[event[@"field"] isEqual:@"faceElement"]&&[event[@"valueClass"] isEqual:@"__NSCFNumber"])mismatchPayload=YES;
+            if([event[@"reason"] isEqual:@"element-type-rejected"]&&[event[@"field"] isEqual:@"faceElement"]&&[event[@"valueClass"] isEqual:NSStringFromClass([@7 class])])mismatchPayload=YES;
             if(event[@"elementType"]) {
                 NSInteger value=[event[@"elementType"] integerValue];
                 if(value<0||value>32)safeEnum=NO;
@@ -63,7 +63,10 @@ static void timantirecall_testRichDiagnostics(UIView *root) {
             }
             for(id value in event.allValues)if([value isKindOfClass:NSNumber.class]&&[value isEqual:@68417])safeEnum=NO;
         }
-        timantirecall_check(other&&safeEnum&&faceEnum&&mismatchPayload,@"unknown type stays rejected, bounded enum stays visible, and face payload class is logged without contents");
+        timantirecall_check(other,@"unknown enum is classified only as other");
+        timantirecall_check(safeEnum,@"out-of-range enum is omitted from exported numeric values");
+        timantirecall_check(faceEnum,@"bounded face enum remains visible");
+        timantirecall_check(mismatchPayload,@"type 6 rejection logs runtime payload class without contents");
         timantirecall_check(abi&&shape&&photo&&identity&&ready,@"rich diagnostic exported events distinguish exact ABI, field shape, photo gate, successful snapshot and failed identity");
         timantirecall_check([log containsString:@"replay-rich-reject-v2"]&&![log containsString:@"TIMANTIRECALL_SECRET_BODY"]&&![log containsString:@"TIMANTIRECALL_SECRET_PATH"]&&![log containsString:@"diag_peer"],@"rich diagnostics have new schema and never serialize content, paths or peer IDs");
         timantirecall_clearReplayRow(row);[chat.view removeFromSuperview];
