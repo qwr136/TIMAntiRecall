@@ -35,7 +35,8 @@ class ReceivedReplayTests(unittest.TestCase):
         source=strip_comments((ROOT/'Sources/TIMAntiRecallReplayPayload.m').read_text())
         self.assertIn('case 5:return @"video"',function_body(source,'timantirecall_richElementKind'))
         self.assertNotIn('face-alt',source)
-        self.assertIn('(slot==1&&[type intValue]!=3)',source)
+        self.assertIn('([type intValue]==6&&[payload isKindOfClass:objc_getClass(\"OCFaceElement\")]',source)
+        self.assertIn('object_getClass(payload)==objc_getClass(\"OCFaceElement\")',source)
         cases=(ROOT/'tests/ui/TIMAntiRecallReplayRichCases.h').read_text()
         self.assertIn('wrongType,wrongClass,videoTypeFace',cases)
     def test_received_message_uikit_cases_are_required(self):

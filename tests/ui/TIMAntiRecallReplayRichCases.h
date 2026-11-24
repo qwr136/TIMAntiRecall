@@ -214,6 +214,10 @@ static void timantirecall_testRichReplay(UIView *root) {
     });
     timantirecall_step(^{
         QQMsgService *service=[QQMsgService getInstance];NSUInteger sent=service.timantirecall_sendCalls;
+        OCMsgElement *type6Face=timantirecall_richElement(face,@"faceElement",6);
+        record.elements=@[type6Face];NSDictionary *type6Snapshot=timantirecall_richReplaySnapshot(record);NSArray *type6Clone=timantirecall_richReplayElements(type6Snapshot);
+        timantirecall_check(type6Snapshot&&type6Clone.count==1&&[type6Clone.firstObject elementType]==6&&[type6Clone.firstObject faceElement]!=face&&[type6Clone.firstObject faceElement]&&object_getClass([type6Clone.firstObject faceElement])==OCFaceElement.class,@"type 6 is eligible only with an exact independently cloned OCFaceElement payload");
+        OCMsgElement *type6Number=timantirecall_richElement(@7,@"faceElement",6);
         OCMsgElement *unsupported=[OCMsgElement new];unsupported.elementType=999;
         OCMsgElement *wallet=[OCMsgElement new];wallet.elementType=9;wallet.walletElement=[OCWalletElement new];
         OCMsgElement *multi=timantirecall_richElement(face,@"faceElement",3);multi.textElement=timantirecall_richText(@"ambiguous dual payload");
@@ -222,7 +226,7 @@ static void timantirecall_testRichReplay(UIView *root) {
         OCMsgElement *wrongClass=timantirecall_richElement([NSObject new],@"faceElement",3);
         OCMsgElement *videoTypeFace=timantirecall_richElement(face,@"faceElement",5);
         NSArray *valid=record.elements;
-        for(OCMsgElement *bad in @[unsupported,wallet,multi,file,wrongType,wrongClass,videoTypeFace]) {
+        for(OCMsgElement *bad in @[unsupported,wallet,multi,file,wrongType,wrongClass,videoTypeFace,type6Number]) {
             record.elements=@[bad];[row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];timantirecall_updateReplayRow(row,@"self_uid");
             timantirecall_check(timantirecall_richReplaySnapshot(record)==nil && !timantirecall_testReplayCapture(row,outside,41) && !timantirecall_testReplayComplete(row,outside),@"unknown, wallet, multi-payload, file and mismatched payloads fail closed without send");
         }

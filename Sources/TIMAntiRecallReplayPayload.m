@@ -248,9 +248,10 @@ NSDictionary *timantirecall_richReplaySnapshot(id record) {
                 timantirecall_replayTrace(@"rich",@{@"reason":@"snapshot-ready",@"shape":@"photo"});
                 return @{@"mode":@"photo",@"file":file,@"subtype":subtype};
             }
-            if((slot==0&&[type intValue]!=1)||(slot==1&&[type intValue]!=3)||
+            BOOL faceType=(slot==1&&([type intValue]==3||([type intValue]==6&&[payload isKindOfClass:objc_getClass("OCFaceElement")]&&object_getClass(payload)==objc_getClass("OCFaceElement"))));
+            if((slot==0&&[type intValue]!=1)||(slot==1&&!faceType)||
                (slot==2&&[type intValue]!=11)||(slot==3&&[type intValue]!=7)) {
-                timantirecall_richRejectTrace(@"element-type-rejected",@(slots[(NSUInteger)slot]),type,@"supported-element-type");return nil;
+                timantirecall_richRejectTrace(@"element-type-rejected",@(slots[(NSUInteger)slot]),payload,@"supported-element-type");return nil;
             }
             NSDictionary *desc=timantirecall_richDescribe(payload,classes[(NSUInteger)slot],0,&budget);if(!desc)return nil;
             NSDictionary *v=desc[@"values"];
