@@ -17,7 +17,7 @@ static BOOL timantirecall_receivedQuoteTarget(NSDictionary *values) {
 static NSDictionary *timantirecall_receivedPhotoFile(id payload,NSString *sourcePath) {
     NSDictionary *file=nil;
     if([sourcePath isKindOfClass:NSString.class]&&sourcePath.length) {
-        file=timantirecall_richFileIdentity(sourcePath);if(file)return file;
+        file=timantirecall_richFileIdentityWithOrigin(sourcePath,@"record-source");if(file)return file;
     }
     // TIM 4.1.0.81 OCPicElement category: @20@0:8B16, IMP 0x104be27c4.
     // NO selects assembleRichMediaFilePathWithPathInfo, not the create/download route.
@@ -26,9 +26,14 @@ static NSDictionary *timantirecall_receivedPhotoFile(id payload,NSString *source
     if(!timantirecall_methodTypes(method,"@",3,args)) {
         timantirecall_richRejectTrace(@"photo-cache-api-unavailable",@"sourcePath",nil,@"original-path-object-bool");return nil;
     }
+    timantirecall_replayTrace(@"rich",@{@"reason":@"photo-cache-resolver-called",@"field":@"fetchOriginalImgPathWithCreateFolder",@"source":@"native-cache",@"shape":@"createFolder-no"});
     id path=((id(*)(id,SEL,BOOL))method_getImplementation(method))(payload,selector,NO);
-    file=timantirecall_richFileIdentity(path);
-    if(file)timantirecall_replayTrace(@"rich",@{@"reason":@"photo-original-cache-ready",@"shape":@"photo"});
+    NSString *resultShape=![path isKindOfClass:NSString.class]? (path?@"other-object":@"nil"):
+        ([path length]?@"string-nonempty":@"string-empty");
+    timantirecall_replayTrace(@"rich",@{@"reason":@"photo-cache-resolver-result",@"field":@"original-path",@"source":@"native-cache",@"shape":resultShape,
+        @"valueClass":path?NSStringFromClass([path class]):@"nil"});
+    file=timantirecall_richFileIdentityWithOrigin(path,@"native-cache");
+    if(file)timantirecall_replayTrace(@"rich",@{@"reason":@"photo-original-cache-ready",@"shape":@"photo",@"source":@"native-cache"});
     return file;
 }
 static BOOL timantirecall_receivedTextBody(NSDictionary *values) {

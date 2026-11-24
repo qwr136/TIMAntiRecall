@@ -4,6 +4,7 @@
 #import "TIMAntiRecallSettings.h"
 #import <CoreFoundation/CoreFoundation.h>
 #import <objc/runtime.h>
+#include <errno.h>
 #include <string.h>
 #include <math.h>
 #include <sys/stat.h>
@@ -167,7 +168,7 @@ static id timantirecall_richBuild(NSDictionary *description,NSUInteger depth) {
     return result;
 }
 
-static NSDictionary *timantirecall_richFileIdentity(NSString *path) {
+static NSDictionary *timantirecall_richFileIdentityWithOrigin(NSString *path,NSString *origin) {
     if(![path isKindOfClass:NSString.class]||path.length==0||path.length>4096||![path isAbsolutePath])
         TIMANTIRECALL_RICH_REJECT("photo-path-shape","sourcePath",path,"absolute-local-path");
     NSString *resolved=path.stringByResolvingSymlinksInPath.stringByStandardizingPath;
@@ -175,14 +176,20 @@ static NSDictionary *timantirecall_richFileIdentity(NSString *path) {
     if(![resolved hasPrefix:[home stringByAppendingString:@"/"]])
         TIMANTIRECALL_RICH_REJECT("photo-outside-sandbox","sourcePath",path,"sandbox-local-file");
     struct stat st={0};
-    if(lstat(resolved.fileSystemRepresentation,&st)!=0)
+    if(lstat(resolved.fileSystemRepresentation,&st)!=0) {
+        int errorNumber=errno;
+        if(origin)timantirecall_replayTrace(@"rich",@{@"reason":@"photo-file-lstat-failed",@"field":@"sourcePath",@"source":origin,@"errno":@(errorNumber)});
         TIMANTIRECALL_RICH_REJECT("photo-source-unavailable","sourcePath",path,"readable-regular-file");
+    }
     if(!S_ISREG(st.st_mode)||st.st_size<=0||st.st_size>24*1024*1024)
         TIMANTIRECALL_RICH_REJECT("photo-source-shape-or-size","sourcePath",path,"nonempty-file-up-to-24MiB");
     if(access(resolved.fileSystemRepresentation,R_OK)!=0)
         TIMANTIRECALL_RICH_REJECT("photo-source-unreadable","sourcePath",path,"readable-regular-file");
     return @{@"path":resolved,@"size":@(st.st_size),@"inode":@(st.st_ino),@"device":@(st.st_dev),
         @"mtime":@(st.st_mtimespec.tv_sec),@"nsec":@(st.st_mtimespec.tv_nsec)};
+}
+static NSDictionary *timantirecall_richFileIdentity(NSString *path) {
+    return timantirecall_richFileIdentityWithOrigin(path,nil);
 }
 static BOOL timantirecall_richNonzero(id value) {
     if(!value||value==NSNull.null)return NO;

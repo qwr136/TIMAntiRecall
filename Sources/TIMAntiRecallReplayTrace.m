@@ -39,8 +39,8 @@ void timantirecall_replayTrace(NSString *stage,NSDictionary *fields) {
     static NSSet *stages,*names,*numbers;static dispatch_once_t once;
     dispatch_once(&once,^{
         stages=[NSSet setWithArray:@[@"sync",@"attach",@"gate",@"text",@"rich",@"touch",@"capture",@"action",@"send",@"settings"]];
-        names=[NSSet setWithArray:@[@"reason",@"field",@"shape",@"rowClass",@"hostClass",@"contentClass",@"controllerClass",@"modelClass",@"valueClass",@"valueKind",@"expectedABI",@"actualABI"]];
-        numbers=[NSSet setWithArray:@[@"samples",@"tapCount",@"state",@"accepted",@"x",@"y",@"hw",@"hh",@"bx",@"by",@"bw",@"bh",@"elementCount",@"argumentCount"]];
+        names=[NSSet setWithArray:@[@"reason",@"field",@"shape",@"source",@"rowClass",@"hostClass",@"contentClass",@"controllerClass",@"modelClass",@"valueClass",@"valueKind",@"expectedABI",@"actualABI"]];
+        numbers=[NSSet setWithArray:@[@"samples",@"tapCount",@"state",@"accepted",@"x",@"y",@"hw",@"hh",@"bx",@"by",@"bw",@"bh",@"elementCount",@"argumentCount",@"errno"]];
     });
     if(![stages containsObject:stage])return;
     NSMutableDictionary *safe=[@{@"stage":stage,@"schema":@"replay-rich-reject-v2"} mutableCopy];

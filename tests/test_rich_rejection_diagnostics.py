@@ -34,10 +34,14 @@ class RichRejectDiagnosticTests(unittest.TestCase):
             self.assertIn(token,helper)
         for token in ('@"path":','@"content":','@"value":','description','UTF8String'):
             self.assertNotIn(token,helper)
-        for reason in ('getter-missing','getter-abi-mismatch','field-value-rejected','element-type-rejected','photo-path-shape','photo-source-unavailable','photo-invalid-flag','reply-target-zero','snapshot-ready'):
+        received=strip_comments((ROOT/'Sources/TIMAntiRecallReplayReceived.inc').read_text())
+        for reason in ('getter-missing','getter-abi-mismatch','field-value-rejected','element-type-rejected','photo-path-shape','photo-source-unavailable','photo-file-lstat-failed','photo-invalid-flag','reply-target-zero','snapshot-ready'):
             self.assertIn(reason,s)
+        for reason in ('photo-cache-resolver-called','photo-cache-resolver-result'):
+            self.assertIn(reason,received)
+        self.assertIn('timantirecall_richFileIdentityWithOrigin(sourcePath,@"record-source")',received)
         trace=(ROOT/'Sources/TIMAntiRecallReplayTrace.m').read_text()
-        for token in ('@"rich"','replay-rich-reject-v2','@"expectedABI"','@"actualABI"'):
+        for token in ('@"rich"','replay-rich-reject-v2','@"expectedABI"','@"actualABI"','@"source"','@"errno"'):
             self.assertIn(token,trace)
         self.assertIn('timantirecall_replayTraceCount>=192',trace)
         self.assertIn('repetitions>=4',trace)
