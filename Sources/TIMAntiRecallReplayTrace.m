@@ -45,7 +45,10 @@ void timantirecall_replayTrace(NSString *stage,NSDictionary *fields) {
     if(![stages containsObject:stage])return;
     NSMutableDictionary *safe=[@{@"stage":stage,@"schema":@"replay-rich-reject-v2"} mutableCopy];
     for(id key in fields) {
-        if([names containsObject:key]&&timantirecall_replayTraceToken(fields[key]))safe[key]=fields[key];
+        if([key isEqual:@"elementType"]&&[fields[key] isKindOfClass:NSNumber.class]) {
+            double value=[fields[key] doubleValue];if(isfinite(value)&&value>=0&&value<=32&&floor(value)==value)safe[key]=fields[key];
+        }
+        else if([names containsObject:key]&&timantirecall_replayTraceToken(fields[key]))safe[key]=fields[key];
         else if([numbers containsObject:key]&&[fields[key] isKindOfClass:NSNumber.class]) {
             double value=[fields[key] doubleValue];if(isfinite(value)&&fabs(value)<=100000)safe[key]=fields[key];
         }
