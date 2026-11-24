@@ -42,9 +42,10 @@ class RichRejectDiagnosticTests(unittest.TestCase):
         self.assertIn('timantirecall_replayTraceCount>=192',trace)
         self.assertIn('repetitions>=4',trace)
         self.assertNotIn('@"elementType"',trace)
+        self.assertIn('if(typeValue>=0&&typeValue<=32)event[@"elementType"]',s)
         self.assertIn('default:return @"other"',function_body(s,'timantirecall_richElementKind'))
         self.assertIn('encoding[1]==\'?\'?@"block":@"object"',function_body(s,'timantirecall_richABIKind'))
-        self.assertIn('if([timantirecall_settings() timantirecall_replayDiagnostics])\n                timantirecall_replayTrace(@"rich",@{@"reason":@"element-entered"',s)
+        self.assertIn('int32_t typeValue=[type intValue]',s)
 
     def test_diagnostic_translation_units_have_no_trailing_fragment(self):
         from source_checks import mask_literals

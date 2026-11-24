@@ -210,8 +210,11 @@ NSDictionary *timantirecall_richReplaySnapshot(id record) {
             if(![element isKindOfClass:ec])
                 TIMANTIRECALL_RICH_REJECT("element-class-rejected","element",element,"OCMsgElement");
             id type=timantirecall_richRead(element,"elementType","i",&valid);if(!valid)return nil;
-            if([timantirecall_settings() timantirecall_replayDiagnostics])
-                timantirecall_replayTrace(@"rich",@{@"reason":@"element-entered",@"shape":timantirecall_richElementKind([type intValue])});
+            int32_t typeValue=[type intValue];
+            NSMutableDictionary *event=[@{@"reason":@"element-entered",@"shape":timantirecall_richElementKind(typeValue)} mutableCopy];
+            // Enum values in the documented small range are non-user data; suppress arbitrary values.
+            if(typeValue>=0&&typeValue<=32)event[@"elementType"]=@(typeValue);
+            if([timantirecall_settings() timantirecall_replayDiagnostics])timantirecall_replayTrace(@"rich",event);
             id payload=nil;NSInteger slot=-1;
             for(NSUInteger i=0;i<sizeof(slots)/sizeof(slots[0]);i++) {
                 id item=timantirecall_richRead(element,slots[i],"@",&valid);
