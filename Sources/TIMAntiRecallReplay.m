@@ -265,7 +265,7 @@ static BOOL timantirecall_replayStartPhotoDownload(TIMAntiRecallReplayContext *s
         if(!live||!row||!NSThread.isMainThread||timantirecall_replayEpoch!=epoch||
            ![timantirecall_settings() timantirecall_messageReplay]||![owner isEqual:timantirecall_currentAccount()]||
            live.timantirecall_row!=row||live.timantirecall_boundModel!=model||![live.timantirecall_owner isEqual:owner]||
-           !row.window||![timantirecall_replayWindowActive(row.window)]||
+           !row.window||!timantirecall_replayWindowActive(row.window)||
            [TIMAntiRecallRecordBridge timantirecall_currentModelForView:row]!=model||
            [TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model]!=record||
            [TIMAntiRecallRecordBridge timantirecall_replayChatContextForController:controller]!=chatContext||
