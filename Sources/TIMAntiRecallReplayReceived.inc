@@ -27,6 +27,7 @@ static NSDictionary *timantirecall_receivedPhotoFile(id payload,NSString *source
     NSDictionary *file=nil;
     if([sourcePath isKindOfClass:NSString.class]&&sourcePath.length) {
         if(!timantirecall_receivedPhotoPathIsLocalCandidate(sourcePath)) {
+            file=timantirecall_richFileIdentityWithOrigin(sourcePath,@"record-source");
             if(allowOriginalDownload)*allowOriginalDownload=NO;
             timantirecall_replayTrace(@"rich",@{@"reason":@"photo-remote-source-rejected",@"source":@"record-source"});return nil;
         }
