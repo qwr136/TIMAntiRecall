@@ -639,6 +639,15 @@ static void timantirecall_testBottomBarGlassCases(UIView *root) {
         NSUInteger layoutBefore=bar.timantirecall_originalLayoutCalls;[bar setNeedsLayout];[bar layoutIfNeeded];
         timantirecall_check(bar.timantirecall_originalLayoutCalls==layoutBefore+1,@"glass layout wrapper forwards original exactly once");
         timantirecall_check(timantirecall_testBottomBarGlass(bar),@"root main three-tab bar receives dark glass and selected refractive lens");
+        UIWindow *glassWindow=root.window;
+        __block BOOL glassPreviewDrawn=NO;
+        UIGraphicsImageRenderer *glassRenderer=[[UIGraphicsImageRenderer alloc] initWithBounds:glassWindow.bounds];
+        UIImage *glassImage=[glassRenderer imageWithActions:^(__unused UIGraphicsImageRendererContext *context) {
+            glassPreviewDrawn=[glassWindow drawViewHierarchyInRect:glassWindow.bounds afterScreenUpdates:YES];
+        }];
+        NSData *glassPNG=UIImagePNGRepresentation(glassImage);
+        BOOL glassPreviewSaved=glassPreviewDrawn&&glassPNG.length>128&&[glassPNG writeToFile:timantirecall_document(@"tim-inline-glass-preview.png") options:NSDataWritingAtomic error:NULL];
+        timantirecall_check(glassPreviewSaved,@"UIKit renders and saves the live TIM tab glass preview");
         timantirecall_check(bar.subviews.count==5,@"glass is one noninteractive overlay and does not rebuild tab buttons");
         for(NSUInteger i=0;i<controls.count;i++) {
             UIControl *control=controls[i];UIView *item=control.superview;

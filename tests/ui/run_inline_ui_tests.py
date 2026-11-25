@@ -317,7 +317,7 @@ def run_restart(device: str, documents: Path, receipt: dict) -> None:
 
 
 def validate_previews(report: Path) -> None:
-    for name in ("tim-inline-preview.png", "tim-inline-simulator.png", "tim-inline-settings-preview.png", "tim-inline-settings-simulator.png", "tim-inline-packet-amount-preview.png", "tim-inline-packet-amount-simulator.png"):
+    for name in ("tim-inline-preview.png", "tim-inline-glass-preview.png", "tim-inline-simulator.png", "tim-inline-settings-preview.png", "tim-inline-settings-simulator.png", "tim-inline-packet-amount-preview.png", "tim-inline-packet-amount-simulator.png"):
         path = report / name
         if not path.is_file() or path.stat().st_size < 128 or path.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
             raise RuntimeError(f"Missing real UIKit/simulator screenshot: {name}")

@@ -19,6 +19,8 @@ class BottomBarGlassTests(unittest.TestCase):
         self.assertIn('TIMAntiRecallBottomBarGlassFixture.m',self.driver)
         self.assertIn('bottom-bar-liquid-glass',self.driver)
         self.assertIn('timantirecall_testBottomBarGlassCases(root)',self.ui)
+        self.assertIn('tim-inline-glass-preview.png',self.ui)
+        self.assertIn('tim-inline-glass-preview.png',self.driver)
 
     def test_hook_targets_only_the_verified_main_bar(self):
         self.assertIn('objc_getClass("QQSkinTabBar")',self.source)
