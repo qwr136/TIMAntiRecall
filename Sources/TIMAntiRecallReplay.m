@@ -253,37 +253,23 @@ static BOOL timantirecall_replaySend(id record,UIViewController *controller,NSDi
     ((void(*)(id,SEL,id,id,void(^)(void)))method_getImplementation(method))(service,selector,contact,text,nil);
     return YES; // Submitted once to the native service, NOT a delivery receipt.
 }
-static BOOL timantirecall_replayStartPhotoDownload(TIMAntiRecallReplayContext *state,id record,NSDictionary *payload,id model,NSDictionary *identity,UIViewController *controller,id chatContext,NSString *owner,UIScrollView *originalScroll,CGPoint originalOffset,CGRect originalBubble) {
-    if(!NSThread.isMainThread||!state||!record||!model||!identity||!controller||!chatContext||!owner.length||![payload[@"mode"] isEqual:@"photo-download"])return NO;
+static BOOL timantirecall_replayStartPhotoDownload(id record,NSDictionary *payload,NSDictionary *identity,UIViewController *controller,id chatContext,NSString *owner) {
+    if(!NSThread.isMainThread||!record||!identity||!controller||!chatContext||!owner.length||![payload[@"mode"] isEqual:@"photo-download"])return NO;
     id contact=timantirecall_replayContact(record,controller);if(!contact)return NO;
     Class cls=objc_getClass("QQMsgService");SEL shared=sel_registerName("getInstance");const char *args[]={"@",":"};
     Method getter=cls?class_getClassMethod(cls,shared):NULL;if(!timantirecall_methodTypes(getter,"@",2,args))return NO;
     id service=((id(*)(id,SEL))method_getImplementation(getter))(cls,shared);if(!service||![service isKindOfClass:cls])return NO;
-    __weak TIMAntiRecallReplayContext *weakState=state;__weak UIView *weakRow=state.timantirecall_row;
+    __weak UIViewController *weakController=controller;__weak UIWindow *weakWindow=controller.view.window;
     BOOL (^shouldContinue)(void)=^BOOL{
-        TIMAntiRecallReplayContext *live=weakState;UIView *row=weakRow;
-        BOOL alive=live&&row&&NSThread.isMainThread;
-        BOOL featureValid=alive&&[timantirecall_settings() timantirecall_messageReplay];
-        BOOL ownerValid=alive&&[owner isEqual:timantirecall_currentAccount()];
-        BOOL rowValid=alive&&live.timantirecall_row==row&&row.window&&timantirecall_replayWindowActive(row.window);
-        BOOL modelValid=rowValid&&live.timantirecall_boundModel==model&&[TIMAntiRecallRecordBridge timantirecall_currentModelForView:row]==model;
-        BOOL recordValid=modelValid&&[TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model]==record;
-        BOOL chatValid=rowValid&&[TIMAntiRecallRecordBridge timantirecall_replayChatContextForController:controller]==chatContext;
-        BOOL controllerValid=rowValid&&controller.isViewLoaded&&controller.view.window==row.window&&!controller.presentedViewController&&[row isDescendantOfView:controller.view];
-        BOOL stateOwnerValid=alive&&[live.timantirecall_owner isEqual:owner];
-        UIScrollView *scroll=alive?timantirecall_replayScroll(live.timantirecall_host):nil;
-        BOOL scrollValid=alive&&scroll==originalScroll&&CGPointEqualToPoint(scroll?scroll.contentOffset:CGPointZero,originalOffset);
-        NSDictionary *views=rowValid?[TIMAntiRecallRecordBridge timantirecall_replayViewsForRow:row]:nil;
-        UIView *content=views[@"content"];
-        BOOL bubbleValid=content&&content.window==row.window&&CGRectEqualToRect([content convertRect:content.bounds toView:live.timantirecall_host],originalBubble);
-        NSDictionary *currentIdentity=recordValid?timantirecall_recordIdentity(record,owner):nil;
-        BOOL identityValid=[currentIdentity isEqualToDictionary:identity];
-        BOOL contactValid=recordValid&&timantirecall_replayContact(record,controller)!=nil;
-        BOOL ok=alive&&featureValid&&ownerValid&&stateOwnerValid&&rowValid&&modelValid&&recordValid&&chatValid&&controllerValid&&scrollValid&&bubbleValid&&identityValid&&contactValid;
-#ifdef TIMANTIRECALL_UI_TEST
-        NSLog(@"TIMANTI_PHOTO_GUARD alive=%d feature=%d owner=%d row=%d model=%d record=%d chat=%d controller=%d scroll=%d bubble=%d identity=%d contact=%d",alive,featureValid,ownerValid,rowValid,modelValid,recordValid,chatValid,controllerValid,scrollValid,bubbleValid,identityValid,contactValid);
-#endif
-        return ok;
+        UIViewController *liveController=weakController;UIWindow *window=weakWindow;
+        if(!NSThread.isMainThread||!liveController||!window||
+           ![timantirecall_settings() timantirecall_messageReplay]||![owner isEqual:timantirecall_currentAccount()]||
+           ![timantirecall_replayWindowActive(window)]||!liveController.isViewLoaded||liveController.view.window!=window||
+           liveController.presentedViewController||[TIMAntiRecallRecordBridge timantirecall_replayChatContextForController:liveController]!=chatContext)return NO;
+        UIViewController *top=liveController.navigationController.topViewController;
+        if(top&&top!=liveController&&(!top.isViewLoaded||![liveController.view isDescendantOfView:top.view]))return NO;
+        NSDictionary *currentIdentity=timantirecall_recordIdentity(record,owner);
+        return [currentIdentity isEqualToDictionary:identity]&&timantirecall_replayContact(record,liveController)!=nil;
     };
     BOOL started=timantirecall_richReplaySendWithPhotoDownload(service,contact,record,payload,^(NSDictionary *file,NSNumber *subtype){
 #ifdef TIMANTIRECALL_UI_TEST
@@ -379,7 +365,7 @@ static BOOL timantirecall_replayStartPhotoDownload(TIMAntiRecallReplayContext *s
     [self timantirecall_clear];
     BOOL submitted=NO;
     if([accepted[@"mode"] isEqual:@"photo-download"])
-        submitted=timantirecall_replayStartPhotoDownload(self,acceptedRecord,accepted,model,acceptedIdentity,acceptedController,acceptedContext,acceptedOwner,acceptedScroll,acceptedOffset,acceptedBubble);
+        submitted=timantirecall_replayStartPhotoDownload(acceptedRecord,accepted,acceptedIdentity,acceptedController,acceptedContext,acceptedOwner);
     else submitted=accepted?timantirecall_replaySend(acceptedRecord,acceptedController,accepted):NO;
     timantirecall_replayTrace(@"send",@{@"reason":submitted?([accepted[@"mode"] isEqual:@"photo-download"]?@"photo-original-download-started":@"native-submit-called"):@"completed-context-or-service-rejected"});
     return submitted;

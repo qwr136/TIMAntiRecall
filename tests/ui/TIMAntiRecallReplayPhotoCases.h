@@ -87,6 +87,13 @@ static void timantirecall_testPhotoReplay(UIView *root) {
             [QQRichMediaPhotoBrowserChatImageAgent timantirecall_lastDownloadType]==2,
             @"double tap starts TIM original-image download type 2 but waits before upload");
         timantirecall_holdSteps=YES;
+        id downloadedPhotoOriginalModel=[TIMAntiRecallRecordBridge timantirecall_currentModelForView:row];
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.05*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
+            [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];
+            timantirecall_updateReplayRow(row,@"self_uid");
+            timantirecall_check([TIMAntiRecallRecordBridge timantirecall_currentModelForView:row]!=downloadedPhotoOriginalModel,
+                @"photo download progress can rebind the same message row");
+        });
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.9*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
             timantirecall_check([QQRichMediaPhotoBrowserChatImageAgent timantirecall_downloadFileExists],@"TIM original download fixture wrote the requested file");
             timantirecall_check(probe.timantirecall_calls==sentBeforeDownload+1,@"native original download triggers exactly one upload");
