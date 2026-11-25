@@ -264,7 +264,7 @@ static BOOL timantirecall_replayStartPhotoDownload(id record,NSDictionary *paylo
         UIViewController *liveController=weakController;UIWindow *window=weakWindow;
         if(!NSThread.isMainThread||!liveController||!window||
            ![timantirecall_settings() timantirecall_messageReplay]||![owner isEqual:timantirecall_currentAccount()]||
-           ![timantirecall_replayWindowActive(window)]||!liveController.isViewLoaded||liveController.view.window!=window||
+           !timantirecall_replayWindowActive(window)||!liveController.isViewLoaded||liveController.view.window!=window||
            liveController.presentedViewController||[TIMAntiRecallRecordBridge timantirecall_replayChatContextForController:liveController]!=chatContext)return NO;
         UIViewController *top=liveController.navigationController.topViewController;
         if(top&&top!=liveController&&(!top.isViewLoaded||![liveController.view isDescendantOfView:top.view]))return NO;
@@ -360,8 +360,6 @@ static BOOL timantirecall_replayStartPhotoDownload(id record,NSDictionary *paylo
     UIViewController *acceptedController=accepted?self.timantirecall_firstController:nil;
     id acceptedContext=accepted?self.timantirecall_firstChatContext:nil;
     NSString *acceptedOwner=[self.timantirecall_owner copy];
-    UIScrollView *acceptedScroll= self.timantirecall_firstScroll;
-    CGPoint acceptedOffset=self.timantirecall_firstOffset;CGRect acceptedBubble=self.timantirecall_firstBubble;
     [self timantirecall_clear];
     BOOL submitted=NO;
     if([accepted[@"mode"] isEqual:@"photo-download"])
