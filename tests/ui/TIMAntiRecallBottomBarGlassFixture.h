@@ -2,8 +2,10 @@
 #import "TIMAntiRecallBottomBarGlass.h"
 #import "TIMAntiRecallFixture.h"
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface QQTabBarController : UIViewController
-@property(nonatomic,strong) UIView *tabBarView;
+@property(nonatomic,strong) UIView * _Nullable tabBarView;
 @property(nonatomic) uint64_t tabBarIndex;
 + (instancetype)appQQTabBarController;
 @end
@@ -19,3 +21,5 @@
 @property(nonatomic,strong) UIControl *button;
 @end
 FOUNDATION_EXPORT QQTabBarController * _Nullable timantirecall_glassFakeMainTabController;
+
+NS_ASSUME_NONNULL_END
