@@ -36,11 +36,11 @@ PRODUCTION = (
     "Sources/TIMAntiRecallRuntime.m", "Sources/TIMAntiRecallColdSync.m", "Sources/TIMAntiRecallSettings.m",
     "Sources/TIMAntiRecallStorage.m", "Sources/TIMAntiRecallMarkStore.m",
     "Sources/TIMAntiRecallPreferencesUI.m", "Sources/TIMAntiRecallPreferencesEntry.m",
-    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m", "Sources/TIMAntiRecallPacketOpen.m", "Sources/TIMAntiRecallPacketWallet.m", "Sources/TIMAntiRecallPacketToast.m", "Sources/TIMAntiRecallPacketSilent.m", "Sources/TIMAntiRecallReplay.m", "Sources/TIMAntiRecallReplayPayload.m", "Sources/TIMAntiRecallReplayTrace.m",
+    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m", "Sources/TIMAntiRecallPacketOpen.m", "Sources/TIMAntiRecallPacketWallet.m", "Sources/TIMAntiRecallPacketToast.m", "Sources/TIMAntiRecallPacketSilent.m", "Sources/TIMAntiRecallReplay.m", "Sources/TIMAntiRecallReplayPayload.m", "Sources/TIMAntiRecallReplayTrace.m", "Sources/TIMAntiRecallBottomBarGlass.m",
 )
 SWIFT = ("Sources/TIMAntiRecallRecordBridge.swift",
          "tests/ui/TIMAntiRecallSwiftFixture.swift")
-FIXTURES = ("TIMAntiRecallFixture.m", "TIMAntiRecallReplayRichFixture.m", "TIMAntiRecallReplayPhotoFixture.m", "TIMAntiRecallReplayVideoFixture.m", "TIMAntiRecallInlineUIKitTests.m")
+FIXTURES = ("TIMAntiRecallFixture.m", "TIMAntiRecallReplayRichFixture.m", "TIMAntiRecallReplayPhotoFixture.m", "TIMAntiRecallReplayVideoFixture.m", "TIMAntiRecallBottomBarGlassFixture.m", "TIMAntiRecallInlineUIKitTests.m")
 FRAMEWORKS = ("Foundation", "UIKit", "QuartzCore")
 REQUIRED_COVERAGE = {
     "photo-contact-absence-contract", "photo-send-rejection-diagnostics", "video-native-forward-replay", "video-native-forward-guards",
@@ -60,6 +60,7 @@ REQUIRED_COVERAGE = {
     "packet-offscreen-on-settings", "packet-native-slot-series", "packet-no-detail",
     "packet-amount-native-success", "packet-amount-validation", "packet-amount-center-touch",
     "packet-amount-three-seconds", "packet-amount-refresh", "packet-amount-lifecycle", "message-replay", "message-replay-outside", "message-replay-native-contact", "message-replay-reuse-scroll",
+    "bottom-bar-liquid-glass",
 }
 COMMANDS: list[list[str]] = []
 TRANSCRIPT: list[str] = []

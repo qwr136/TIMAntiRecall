@@ -5,6 +5,7 @@
 #import "TIMAntiRecallPreferencesEntry.h"
 #import "TIMAntiRecallPacket.h"
 #import "TIMAntiRecallReplay.h"
+#import "TIMAntiRecallBottomBarGlass.h"
 #import <mach-o/dyld.h>
 #import <crt_externs.h>
 #import <mach-o/loader.h>
@@ -27,7 +28,8 @@ static void timantirecall_attemptUIInstall(unsigned attempt) {
     BOOL installed=timantirecall_installInlineIndicator();
     BOOL preferences=timantirecall_installPreferences();
     BOOL replay=timantirecall_installMessageReplay();
-    if((installed && preferences && replay) || attempt>=10)return;
+    BOOL glass=timantirecall_installBottomBarGlass();
+    if((installed && preferences && replay && glass) || attempt>=10)return;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(),^{
         timantirecall_attemptUIInstall(attempt+1);
     });

@@ -1,5 +1,6 @@
 #import <UIKit/UIKit.h>
 #import <QuartzCore/QuartzCore.h>
+#import <math.h>
 #import "TIMAntiRecallFixture.h"
 #import "TIMAntiRecallMarks.h"
 #import "TIMAntiRecallColdSync.h"
@@ -7,6 +8,8 @@
 #import "TIMAntiRecallSettings.h"
 #import "TIMAntiRecallWire.h"
 #import "TIMAntiRecallIndicatorView.h"
+#import "TIMAntiRecallBottomBarGlass.h"
+#import "TIMAntiRecallBottomBarGlassFixture.h"
 #import "TIMAntiRecallBootstrap.h"
 #import "TIMAntiRecall-Swift.h"
 
@@ -621,6 +624,42 @@ static void timantirecall_capturePreview(void) {
     timantirecall_check(timantirecall_previewWritten,@"real drawViewHierarchy preview saved successfully");
 }
 
+static void timantirecall_testBottomBarGlassCases(UIView *root) {
+    timantirecall_step(^{
+        timantirecall_check(timantirecall_installBottomBarGlass(),@"glass hook installs only against exact checked QQSkinTabBar ABI");
+        QQTabBarController *controller=[QQTabBarController new];
+        QQSkinTabBar *bar=[[QQSkinTabBar alloc] initWithFrame:CGRectMake(0,root.bounds.size.height-92,root.bounds.size.width,92)];
+        controller.tabBarView=bar;controller.tabBarIndex=1;timantirecall_glassFakeMainTabController=controller;
+        [root addSubview:bar];
+        NSMutableArray *controls=[NSMutableArray array],*frames=[NSMutableArray array];CGFloat width=CGRectGetWidth(bar.bounds)/3.0;
+        for(int64_t i=0;i<3;i++) {
+            QQToolBarRootView *item=[[QQToolBarRootView alloc] initWithFrame:CGRectMake(i*width,0,width,57)];item.iShowingIndex=i;
+            [bar.barItemDic setObject:item forKey:@(i)];[bar addSubview:item];[controls addObject:item.button];[frames addObject:[NSValue valueWithCGRect:item.frame]];
+        }
+        NSUInteger layoutBefore=bar.timantirecall_originalLayoutCalls;[bar setNeedsLayout];[bar layoutIfNeeded];
+        timantirecall_check(bar.timantirecall_originalLayoutCalls==layoutBefore+1,@"glass layout wrapper forwards original exactly once");
+        timantirecall_check(timantirecall_testBottomBarGlass(bar),@"root main three-tab bar receives dark glass and selected refractive lens");
+        timantirecall_check(bar.subviews.count==5,@"glass is one noninteractive overlay and does not rebuild tab buttons");
+        for(NSUInteger i=0;i<controls.count;i++) {
+            UIControl *control=controls[i];UIView *item=control.superview;
+            timantirecall_check(CGRectEqualToRect(item.frame,[frames[i] CGRectValue]),@"glass leaves original tab-item frames unchanged");
+            CGPoint p=[control convertPoint:CGPointMake(control.bounds.size.width/2,control.bounds.size.height/2) toView:bar];
+            timantirecall_check([bar hitTest:p withEvent:nil]==control,@"glass overlay preserves original tab touch target");
+        }
+        CGRect firstLens=timantirecall_testBottomBarGlassLensFrame(bar);
+        [bar setTabBarSelectedAtIndex:2];
+        timantirecall_check(bar.timantirecall_selectionCalls==1&&controller.tabBarIndex==2&&timantirecall_testBottomBarGlass(bar),@"selection forwards native handler, preserves index and updates lens");
+        CGRect secondLens=timantirecall_testBottomBarGlassLensFrame(bar);
+        timantirecall_check(!CGRectEqualToRect(firstLens,secondLens),@"selected liquid lens follows the selected tab");
+        timantirecall_check(fabs(CGRectGetMidX(secondLens)-CGRectGetMidX([frames[2] CGRectValue]))<0.5,@"edge-tab lens stays centered on its actual item");
+        QQSkinTabBar *unrelated=[[QQSkinTabBar alloc] initWithFrame:CGRectMake(0,0,root.bounds.size.width,64)];[root addSubview:unrelated];
+        [unrelated setNeedsLayout];[unrelated layoutIfNeeded];
+        timantirecall_check(!timantirecall_testBottomBarGlass(unrelated),@"unrelated QQSkinTabBar instances remain untouched");
+        [unrelated removeFromSuperview];[bar removeFromSuperview];timantirecall_glassFakeMainTabController=nil;controller.tabBarView=nil;
+        [timantirecall_coverage addObject:@"bottom-bar-liquid-glass"];
+    });
+}
+
 #import "TIMAntiRecallRestartCases.h"
 #import "TIMAntiRecallReplayTouchHost.h"
 
@@ -645,6 +684,7 @@ static void timantirecall_start(void) {
         timantirecall_check(timantirecall_installInlineIndicator(),@"production inline hook installation idempotent");
         timantirecall_testSwiftAndSession();
         UIView *root=timantirecall_window.rootViewController.view;
+        timantirecall_testBottomBarGlassCases(root);
         timantirecall_testBindAndPrivate(root);
         timantirecall_testGroup(root);
         timantirecall_testCurrentBinding(root);
