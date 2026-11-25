@@ -262,20 +262,29 @@ static BOOL timantirecall_replayStartPhotoDownload(TIMAntiRecallReplayContext *s
     __weak TIMAntiRecallReplayContext *weakState=state;__weak UIView *weakRow=state.timantirecall_row;
     BOOL (^shouldContinue)(void)=^BOOL{
         TIMAntiRecallReplayContext *live=weakState;UIView *row=weakRow;
-        if(!live||!row||!NSThread.isMainThread||timantirecall_replayEpoch!=epoch||
-           ![timantirecall_settings() timantirecall_messageReplay]||![owner isEqual:timantirecall_currentAccount()]||
-           live.timantirecall_row!=row||live.timantirecall_boundModel!=model||![live.timantirecall_owner isEqual:owner]||
-           !row.window||!timantirecall_replayWindowActive(row.window)||
-           [TIMAntiRecallRecordBridge timantirecall_currentModelForView:row]!=model||
-           [TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model]!=record||
-           [TIMAntiRecallRecordBridge timantirecall_replayChatContextForController:controller]!=chatContext||
-           !controller.isViewLoaded||controller.view.window!=row.window||controller.presentedViewController||![row isDescendantOfView:controller.view])return NO;
-        UIScrollView *scroll=timantirecall_replayScroll(live.timantirecall_host);
-        if(scroll!=originalScroll||!CGPointEqualToPoint(scroll?scroll.contentOffset:CGPointZero,originalOffset))return NO;
-        UIView *content=[TIMAntiRecallRecordBridge timantirecall_replayViewsForRow:row][@"content"];
-        if(!content||content.window!=row.window||!CGRectEqualToRect([content convertRect:content.bounds toView:live.timantirecall_host],originalBubble))return NO;
-        NSDictionary *currentIdentity=timantirecall_recordIdentity(record,owner);
-        return [currentIdentity isEqualToDictionary:identity]&&timantirecall_replayContact(record,controller)!=nil;
+        BOOL alive=live&&row&&NSThread.isMainThread;
+        BOOL epochValid=alive&&timantirecall_replayEpoch==epoch;
+        BOOL featureValid=alive&&[timantirecall_settings() timantirecall_messageReplay];
+        BOOL ownerValid=alive&&[owner isEqual:timantirecall_currentAccount()];
+        BOOL rowValid=alive&&live.timantirecall_row==row&&row.window&&timantirecall_replayWindowActive(row.window);
+        BOOL modelValid=rowValid&&live.timantirecall_boundModel==model&&[TIMAntiRecallRecordBridge timantirecall_currentModelForView:row]==model;
+        BOOL recordValid=modelValid&&[TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model]==record;
+        BOOL chatValid=rowValid&&[TIMAntiRecallRecordBridge timantirecall_replayChatContextForController:controller]==chatContext;
+        BOOL controllerValid=rowValid&&controller.isViewLoaded&&controller.view.window==row.window&&!controller.presentedViewController&&[row isDescendantOfView:controller.view];
+        BOOL stateOwnerValid=alive&&[live.timantirecall_owner isEqual:owner];
+        UIScrollView *scroll=alive?timantirecall_replayScroll(live.timantirecall_host):nil;
+        BOOL scrollValid=alive&&scroll==originalScroll&&CGPointEqualToPoint(scroll?scroll.contentOffset:CGPointZero,originalOffset);
+        NSDictionary *views=rowValid?[TIMAntiRecallRecordBridge timantirecall_replayViewsForRow:row]:nil;
+        UIView *content=views[@"content"];
+        BOOL bubbleValid=content&&content.window==row.window&&CGRectEqualToRect([content convertRect:content.bounds toView:live.timantirecall_host],originalBubble);
+        NSDictionary *currentIdentity=recordValid?timantirecall_recordIdentity(record,owner):nil;
+        BOOL identityValid=[currentIdentity isEqualToDictionary:identity];
+        BOOL contactValid=recordValid&&timantirecall_replayContact(record,controller)!=nil;
+        BOOL ok=alive&&epochValid&&featureValid&&ownerValid&&stateOwnerValid&&rowValid&&modelValid&&recordValid&&chatValid&&controllerValid&&scrollValid&&bubbleValid&&identityValid&&contactValid;
+#ifdef TIMANTIRECALL_UI_TEST
+        NSLog(@"TIMANTI_PHOTO_GUARD alive=%d epoch=%d feature=%d owner=%d row=%d model=%d record=%d chat=%d controller=%d scroll=%d bubble=%d identity=%d contact=%d",alive,epochValid,featureValid,ownerValid,rowValid,modelValid,recordValid,chatValid,controllerValid,scrollValid,bubbleValid,identityValid,contactValid);
+#endif
+        return ok;
     };
     BOOL started=timantirecall_richReplaySendWithPhotoDownload(service,contact,record,payload,^(NSDictionary *file,NSNumber *subtype){
 #ifdef TIMANTIRECALL_UI_TEST
