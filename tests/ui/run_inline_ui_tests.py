@@ -36,11 +36,11 @@ PRODUCTION = (
     "Sources/TIMAntiRecallRuntime.m", "Sources/TIMAntiRecallColdSync.m", "Sources/TIMAntiRecallSettings.m",
     "Sources/TIMAntiRecallStorage.m", "Sources/TIMAntiRecallMarkStore.m",
     "Sources/TIMAntiRecallPreferencesUI.m", "Sources/TIMAntiRecallPreferencesEntry.m",
-    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m", "Sources/TIMAntiRecallPacketOpen.m", "Sources/TIMAntiRecallPacketWallet.m", "Sources/TIMAntiRecallPacketToast.m", "Sources/TIMAntiRecallPacketSilent.m", "Sources/TIMAntiRecallReplay.m", "Sources/TIMAntiRecallReplayPayload.m", "Sources/TIMAntiRecallReplayTrace.m", "Sources/TIMAntiRecallBottomBarGlass.m",
+    "Sources/TIMAntiRecallPacket.m", "Sources/TIMAntiRecallTrace.m", "Sources/TIMAntiRecallPacketOpen.m", "Sources/TIMAntiRecallPacketWallet.m", "Sources/TIMAntiRecallPacketToast.m", "Sources/TIMAntiRecallPacketSilent.m", "Sources/TIMAntiRecallReplay.m", "Sources/TIMAntiRecallReplayPayload.m", "Sources/TIMAntiRecallReplayTrace.m",
 )
 SWIFT = ("Sources/TIMAntiRecallRecordBridge.swift",
          "tests/ui/TIMAntiRecallSwiftFixture.swift")
-FIXTURES = ("TIMAntiRecallFixture.m", "TIMAntiRecallReplayRichFixture.m", "TIMAntiRecallReplayPhotoFixture.m", "TIMAntiRecallReplayVideoFixture.m", "TIMAntiRecallBottomBarGlassFixture.m", "TIMAntiRecallInlineUIKitTests.m")
+FIXTURES = ("TIMAntiRecallFixture.m", "TIMAntiRecallReplayRichFixture.m", "TIMAntiRecallReplayPhotoFixture.m", "TIMAntiRecallReplayVideoFixture.m", "TIMAntiRecallInlineUIKitTests.m")
 FRAMEWORKS = ("Foundation", "UIKit", "QuartzCore")
 REQUIRED_COVERAGE = {
     "photo-contact-absence-contract", "photo-send-rejection-diagnostics", "video-native-forward-replay", "video-native-forward-guards",
@@ -60,7 +60,6 @@ REQUIRED_COVERAGE = {
     "packet-offscreen-on-settings", "packet-native-slot-series", "packet-no-detail",
     "packet-amount-native-success", "packet-amount-validation", "packet-amount-center-touch",
     "packet-amount-three-seconds", "packet-amount-refresh", "packet-amount-lifecycle", "message-replay", "message-replay-outside", "message-replay-native-contact", "message-replay-reuse-scroll",
-    "bottom-bar-liquid-glass",
 }
 COMMANDS: list[list[str]] = []
 TRANSCRIPT: list[str] = []
@@ -317,7 +316,7 @@ def run_restart(device: str, documents: Path, receipt: dict) -> None:
 
 
 def validate_previews(report: Path) -> None:
-    for name in ("tim-inline-preview.png", "tim-inline-glass-preview.png", "tim-inline-simulator.png", "tim-inline-settings-preview.png", "tim-inline-settings-simulator.png", "tim-inline-packet-amount-preview.png", "tim-inline-packet-amount-simulator.png"):
+    for name in ("tim-inline-preview.png", "tim-inline-simulator.png", "tim-inline-settings-preview.png", "tim-inline-settings-simulator.png", "tim-inline-packet-amount-preview.png", "tim-inline-packet-amount-simulator.png"):
         path = report / name
         if not path.is_file() or path.stat().st_size < 128 or path.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
             raise RuntimeError(f"Missing real UIKit/simulator screenshot: {name}")

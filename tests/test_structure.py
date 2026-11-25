@@ -17,7 +17,7 @@ class StructureTests(unittest.TestCase):
     def test_required_product_inputs(self):
         required=['Headers/TIMAntiRecallRuntime.h','Headers/TIMAntiRecallWire.h',
             'Sources/TIMAntiRecallRuntime.m','Sources/TIMAntiRecallWire.m',
-            'Sources/TIMAntiRecallDiagnostics.m','Sources/TIMAntiRecallBottomBarGlass.m','Hooks/TIMAntiRecallMain.m',
+            'Sources/TIMAntiRecallDiagnostics.m','Hooks/TIMAntiRecallMain.m',
             'tests/native/TIMAntiRecallRuntimeTests.m']
         for name in required: self.assertTrue((ROOT/name).is_file(),name)
 
