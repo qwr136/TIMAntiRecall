@@ -379,7 +379,7 @@ static BOOL timantirecall_replayStartPhotoDownload(TIMAntiRecallReplayContext *s
     [self timantirecall_clear];
     BOOL submitted=NO;
     if([accepted[@"mode"] isEqual:@"photo-download"])
-        BOOL submitted=timantirecall_replayStartPhotoDownload(self,acceptedRecord,accepted,model,acceptedIdentity,acceptedController,acceptedContext,acceptedOwner,acceptedScroll,acceptedOffset,acceptedBubble);
+        submitted=timantirecall_replayStartPhotoDownload(self,acceptedRecord,accepted,model,acceptedIdentity,acceptedController,acceptedContext,acceptedOwner,acceptedScroll,acceptedOffset,acceptedBubble);
     else submitted=accepted?timantirecall_replaySend(acceptedRecord,acceptedController,accepted):NO;
     timantirecall_replayTrace(@"send",@{@"reason":submitted?([accepted[@"mode"] isEqual:@"photo-download"]?@"photo-original-download-started":@"native-submit-called"):@"completed-context-or-service-rejected"});
     return submitted;
