@@ -634,7 +634,7 @@ static void timantirecall_testBottomBarGlassCases(UIView *root) {
         NSMutableArray *controls=[NSMutableArray array],*frames=[NSMutableArray array];CGFloat width=CGRectGetWidth(bar.bounds)/3.0;
         for(int64_t i=0;i<3;i++) {
             QQToolBarRootView *item=[[QQToolBarRootView alloc] initWithFrame:CGRectMake(i*width,0,width,57)];item.iShowingIndex=i;
-            [bar.barItemDic setObject:item forKey:@(i)];[bar addSubview:item];[controls addObject:item.button];[frames addObject:[NSValue valueWithCGRect:item.frame]];
+            [bar.barItemDic setObject:item forKey:@(i)];[bar addSubview:item];[item timantirecall_applyFixtureSelected:i==1];[controls addObject:item.button];[frames addObject:[NSValue valueWithCGRect:item.frame]];
         }
         NSUInteger layoutBefore=bar.timantirecall_originalLayoutCalls;[bar setNeedsLayout];[bar layoutIfNeeded];
         timantirecall_check(bar.timantirecall_originalLayoutCalls==layoutBefore+1,@"glass layout wrapper forwards original exactly once");
@@ -649,6 +649,11 @@ static void timantirecall_testBottomBarGlassCases(UIView *root) {
         BOOL glassPreviewSaved=glassPreviewDrawn&&glassPNG.length>128&&[glassPNG writeToFile:timantirecall_document(@"tim-inline-glass-preview.png") options:NSDataWritingAtomic error:NULL];
         timantirecall_check(glassPreviewSaved,@"UIKit renders and saves the live TIM tab glass preview");
         timantirecall_check(bar.subviews.count==5,@"glass is one noninteractive overlay and does not rebuild tab buttons");
+        for(NSUInteger i=0;i<controls.count;i++) {
+            QQToolBarRootView *item=bar.barItemDic[@(i)];
+            timantirecall_check(item.timantirecall_fixtureIcon.image!=nil&&item.timantirecall_fixtureTitle.text.length>0,@"glass preserves existing Tab icon and label");
+            if(i<2)timantirecall_check(item.timantirecall_fixtureBadge.superview!=nil,@"glass leaves original unread badge visible");
+        }
         for(NSUInteger i=0;i<controls.count;i++) {
             UIControl *control=controls[i];UIView *item=control.superview;
             timantirecall_check(CGRectEqualToRect(item.frame,[frames[i] CGRectValue]),@"glass leaves original tab-item frames unchanged");

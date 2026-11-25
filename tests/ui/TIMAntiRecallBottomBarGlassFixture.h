@@ -19,6 +19,10 @@ NS_ASSUME_NONNULL_BEGIN
 @interface QQToolBarRootView : UIView
 @property(nonatomic) int64_t iShowingIndex;
 @property(nonatomic,strong) UIControl *button;
+@property(nonatomic,strong) UIImageView *timantirecall_fixtureIcon;
+@property(nonatomic,strong) UILabel *timantirecall_fixtureTitle;
+@property(nonatomic,strong) UILabel *timantirecall_fixtureBadge;
+- (void)timantirecall_applyFixtureSelected:(BOOL)selected;
 @end
 FOUNDATION_EXPORT QQTabBarController * _Nullable timantirecall_glassFakeMainTabController;
 
