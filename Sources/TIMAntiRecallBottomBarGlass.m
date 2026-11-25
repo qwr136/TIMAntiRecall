@@ -1,6 +1,6 @@
 #import "TIMAntiRecallBottomBarGlass.h"
 #if defined(TIMANTIRECALL_NATIVE_TEST)
-typedef int TIMAntiRecallBottomBarGlassNativeTestTranslationUnit;
+BOOL timantirecall_installBottomBarGlass(void) { return YES; }
 #else
 #import "TIMAntiRecallMarks.h"
 #import <UIKit/UIKit.h>
