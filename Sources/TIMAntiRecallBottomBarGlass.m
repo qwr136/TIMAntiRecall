@@ -4,6 +4,7 @@ BOOL timantirecall_installBottomBarGlass(void) { return YES; }
 #else
 #import "TIMAntiRecallMarks.h"
 #import <UIKit/UIKit.h>
+#import <UIKit/UIAccessibility.h>
 #import <QuartzCore/QuartzCore.h>
 #import <objc/runtime.h>
 #include <math.h>
@@ -121,11 +122,12 @@ static UIView *timantirecall_bottomBarDirectChild(UIView *view,UIView *container
 static NSArray<NSDictionary *> *timantirecall_bottomBarItems(UIView *bar) {
     Class rootClass=objc_getClass("QQToolBarRootView");if(!rootClass||![bar isKindOfClass:UIView.class])return nil;
     IMP getter=timantirecall_bottomBarGetter(bar,"barItemDic","@");if(!getter)return nil;
-    id dictionary=((id(*)(id,SEL))getter)(bar,sel_registerName("barItemDic"));
+    NSDictionary *dictionary=((id(*)(id,SEL))getter)(bar,sel_registerName("barItemDic"));
     if(![dictionary isKindOfClass:NSDictionary.class]||dictionary.count<2||dictionary.count>8)return nil;
     NSMutableArray *items=[NSMutableArray array];NSMutableSet *indexes=[NSMutableSet set];
-    for(id candidate in [dictionary allValues]) {
-        if(![candidate isKindOfClass:rootClass]||![candidate isKindOfClass:UIView.class])return nil;
+    for(id candidateObject in dictionary.allValues) {
+        if(![candidateObject isKindOfClass:rootClass]||![candidateObject isKindOfClass:UIView.class])return nil;
+        UIView *candidate=(UIView *)candidateObject;
         IMP indexGetter=timantirecall_bottomBarGetter(candidate,"iShowingIndex","q");if(!indexGetter)return nil;
         int64_t index=((int64_t(*)(id,SEL))indexGetter)(candidate,sel_registerName("iShowingIndex"));
         if(index<0||index>7||[indexes containsObject:@(index)])return nil;
