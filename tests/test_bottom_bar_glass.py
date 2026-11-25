@@ -45,7 +45,7 @@ class BottomBarGlassTests(unittest.TestCase):
         self.assertIn('UIBlurEffectStyleSystemUltraThinMaterialDark',self.source)
         self.assertIn('UIBlurEffectStyleSystemUltraThinMaterialLight',self.source)
         self.assertIn('timantirecall_layoutGlass:pill selectedLens:lens animate:animate',self.source)
-        self.assertIn('UIAccessibility isReduceMotionEnabled',self.source)
+        self.assertIn('UIAccessibilityIsReduceMotionEnabled()',self.source)
         self.assertIn('UIAccessibilityReduceMotionStatusDidChangeNotification',self.source)
         self.assertIn('removeAnimationForKey:@"timantirecall_sweep"',self.source)
         self.assertNotIn('bar.backgroundColor=',self.source)

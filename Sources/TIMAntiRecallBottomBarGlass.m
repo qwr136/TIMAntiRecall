@@ -72,7 +72,7 @@ static BOOL timantirecall_bottomBarInstalled;
 - (void)timantirecall_reduceMotionChanged:(NSNotification *)notification {
     (void)notification;
     void (^disableMotion)(void)=^{
-        if(![UIAccessibility isReduceMotionEnabled])return;
+        if(!UIAccessibilityIsReduceMotionEnabled())return;
         [self.layer removeAllAnimations];[self.timantirecall_surface.layer removeAllAnimations];
         [self.timantirecall_lens.layer removeAllAnimations];
         [self.timantirecall_sheen removeAnimationForKey:@"timantirecall_sweep"];
@@ -91,11 +91,11 @@ static BOOL timantirecall_bottomBarInstalled;
         self.timantirecall_lensTint.frame=self.timantirecall_lens.contentView.bounds;
         self.timantirecall_sheen.frame=CGRectMake(-CGRectGetWidth(lens)*0.35,0,CGRectGetWidth(lens)*0.7,CGRectGetHeight(lens));
     };
-    if(animate&&move&&self.window&&![UIAccessibility isReduceMotionEnabled])
+    if(animate&&move&&self.window&&!UIAccessibilityIsReduceMotionEnabled())
         [UIView animateWithDuration:0.30 delay:0 usingSpringWithDamping:0.82 initialSpringVelocity:0.16 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionCurveEaseOut animations:apply completion:nil];
     else apply();
     _timantirecall_lastPill=pill;_timantirecall_lastLens=lens;
-    if(move&&![UIAccessibility isReduceMotionEnabled]&&![_timantirecall_sheen animationForKey:@"timantirecall_sweep"]) {
+    if(move&&!UIAccessibilityIsReduceMotionEnabled()&&![_timantirecall_sheen animationForKey:@"timantirecall_sweep"]) {
         CABasicAnimation *sweep=[CABasicAnimation animationWithKeyPath:@"position.x"];
         sweep.fromValue=@(-CGRectGetWidth(lens)*0.35);sweep.toValue=@(CGRectGetWidth(lens)*1.35);
         sweep.duration=2.6;sweep.repeatCount=HUGE_VALF;sweep.removedOnCompletion=YES;
