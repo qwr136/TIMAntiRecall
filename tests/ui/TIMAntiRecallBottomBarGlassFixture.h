@@ -21,7 +21,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic,strong) UIControl *button;
 @property(nonatomic,strong) UIImageView *timantirecall_fixtureIcon;
 @property(nonatomic,strong) UILabel *timantirecall_fixtureTitle;
-@property(nonatomic,strong) UILabel *timantirecall_fixtureBadge;
+@property(nonatomic,strong) UILabel * _Nullable timantirecall_fixtureBadge;
 - (void)timantirecall_applyFixtureSelected:(BOOL)selected;
 @end
 FOUNDATION_EXPORT QQTabBarController * _Nullable timantirecall_glassFakeMainTabController;
