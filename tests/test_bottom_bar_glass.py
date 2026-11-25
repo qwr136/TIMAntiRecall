@@ -51,6 +51,10 @@ class BottomBarGlassTests(unittest.TestCase):
         self.assertNotIn('bar.backgroundColor=',self.source)
         self.assertIn('timantirecall_testBottomBarGlassLensFrame',self.source)
 
+    def test_native_foundation_target_excludes_uikit_translation_unit(self):
+        self.assertLess(self.source.index('#if defined(TIMANTIRECALL_NATIVE_TEST)'),self.source.index('#import <UIKit/UIKit.h>'))
+        self.assertIn('TIMAntiRecallBottomBarGlassNativeTestTranslationUnit',self.source)
+
     def test_hook_retries_without_blocking_existing_installations(self):
         self.assertIn('BOOL glass=timantirecall_installBottomBarGlass()',self.main)
         self.assertIn('dispatch_after',self.main)

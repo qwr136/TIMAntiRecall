@@ -1,4 +1,7 @@
 #import "TIMAntiRecallBottomBarGlass.h"
+#if defined(TIMANTIRECALL_NATIVE_TEST)
+typedef int TIMAntiRecallBottomBarGlassNativeTestTranslationUnit;
+#else
 #import "TIMAntiRecallMarks.h"
 #import <UIKit/UIKit.h>
 #import <QuartzCore/QuartzCore.h>
@@ -256,4 +259,5 @@ CGRect timantirecall_testBottomBarGlassLensFrame(UIView *bar) {
     TIMAntiRecallBottomBarGlassOverlay *overlay=objc_getAssociatedObject(bar,&timantirecall_bottomBarOverlayKey);
     return overlay?overlay.timantirecall_lastLens:CGRectZero;
 }
+#endif
 #endif
