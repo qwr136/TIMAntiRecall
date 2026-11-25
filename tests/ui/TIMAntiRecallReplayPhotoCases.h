@@ -88,8 +88,9 @@ static void timantirecall_testPhotoReplay(UIView *root) {
             @"double tap starts TIM original-image download type 2 but waits before upload");
         timantirecall_holdSteps=YES;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.9*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
-            timantirecall_check(probe.timantirecall_calls==sentBeforeDownload+1&&[probe.timantirecall_bytes isEqual:original]&&
-                ![probe.timantirecall_path isEqual:path],@"validated original download completes once then uploads exact original bytes");
+            timantirecall_check([QQRichMediaPhotoBrowserChatImageAgent timantirecall_downloadFileExists],@"TIM original download fixture wrote the requested file");
+            timantirecall_check(probe.timantirecall_calls==sentBeforeDownload+1,@"native original download triggers exactly one upload");
+            timantirecall_check([probe.timantirecall_bytes isEqual:original]&&![probe.timantirecall_path isEqual:path],@"uploaded bytes come from the completed original, not the received path");
             if(probe.timantirecall_completion){probe.timantirecall_completion(0,@"fixture");probe.timantirecall_completion=nil;}
             timantirecall_check(probe.timantirecall_calls==sentBeforeDownload+1,@"download completion cannot submit a duplicate photo");
             [timantirecall_coverage addObject:@"received-original-cache-replay"];

@@ -14,9 +14,22 @@ static BOOL timantirecall_receivedQuoteTarget(NSDictionary *values) {
     // TIM's locked native VM queries by current peer + sequence. Preserve zero ID and every source field.
     return number>0&&[sequence isEqualToNumber:@(number)];
 }
-static NSDictionary *timantirecall_receivedPhotoFile(id payload,NSString *sourcePath) {
+static BOOL timantirecall_receivedPhotoPathIsLocalCandidate(NSString *path) {
+    if(![path isKindOfClass:NSString.class]||path.length==0)return YES;
+    NSURLComponents *components=[NSURLComponents componentsWithString:path];
+    if(components.scheme.length||![path isAbsolutePath])return NO;
+    NSString *resolved=path.stringByResolvingSymlinksInPath.stringByStandardizingPath;
+    NSString *home=NSHomeDirectory().stringByResolvingSymlinksInPath.stringByStandardizingPath;
+    return [resolved hasPrefix:[home stringByAppendingString:@"/"]];
+}
+static NSDictionary *timantirecall_receivedPhotoFile(id payload,NSString *sourcePath,BOOL *allowOriginalDownload) {
+    if(allowOriginalDownload)*allowOriginalDownload=YES;
     NSDictionary *file=nil;
     if([sourcePath isKindOfClass:NSString.class]&&sourcePath.length) {
+        if(!timantirecall_receivedPhotoPathIsLocalCandidate(sourcePath)) {
+            if(allowOriginalDownload)*allowOriginalDownload=NO;
+            timantirecall_replayTrace(@"rich",@{@"reason":@"photo-remote-source-rejected",@"source":@"record-source"});return nil;
+        }
         file=timantirecall_richFileIdentityWithOrigin(sourcePath,@"record-source");if(file)return file;
     }
     // TIM 4.1.0.81 OCPicElement category: @20@0:8B16, IMP 0x104be27c4.
@@ -24,6 +37,7 @@ static NSDictionary *timantirecall_receivedPhotoFile(id payload,NSString *source
     SEL selector=sel_registerName("fetchOriginalImgPathWithCreateFolder:");
     Method method=class_getInstanceMethod(object_getClass(payload),selector);const char *args[]={"@",":","B"};
     if(!timantirecall_methodTypes(method,"@",3,args)) {
+        if(allowOriginalDownload)*allowOriginalDownload=NO;
         timantirecall_richRejectTrace(@"photo-cache-api-unavailable",@"sourcePath",nil,@"original-path-object-bool");return nil;
     }
     timantirecall_replayTrace(@"rich",@{@"reason":@"photo-cache-resolver-called",@"field":@"fetchOriginalImgPathWithCreateFolder",@"source":@"native-cache",@"shape":@"createFolder-no"});
@@ -32,6 +46,10 @@ static NSDictionary *timantirecall_receivedPhotoFile(id payload,NSString *source
         ([path length]?@"string-nonempty":@"string-empty");
     timantirecall_replayTrace(@"rich",@{@"reason":@"photo-cache-resolver-result",@"field":@"original-path",@"source":@"native-cache",@"shape":resultShape,
         @"valueClass":path?NSStringFromClass([path class]):@"nil"});
+    if(path&&(![path isKindOfClass:NSString.class]||([path length]&&!timantirecall_receivedPhotoPathIsLocalCandidate(path)))) {
+        if(allowOriginalDownload)*allowOriginalDownload=NO;
+        timantirecall_replayTrace(@"rich",@{@"reason":@"photo-remote-cache-rejected",@"source":@"native-cache"});return nil;
+    }
     file=timantirecall_richFileIdentityWithOrigin(path,@"native-cache");
     if(file)timantirecall_replayTrace(@"rich",@{@"reason":@"photo-original-cache-ready",@"shape":@"photo",@"source":@"native-cache"});
     return file;
@@ -83,6 +101,9 @@ static char timantirecall_photoDownloadJobKey;
     }
     BOOL valid=NO;id path=timantirecall_richRead(self.timantirecall_agent,"originalImagePath","@",&valid);
     NSDictionary *file=valid?timantirecall_richFileIdentityWithOrigin(path,@"native-agent-original"):nil;
+#ifdef TIMANTIRECALL_UI_TEST
+    NSLog(@"TIMANTI_ORIGINAL_POLL attempt=%lu pathReadable=%d",(unsigned long)self.timantirecall_attempts,file!=nil);
+#endif
     if(file) {
         timantirecall_replayTrace(@"rich",@{@"reason":@"photo-original-download-ready",@"source":@"native-agent-original"});
         [self timantirecall_finish:file];return;

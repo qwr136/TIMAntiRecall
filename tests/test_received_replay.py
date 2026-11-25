@@ -31,6 +31,9 @@ class ReceivedReplayTests(unittest.TestCase):
         self.assertIn('originalImagePath',helper)
         self.assertIn('photo-original-download-ready',helper)
         self.assertIn('photo-original-download-timeout',helper)
+        self.assertIn('photo-remote-source-rejected',helper)
+        self.assertIn('photo-remote-cache-rejected',helper)
+        self.assertIn('if(!allowOriginalDownload)return nil',strip_comments((ROOT/'Sources/TIMAntiRecallReplayPayload.m').read_text()))
         self.assertNotIn('addOriginalPreDownload',helper)
         self.assertNotIn('NSURLSession',helper)
         self.assertIn('timantirecall_richFileIdentityWithOrigin(path,@"native-cache")',helper)
@@ -45,7 +48,9 @@ class ReceivedReplayTests(unittest.TestCase):
         fixture=(ROOT/'tests/ui/TIMAntiRecallReplayPhotoCases.h').read_text()
         self.assertIn('photo-download',fixture)
         self.assertIn('timantirecall_lastDownloadType]==2',fixture)
-        self.assertIn('validated original download completes once',fixture)
+        self.assertIn('TIM original download fixture wrote the requested file',fixture)
+        self.assertIn('native original download triggers exactly one upload',fixture)
+        self.assertIn('download completion cannot submit a duplicate photo',fixture)
         self.assertIn('O_NOFOLLOW',strip_comments((ROOT/'Sources/TIMAntiRecallReplayPayload.m').read_text()))
 
     def test_video_type_is_not_an_alternate_face(self):

@@ -278,17 +278,30 @@ static BOOL timantirecall_replayStartPhotoDownload(TIMAntiRecallReplayContext *s
         return [currentIdentity isEqualToDictionary:identity]&&timantirecall_replayContact(record,controller)!=nil;
     };
     BOOL started=timantirecall_richReplaySendWithPhotoDownload(service,contact,record,payload,^(NSDictionary *file,NSNumber *subtype){
+#ifdef TIMANTIRECALL_UI_TEST
+        NSLog(@"TIMANTI_PHOTO_CALLBACK fileReady=%d",file!=nil);
+#endif
         if(!file)return;
-        if(!shouldContinue()) {timantirecall_replayTrace(@"send",@{@"reason":@"photo-download-context-expired"});return;}
+        BOOL contextValid=shouldContinue();
+#ifdef TIMANTIRECALL_UI_TEST
+        NSLog(@"TIMANTI_PHOTO_CALLBACK contextValid=%d",contextValid);
+#endif
+        if(!contextValid) {timantirecall_replayTrace(@"send",@{@"reason":@"photo-download-context-expired"});return;}
         NSDictionary *currentPayload=timantirecall_replayContent(record);
         id currentContact=timantirecall_replayContact(record,controller);
         BOOL samePayload=[currentPayload isEqual:payload];
         BOOL resolvedTransition=[payload[@"mode"] isEqual:@"photo-download"]&&[currentPayload[@"mode"] isEqual:@"photo"]&&
             [currentPayload[@"subtype"] isEqual:subtype]&&[currentPayload[@"file"] isEqual:file];
+#ifdef TIMANTIRECALL_UI_TEST
+        NSLog(@"TIMANTI_PHOTO_CALLBACK payloadSame=%d resolvedTransition=%d contact=%d",samePayload,resolvedTransition,currentContact!=nil);
+#endif
         if((!samePayload&&!resolvedTransition)||!currentContact) {
             timantirecall_replayTrace(@"send",@{@"reason":@"photo-download-record-changed"});return;
         }
         BOOL submitted=timantirecall_richReplaySendDownloadedPhoto(service,currentContact,record,file,subtype);
+#ifdef TIMANTIRECALL_UI_TEST
+        NSLog(@"TIMANTI_PHOTO_CALLBACK submitted=%d",submitted);
+#endif
         timantirecall_replayTrace(@"send",@{@"reason":submitted?@"photo-download-native-submit-called":@"photo-download-native-submit-rejected"});
     },shouldContinue);
     if(started)timantirecall_replayTrace(@"send",@{@"reason":@"photo-original-download-started"});

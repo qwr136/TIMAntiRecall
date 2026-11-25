@@ -24,6 +24,7 @@
 + (void)timantirecall_configureOriginalDownloadPath:(NSString *)path bytes:(NSData *)bytes;
 + (NSUInteger)timantirecall_downloadCalls;
 + (int32_t)timantirecall_lastDownloadType;
++ (BOOL)timantirecall_downloadFileExists;
 - (instancetype)initWithAIOMsgModel:(QQAIOMsgModel *)model;
 - (void)startDownloadImage:(int32_t)type;
 @end
