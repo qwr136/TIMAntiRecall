@@ -79,11 +79,24 @@ static void timantirecall_testPhotoReplay(UIView *root) {
         record.elements=@[timantirecall_richElement(cached,@"picElement",2)];
         [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];timantirecall_updateReplayRow(row,@"self_uid");
         [NSFileManager.defaultManager removeItemAtPath:path error:NULL];
-        timantirecall_check(!timantirecall_testReplayCapture(row,outside,94),@"missing native original cache is not replaced by a thumbnail");
-        probe.timantirecall_completion=nil;
-        [timantirecall_coverage addObject:@"received-original-cache-replay"];
-        [timantirecall_coverage addObject:@"rich-message-replay-photo"];
-        timantirecall_clearReplayRow(row);[chat.view removeFromSuperview];
-        [timantirecall_settings() timantirecall_updateOptions:@{@"messageReplay":@NO} error:NULL];
+        timantirecall_check([timantirecall_richReplaySnapshot(record)[@"mode"] isEqual:@"photo-download"],@"missing cache returns a native original download plan, not a thumbnail");
+        [QQRichMediaPhotoBrowserChatImageAgent timantirecall_configureOriginalDownloadPath:path bytes:original];
+        NSUInteger sentBeforeDownload=probe.timantirecall_calls;
+        timantirecall_check(timantirecall_richDoubleTap(row,outside,94.1)&&probe.timantirecall_calls==sentBeforeDownload&&
+            [QQRichMediaPhotoBrowserChatImageAgent timantirecall_downloadCalls]==1&&
+            [QQRichMediaPhotoBrowserChatImageAgent timantirecall_lastDownloadType]==2,
+            @"double tap starts TIM original-image download type 2 but waits before upload");
+        timantirecall_holdSteps=YES;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.9*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
+            timantirecall_check(probe.timantirecall_calls==sentBeforeDownload+1&&[probe.timantirecall_bytes isEqual:original]&&
+                ![probe.timantirecall_path isEqual:path],@"validated original download completes once then uploads exact original bytes");
+            if(probe.timantirecall_completion){probe.timantirecall_completion(0,@"fixture");probe.timantirecall_completion=nil;}
+            timantirecall_check(probe.timantirecall_calls==sentBeforeDownload+1,@"download completion cannot submit a duplicate photo");
+            [timantirecall_coverage addObject:@"received-original-cache-replay"];
+            [timantirecall_coverage addObject:@"rich-message-replay-photo"];
+            timantirecall_clearReplayRow(row);[chat.view removeFromSuperview];
+            [timantirecall_settings() timantirecall_updateOptions:@{@"messageReplay":@NO} error:NULL];
+            timantirecall_holdSteps=NO;timantirecall_nextStep();
+        });
     });
 }

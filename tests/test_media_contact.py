@@ -24,12 +24,13 @@ class MediaContactTests(unittest.TestCase):
         self.assertIn('@"shape":@"photo"',helper)
         for bad in ('description','@"path"','@"value"','@"code"','@"uid"'):
             self.assertNotIn(bad,helper)
-        send=function_body(source,'timantirecall_richReplaySend')
+        send=function_body(source,'timantirecall_richSendPhotoFile')
         for reason in ('photo-send-api-rejected','photo-source-read-rejected','photo-temp-directory-rejected','photo-temp-write-rejected','photo-native-exception'):
             self.assertIn(reason,send)
-        self.assertIn('nativeContact,path,nil,[snapshot[@"subtype"] intValue],photoCompletion',send)
-        self.assertIn('timantirecall_richReplayElements(snapshot)',send)
-        self.assertIn('contact,elements,nil,completion',send)
+        self.assertIn('nativeContact,path,nil,subtype.intValue,photoCompletion',send)
+        rich_send=function_body(source,'timantirecall_richReplaySend')
+        self.assertIn('timantirecall_richReplayElements(snapshot)',rich_send)
+        self.assertIn('contact,elements,nil,completion',rich_send)
     def test_real_converter_fixture_and_required_device_regressions(self):
         fixture=(ROOT/'tests/ui/TIMAntiRecallReplayPhotoFixture.m').read_text()
         self.assertIn('contact.guildId=TIMAntiRecallReplayPhotoProbe.timantirecall_shared.timantirecall_conversionGuild',fixture)

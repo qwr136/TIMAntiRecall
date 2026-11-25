@@ -16,6 +16,17 @@
 @property(nonatomic,copy) NSString *uin,*groupCode,*guildID;
 - (OCContact *)convertToOCContact;
 @end
+@interface NTRecordConverter (TIMAntiRecallNativePhoto)
++ (QQAIOMsgModel *)recordConvertAIOMsgModel:(OCMsgRecord *)record;
+@end
+@interface QQRichMediaPhotoBrowserChatImageAgent : NSObject
+@property(nonatomic,copy) NSString *originalImagePath;
++ (void)timantirecall_configureOriginalDownloadPath:(NSString *)path bytes:(NSData *)bytes;
++ (NSUInteger)timantirecall_downloadCalls;
++ (int32_t)timantirecall_lastDownloadType;
+- (instancetype)initWithAIOMsgModel:(QQAIOMsgModel *)model;
+- (void)startDownloadImage:(int32_t)type;
+@end
 @interface TIMAntiRecallReplayPhotoProbe : NSObject
 @property(nonatomic) NSUInteger timantirecall_calls;
 @property(nonatomic) int32_t timantirecall_subtype;

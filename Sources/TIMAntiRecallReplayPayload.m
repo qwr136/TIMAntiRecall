@@ -251,7 +251,11 @@ NSDictionary *timantirecall_richReplaySnapshot(id record) {
                 NSNumber *subtype=timantirecall_richRead(payload,"picSubType","i",&valid);if(!valid)return nil;
                 if(subtype.intValue<0)TIMANTIRECALL_RICH_REJECT("photo-subtype-rejected","picSubType",subtype,"nonnegative-int32");
                 NSString *path=timantirecall_richRead(payload,"sourcePath","@",&valid);if(!valid)return nil;
-                NSDictionary *file=timantirecall_receivedPhotoFile(payload,path);if(!file)return nil;
+                NSDictionary *file=timantirecall_receivedPhotoFile(payload,path);
+                if(!file) {
+                    timantirecall_replayTrace(@"rich",@{@"reason":@"photo-original-download-required",@"source":@"native-original-agent"});
+                    return @{@"mode":@"photo-download",@"subtype":subtype};
+                }
                 timantirecall_replayTrace(@"rich",@{@"reason":@"snapshot-ready",@"shape":@"photo"});
                 return @{@"mode":@"photo",@"file":file,@"subtype":subtype};
             }
@@ -389,33 +393,14 @@ static NSData *timantirecall_richReadPhoto(NSDictionary *file) {
         (!memcmp(p+4,"ftyp",4)&&(!memcmp(p+8,"heic",4)||!memcmp(p+8,"heix",4)||!memcmp(p+8,"mif1",4)));
     return image?data.copy:nil;
 }
-BOOL timantirecall_richReplaySend(id service,id contact,id record,NSDictionary *snapshot) {
-    if(!NSThread.isMainThread||!service||!contact||!snapshot)return NO;
-    if(![snapshot isEqual:timantirecall_richReplaySnapshot(record)])return NO;
-    if([snapshot[@"mode"] isEqual:@"video"])return timantirecall_videoSend(service,contact,record,snapshot);
-    // Verified block descriptor v20@?0i8@"NSString"12. No message text, paths,
-    // account IDs or error descriptions go to the diagnostic log.
-    void (^completion)(int32_t,NSString *)=^(int32_t code,NSString *description) {
-        (void)description;timantirecall_replayTrace(@"send",@{@"reason":code==0?@"rich-native-completed":@"rich-native-error"});
-    };
-    if([snapshot[@"mode"] isEqual:@"elements"]) {
-        SEL sel=sel_registerName("sendMsgWithOCContact:msgElems:msgAttributeInfos:callBack:");
-        const char *args[]={"@",":","@","@","@","@?"};
-        Method method=class_getInstanceMethod(object_getClass(service),sel);
-        if(!timantirecall_methodTypes(method,"v",6,args))return NO;
-        NSArray *elements=timantirecall_richReplayElements(snapshot);if(!elements)return NO;
-        // Own, detached objects; native service supplies a new message ID. Do not
-        // import the received message's attributes or call failed-message resend.
-        ((void(*)(id,SEL,id,id,id,id))method_getImplementation(method))(service,sel,contact,elements,nil,completion);
-        return YES;
-    }
-    if(![snapshot[@"mode"] isEqual:@"photo"])return NO;
+static BOOL timantirecall_richSendPhotoFile(id service,id contact,id record,NSDictionary *file,NSNumber *subtype) {
+    if(!NSThread.isMainThread||!service||!contact||!record||![file isKindOfClass:NSDictionary.class]||![subtype isKindOfClass:NSNumber.class])return NO;
     SEL sel=sel_registerName("sendPicMsg:sourcePath:additionalMsg:picSubType:callBack:");
     const char *args[]={"@",":","@","@","@","i","@?"};
     Method method=class_getInstanceMethod(object_getClass(service),sel);
     if(!timantirecall_methodTypes(method,"v",7,args))return timantirecall_photoSendRejected(@"photo-send-api-rejected",@"sendPicMsg");
     id nativeContact=timantirecall_richPhotoContact(record,contact);if(!nativeContact)return NO;
-    NSData *bytes=timantirecall_richReadPhoto(snapshot[@"file"]);
+    NSData *bytes=timantirecall_richReadPhoto(file);
     if(!bytes)return timantirecall_photoSendRejected(@"photo-source-read-rejected",@"source-file");
     NSString *folder=[NSTemporaryDirectory() stringByAppendingPathComponent:@"TIMAntiRecallReplay"];
     NSError *error=nil;
@@ -425,19 +410,44 @@ BOOL timantirecall_richReplaySend(id service,id contact,id record,NSDictionary *
     if(![bytes writeToFile:path options:NSDataWritingAtomic error:&error])
         return timantirecall_photoSendRejected(@"photo-temp-write-rejected",@"temporary-copy");
     [NSFileManager.defaultManager setAttributes:@{NSFilePosixPermissions:@0600} ofItemAtPath:path error:NULL];
-    // Only a local isolated file enters the original producer. No URL fetching,
-    // received file ID reuse or deletion of the original message resource.
     void (^photoCompletion)(int32_t,NSString *)=^(int32_t code,NSString *description) {
-        [NSFileManager.defaultManager removeItemAtPath:path error:NULL];completion(code,description);
+        [NSFileManager.defaultManager removeItemAtPath:path error:NULL];(void)description;
+        timantirecall_replayTrace(@"send",@{@"reason":code==0?@"rich-native-completed":@"rich-native-error"});
     };
     @try {
-        ((void(*)(id,SEL,id,id,id,int32_t,id))method_getImplementation(method))(service,sel,nativeContact,path,nil,[snapshot[@"subtype"] intValue],photoCompletion);
+        ((void(*)(id,SEL,id,id,id,int32_t,id))method_getImplementation(method))(service,sel,nativeContact,path,nil,subtype.intValue,photoCompletion);
     } @catch(NSException *exception) {
         (void)exception;[NSFileManager.defaultManager removeItemAtPath:path error:NULL];
         return timantirecall_photoSendRejected(@"photo-native-exception",@"sendPicMsg");
     }
-    // Native local branch loads UIImage and NSData synchronously before it
-    // returns; the async upload owns those new objects, not this temporary path.
-    [NSFileManager.defaultManager removeItemAtPath:path error:NULL];
+    [NSFileManager.defaultManager removeItemAtPath:path error:NULL];return YES;
+}
+BOOL timantirecall_richReplaySendDownloadedPhoto(id service,id contact,id record,NSDictionary *file,NSNumber *subtype) {
+    if(!NSThread.isMainThread||!service||!contact||!record||!file||!subtype)return NO;
+    NSDictionary *current=timantirecall_richReplaySnapshot(record);
+    if((![current[@"mode"] isEqual:@"photo-download"]&&![current[@"mode"] isEqual:@"photo"])||![current[@"subtype"] isEqual:subtype])return NO;
+    return timantirecall_richSendPhotoFile(service,contact,record,file,subtype);
+}
+BOOL timantirecall_richReplaySendWithPhotoDownload(id service,id contact,id record,NSDictionary *snapshot,void (^completion)(NSDictionary *,NSNumber *),BOOL (^shouldContinue)(void)) {
+    if(!NSThread.isMainThread||!service||!contact||!record||!snapshot||!completion)return NO;
+    if(![snapshot isEqual:timantirecall_richReplaySnapshot(record)])return NO;
+    if(![snapshot[@"mode"] isEqual:@"photo-download"]||![snapshot[@"subtype"] isKindOfClass:NSNumber.class])return NO;
+    return timantirecall_receivedStartOriginalPhotoDownload(record,snapshot[@"subtype"],completion,shouldContinue);
+}
+BOOL timantirecall_richReplaySend(id service,id contact,id record,NSDictionary *snapshot) {
+    if(!NSThread.isMainThread||!service||!contact||!snapshot)return NO;
+    if(![snapshot isEqual:timantirecall_richReplaySnapshot(record)])return NO;
+    if([snapshot[@"mode"] isEqual:@"video"])return timantirecall_videoSend(service,contact,record,snapshot);
+    if([snapshot[@"mode"] isEqual:@"photo"])return timantirecall_richSendPhotoFile(service,contact,record,snapshot[@"file"],snapshot[@"subtype"]);
+    if(![snapshot[@"mode"] isEqual:@"elements"])return NO;
+    void (^completion)(int32_t,NSString *)=^(int32_t code,NSString *description) {
+        (void)description;timantirecall_replayTrace(@"send",@{@"reason":code==0?@"rich-native-completed":@"rich-native-error"});
+    };
+    SEL sel=sel_registerName("sendMsgWithOCContact:msgElems:msgAttributeInfos:callBack:");
+    const char *args[]={"@",":","@","@","@","@?"};
+    Method method=class_getInstanceMethod(object_getClass(service),sel);
+    if(!timantirecall_methodTypes(method,"v",6,args))return NO;
+    NSArray *elements=timantirecall_richReplayElements(snapshot);if(!elements)return NO;
+    ((void(*)(id,SEL,id,id,id,id))method_getImplementation(method))(service,sel,contact,elements,nil,completion);
     return YES;
 }

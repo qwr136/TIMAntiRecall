@@ -36,6 +36,104 @@ static NSDictionary *timantirecall_receivedPhotoFile(id payload,NSString *source
     if(file)timantirecall_replayTrace(@"rich",@{@"reason":@"photo-original-cache-ready",@"shape":@"photo",@"source":@"native-cache"});
     return file;
 }
+@interface NSObject (TIMAntiRecallNativePhotoDownload)
++ (id)recordConvertAIOMsgModel:(id)record;
+- (instancetype)initWithAIOMsgModel:(id)model;
+- (void)startDownloadImage:(int32_t)type;
+- (id)originalImagePath;
+@end
+typedef void (^TIMAntiRecallPhotoDownloadCompletion)(NSDictionary *file,NSNumber *subtype);
+static char timantirecall_photoDownloadJobKey;
+@interface TIMAntiRecallPhotoDownloadJob : NSObject
+@property(nonatomic,strong) id timantirecall_record;
+@property(nonatomic,strong) id timantirecall_agent;
+@property(nonatomic,strong) NSNumber *timantirecall_subtype;
+@property(nonatomic,copy) NSString *timantirecall_owner;
+@property(nonatomic,copy) TIMAntiRecallPhotoDownloadCompletion timantirecall_completion;
+@property(nonatomic,copy) BOOL (^timantirecall_shouldContinue)(void);
+@property(nonatomic) NSUInteger timantirecall_attempts;
+@property(nonatomic) BOOL timantirecall_finished;
+- (void)timantirecall_poll;
+- (void)timantirecall_finish:(NSDictionary *)file;
+@end
+@implementation TIMAntiRecallPhotoDownloadJob
+- (void)timantirecall_finish:(NSDictionary *)file {
+    if(self.timantirecall_finished)return;self.timantirecall_finished=YES;
+    id record=self.timantirecall_record;
+    if(record&&objc_getAssociatedObject(record,&timantirecall_photoDownloadJobKey)==self)
+        objc_setAssociatedObject(record,&timantirecall_photoDownloadJobKey,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    TIMAntiRecallPhotoDownloadCompletion completion=self.timantirecall_completion;
+    NSNumber *subtype=self.timantirecall_subtype;
+    self.timantirecall_completion=nil;self.timantirecall_shouldContinue=nil;self.timantirecall_record=nil;self.timantirecall_agent=nil;self.timantirecall_subtype=nil;self.timantirecall_owner=nil;
+    if(completion)completion(file,subtype);
+}
+- (void)timantirecall_poll {
+    if(self.timantirecall_finished||!NSThread.isMainThread)return;
+    if(self.timantirecall_shouldContinue&&!self.timantirecall_shouldContinue()) {
+        SEL selector=sel_registerName("cancelDownloadImage:");const char *args[]={"@",":","i"};Method cancel=class_getInstanceMethod(object_getClass(self.timantirecall_agent),selector);
+        if(timantirecall_methodTypes(cancel,"v",3,args))((void(*)(id,SEL,int32_t))method_getImplementation(cancel))(self.timantirecall_agent,selector,2);
+        timantirecall_replayTrace(@"rich",@{@"reason":@"photo-original-download-cancelled",@"source":@"native-agent-original"});
+        [self timantirecall_finish:nil];return;
+    }
+    if(![timantirecall_settings() timantirecall_messageReplay]||![self.timantirecall_owner isEqual:timantirecall_currentAccount()]) {
+        SEL selector=sel_registerName("cancelDownloadImage:");const char *args[]={"@",":","i"};Method cancel=class_getInstanceMethod(object_getClass(self.timantirecall_agent),selector);
+        if(timantirecall_methodTypes(cancel,"v",3,args))((void(*)(id,SEL,int32_t))method_getImplementation(cancel))(self.timantirecall_agent,selector,2);
+        timantirecall_replayTrace(@"rich",@{@"reason":@"photo-original-download-cancelled",@"source":@"native-agent-original"});
+        [self timantirecall_finish:nil];return;
+    }
+    BOOL valid=NO;id path=timantirecall_richRead(self.timantirecall_agent,"originalImagePath","@",&valid);
+    NSDictionary *file=valid?timantirecall_richFileIdentityWithOrigin(path,@"native-agent-original"):nil;
+    if(file) {
+        timantirecall_replayTrace(@"rich",@{@"reason":@"photo-original-download-ready",@"source":@"native-agent-original"});
+        [self timantirecall_finish:file];return;
+    }
+    if(++self.timantirecall_attempts>=120) {
+        SEL selector=sel_registerName("cancelDownloadImage:");const char *args[]={"@",":","i"};Method cancel=class_getInstanceMethod(object_getClass(self.timantirecall_agent),selector);
+        if(timantirecall_methodTypes(cancel,"v",3,args))((void(*)(id,SEL,int32_t))method_getImplementation(cancel))(self.timantirecall_agent,selector,2);
+        timantirecall_replayTrace(@"rich",@{@"reason":@"photo-original-download-timeout",@"source":@"native-agent-original"});
+        [self timantirecall_finish:nil];return;
+    }
+    __weak TIMAntiRecallPhotoDownloadJob *weakSelf=self;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.5*NSEC_PER_SEC)),dispatch_get_main_queue(),^{[weakSelf timantirecall_poll];});
+}
+@end
+static BOOL timantirecall_receivedStartOriginalPhotoDownload(id record,NSNumber *subtype,TIMAntiRecallPhotoDownloadCompletion completion,BOOL (^shouldContinue)(void)) {
+    if(!NSThread.isMainThread||!record||![subtype isKindOfClass:NSNumber.class]||!completion||(shouldContinue&&!shouldContinue()))return NO;
+    TIMAntiRecallPhotoDownloadJob *existing=objc_getAssociatedObject(record,&timantirecall_photoDownloadJobKey);
+    if(existing&&!existing.timantirecall_finished)return NO;
+    Class converter=objc_getClass("NTRecordConverter"),aioClass=objc_getClass("QQAIOMsgModel"),agentClass=objc_getClass("QQRichMediaPhotoBrowserChatImageAgent");
+    SEL convertSelector=sel_registerName("recordConvertAIOMsgModel:"),initSelector=sel_registerName("initWithAIOMsgModel:"),startSelector=sel_registerName("startDownloadImage:"),pathSelector=sel_registerName("originalImagePath");
+    const char *classArgs[]={"@",":","@"};Method convert=converter?class_getClassMethod(converter,convertSelector):NULL;
+    const char *initArgs[]={"@",":","@"};Method init=agentClass?class_getInstanceMethod(agentClass,initSelector):NULL;
+    const char *startArgs[]={"@",":","i"};Method start=agentClass?class_getInstanceMethod(agentClass,startSelector):NULL;
+    const char *pathArgs[]={"@",":"};Method pathMethod=agentClass?class_getInstanceMethod(agentClass,pathSelector):NULL;
+    if(!aioClass||!agentClass||!timantirecall_methodTypes(convert,"@",3,classArgs)||
+       !timantirecall_methodTypes(init,"@",3,initArgs)||!timantirecall_methodTypes(start,"v",3,startArgs)||
+       !timantirecall_methodTypes(pathMethod,"@",2,pathArgs)) {
+        timantirecall_richRejectTrace(@"photo-native-original-download-api-unavailable",@"originalImage",nil,@"verified-native-agent-ABI");return NO;
+    }
+    TIMAntiRecallPhotoDownloadJob *job=nil;
+    @try {
+        id aio=((id(*)(id,SEL,id))method_getImplementation(convert))(converter,convertSelector,record);
+        if(!aio||![aio isKindOfClass:aioClass]) {
+            timantirecall_richRejectTrace(@"photo-native-aio-model-rejected",@"record",aio,@"QQAIOMsgModel");return NO;
+        }
+        id agent=[[agentClass alloc] initWithAIOMsgModel:aio];if(!agent||![agent isKindOfClass:agentClass])return NO;
+        BOOL valid=NO;id path=timantirecall_richRead(agent,"originalImagePath","@",&valid);
+        NSDictionary *existingFile=valid?timantirecall_richFileIdentityWithOrigin(path,@"native-agent-original"):nil;
+        if(existingFile) {completion(existingFile,subtype);return YES;}
+        job=[TIMAntiRecallPhotoDownloadJob new];job.timantirecall_record=record;job.timantirecall_agent=agent;
+        job.timantirecall_subtype=[subtype copy];job.timantirecall_owner=[timantirecall_currentAccount() copy];job.timantirecall_completion=[completion copy];job.timantirecall_shouldContinue=[shouldContinue copy];
+        objc_setAssociatedObject(record,&timantirecall_photoDownloadJobKey,job,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        ((void(*)(id,SEL,int32_t))method_getImplementation(start))(agent,startSelector,2);
+        timantirecall_replayTrace(@"rich",@{@"reason":@"photo-original-download-started",@"source":@"native-agent-original",@"shape":@"original-resolution"});
+        [job timantirecall_poll];return YES;
+    } @catch(NSException *exception) {
+        (void)exception;
+        if(job)[job timantirecall_finish:nil];
+        timantirecall_richRejectTrace(@"photo-native-original-download-exception",@"originalImage",nil,@"native-agent-request");return NO;
+    }
+}
 static BOOL timantirecall_receivedTextBody(NSDictionary *values) {
     // Guild/channel/role/link payloads are outside the ordinary private/group contract.
     for(NSString *field in @[@"subElementType",@"atChannelId",@"atRoleId",@"atRoleColor"]) {
