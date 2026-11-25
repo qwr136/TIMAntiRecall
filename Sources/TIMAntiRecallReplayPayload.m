@@ -251,8 +251,10 @@ NSDictionary *timantirecall_richReplaySnapshot(id record) {
                 NSNumber *subtype=timantirecall_richRead(payload,"picSubType","i",&valid);if(!valid)return nil;
                 if(subtype.intValue<0)TIMANTIRECALL_RICH_REJECT("photo-subtype-rejected","picSubType",subtype,"nonnegative-int32");
                 NSString *path=timantirecall_richRead(payload,"sourcePath","@",&valid);if(!valid)return nil;
-                NSDictionary *file=timantirecall_receivedPhotoFile(payload,path);
+                BOOL allowOriginalDownload=YES;
+                NSDictionary *file=timantirecall_receivedPhotoFile(payload,path,&allowOriginalDownload);
                 if(!file) {
+                    if(!allowOriginalDownload)return nil;
                     timantirecall_replayTrace(@"rich",@{@"reason":@"photo-original-download-required",@"source":@"native-original-agent"});
                     return @{@"mode":@"photo-download",@"subtype":subtype};
                 }
