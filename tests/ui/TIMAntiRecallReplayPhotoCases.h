@@ -27,7 +27,13 @@ static void timantirecall_testPhotoReplay(UIView *root) {
         NSDictionary *snapshot=timantirecall_richReplaySnapshot(record);
         timantirecall_check([snapshot[@"mode"] isEqual:@"photo-forward"]&&timantirecall_richImmutable(snapshot)&&!timantirecall_richReplayElements(snapshot),@"photo snapshot contains only native message reference metadata, no bytes or local path");
         timantirecall_check(timantirecall_richDoubleTap(row,outside,80)&&probe.timantirecall_calls==before+1,@"photo double tap submits one same-chat native forward without image download");
-        timantirecall_check([probe.timantirecall_ids isEqual:@[@(INT64_C(4294968123))]]&&probe.timantirecall_destinations.count==1&&probe.timantirecall_destinations.firstObject==probe.timantirecall_source&&[probe.timantirecall_source.peerUid isEqual:@"photo_peer"],@"photo forward uses the original 64-bit message ID and exact current conversation");
+        BOOL forwardedIdMatches=[probe.timantirecall_ids.count==1&&[probe.timantirecall_ids.firstObject isEqual:@(INT64_C(4294968123))]];
+        BOOL forwardedRouteMatches=probe.timantirecall_destinations.count==1&&probe.timantirecall_destinations.firstObject==probe.timantirecall_source;
+        BOOL forwardedPeerMatches=probe.timantirecall_source&&[probe.timantirecall_source.peerUid isEqual:@"photo_peer"];
+        NSLog(@"PHOTO_FORWARD_CHECK id=%d route=%d peer=%d",forwardedIdMatches,forwardedRouteMatches,forwardedPeerMatches);
+        timantirecall_check(forwardedIdMatches,@"photo forward preserves the original 64-bit message ID");
+        timantirecall_check(forwardedRouteMatches,@"photo forward uses the same current contact as source and sole destination");
+        timantirecall_check(forwardedPeerMatches,@"photo forward remains in the exact current conversation");
         timantirecall_check(probe.timantirecall_attributes==nil&&probe.timantirecall_completion!=nil&&probe.timantirecall_onMain&&pic.timantirecall_cacheCalls==0&&[QQRichMediaPhotoBrowserChatImageAgent timantirecall_downloadCalls]==0,@"photo path never resolves cache, starts download, or stages local image bytes");
         timantirecall_check(record.elements.firstObject.picElement==pic&&record.msgId==INT64_C(4294968123)&&[draft.text isEqual:@"图片复读不改草稿"]&&!timantirecall_testReplayComplete(row,outside),@"forward leaves original photo model and editor unchanged and cannot resubmit");
         probe.timantirecall_completion(1,@"TIMANTIRECALL_SECRET_ERROR",@{});probe.timantirecall_completion=nil;
