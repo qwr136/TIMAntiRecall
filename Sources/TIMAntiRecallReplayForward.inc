@@ -41,8 +41,9 @@ static NSDictionary *timantirecall_photoForwardSnapshot(id record,id payload,NSN
     NSMutableDictionary *photo=[@{@"msgId":[messageID copy],@"msgSeq":[sequence copy],@"picSubType":[subtype copy]} mutableCopy];
     for(const char * const *field=(const char * const[]){"fileUuid","md5HexStr","originImageMd5",NULL};*field;field++) {
         id value=timantirecall_richRead(payload,*field,"@",&valid);
-        if(!valid||(value&&(![value isKindOfClass:NSString.class]||[value length]>4096)))
-            TIMANTIRECALL_RICH_REJECT("photo-resource-shape",*field,value,"nil-or-bounded-string");
+        if(!valid||(value&&(![value isKindOfClass:NSString.class]||[value length]>4096))) {
+            timantirecall_richRejectTrace(@"photo-resource-shape",@(*field),value,@"nil-or-bounded-string");return nil;
+        }
         photo[@(*field)]=value?[value copy]:NSNull.null;
     }
     NSNumber *size=timantirecall_richRead(payload,"fileSize","Q",&valid);
