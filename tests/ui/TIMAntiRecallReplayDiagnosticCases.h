@@ -23,8 +23,9 @@ static void timantirecall_testRichDiagnostics(UIView *root) {
         record.elements=@[timantirecall_richElement(timantirecall_richFace(),@"faceElement",3),timantirecall_richElement(text,@"textElement",1)];
         timantirecall_check(!timantirecall_richReplaySnapshot(record),@"wrong runtime metadata class stays rejected under diagnostics");
         OCPicElement *pic=[OCPicElement new];pic.sourcePath=@"TIMANTIRECALL_SECRET_PATH/image.png";
+        id invalidPhotoDigest=@0;pic.md5HexStr=invalidPhotoDigest;
         record.elements=@[timantirecall_richElement(pic,@"picElement",2)];
-        timantirecall_check(!timantirecall_richReplaySnapshot(record),@"unavailable photo remains rejected without exposing source path");
+        timantirecall_check(!timantirecall_richReplaySnapshot(record),@"malformed photo resource metadata is rejected without reading or logging a path");
         record.elements=@[timantirecall_richElement(timantirecall_richFace(),@"faceElement",68417)];
         timantirecall_check(!timantirecall_richReplaySnapshot(record),@"unknown raw element enum remains rejected and must log only other");
         record.elements=@[timantirecall_richElement(@7,@"faceElement",6)];
@@ -51,7 +52,7 @@ static void timantirecall_testRichDiagnostics(UIView *root) {
                 abi=[event[@"expectedABI"] isEqual:@"int32"]&&[event[@"actualABI"] isEqual:@"int64"];
             if([event[@"reason"] isEqual:@"field-value-rejected"]&&[event[@"field"] isEqual:@"atNtUid"])
                 shape=[event[@"valueKind"] isEqual:@"number-zero"]&&[event[@"shape"] isEqual:@"NSString"];
-            if([event[@"reason"] isEqual:@"photo-path-shape"])photo=YES;
+            if([event[@"reason"] isEqual:@"photo-resource-shape"])photo=YES;
             if([event[@"reason"] isEqual:@"message-identity-rejected"])identity=YES;
             if([event[@"reason"] isEqual:@"snapshot-ready"])ready=YES;
             if([event[@"reason"] isEqual:@"element-entered"]&&[event[@"shape"] isEqual:@"other"])other=YES;
