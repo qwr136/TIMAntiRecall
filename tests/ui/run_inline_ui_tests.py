@@ -44,7 +44,7 @@ FIXTURES = ("TIMAntiRecallFixture.m", "TIMAntiRecallReplayRichFixture.m", "TIMAn
 FRAMEWORKS = ("Foundation", "UIKit", "QuartzCore")
 REQUIRED_COVERAGE = {
     "photo-contact-absence-contract", "photo-send-rejection-diagnostics", "video-native-forward-replay", "video-native-forward-guards",
-    "rich-rejection-diagnostics", "received-text-mention-replay", "received-zero-id-quote-replay", "received-original-cache-replay",
+    "rich-rejection-diagnostics", "received-text-mention-replay", "received-zero-id-quote-replay", "photo-native-reference-no-download",
     "rich-message-replay", "rich-message-replay-quote", "rich-message-replay-deep-copy", "rich-message-replay-guards", "rich-message-replay-photo",
     "swift-reflection", "session-owner", "bind-abi", "private-identity", "own-recall-forwarded",
     "group-identity", "account-isolation", "reuse-lifecycle", "row-geometry",

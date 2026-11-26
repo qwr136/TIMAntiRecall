@@ -29,3 +29,10 @@ A single type-5 OCVideoElement uses TIM's native message forwarding handler: ori
 New real UIKit fixtures cover face/market metadata, whole quote + reply body, nested quote object isolation, incoming/own/group routes, original objects remaining unchanged even if the sender mutates its fresh inputs, two-tap payload/quote/file replacement rejection, switch/account/chat/scroll/reuse cancellation, local PNG native handoff, contact roundtrip, missing/remote/flash/invalid photos, retained original bytes and temp cleanup. Source contracts pin exact metadata and 10 frozen recall/wallet production files to 8.10. CI requires all five rich replay coverage labels. These are synthetic TIM models with real UIKit, not real TIM delivery. Server acceptance, native media upload, animated sticker rendering and live quote linking require device acceptance.
 
 No recall/wallet implementation is changed. Work stays on main; ordinary builds upload verified artifacts without creating Release/tag.
+
+
+## 2026-11-26 no-download photo candidate (not device-accepted)
+
+The current main worktree changes single-photo double-tap replay to a native same-conversation forward using the original 64-bit `msgId`; it does not resolve `sourcePath`, read image bytes, call the image download agent, or upload a local copy. The frozen snapshot also checks `msgSeq`, subtype, file size and optional resource identifiers. The normal row/account/chat/two-tap gates remain.
+
+This is an **experimental reuse** of the native `MsgSenderHandler.forwardMsgWithMsgIds` path previously validated only for video. Synthetic UIKit tests can prove that the plugin submits once with the expected message ID/contact and does not call its image cache/download fixture; they cannot prove TIM accepts photo forwarding to the same chat, whether the bubble is an ordinary image or a forwarded message/card, or whether TIM internally fetches image data. Actual device/network behavior and server delivery remain unverified; do not call this device-fixed until tested in TIM 4.1.0.81.

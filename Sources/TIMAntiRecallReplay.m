@@ -253,54 +253,6 @@ static BOOL timantirecall_replaySend(id record,UIViewController *controller,NSDi
     ((void(*)(id,SEL,id,id,void(^)(void)))method_getImplementation(method))(service,selector,contact,text,nil);
     return YES; // Submitted once to the native service, NOT a delivery receipt.
 }
-static BOOL timantirecall_replayStartPhotoDownload(id record,NSDictionary *payload,NSDictionary *identity,UIViewController *controller,id chatContext,NSString *owner) {
-    if(!NSThread.isMainThread||!record||!identity||!controller||!chatContext||!owner.length||![payload[@"mode"] isEqual:@"photo-download"])return NO;
-    id contact=timantirecall_replayContact(record,controller);if(!contact)return NO;
-    Class cls=objc_getClass("QQMsgService");SEL shared=sel_registerName("getInstance");const char *args[]={"@",":"};
-    Method getter=cls?class_getClassMethod(cls,shared):NULL;if(!timantirecall_methodTypes(getter,"@",2,args))return NO;
-    id service=((id(*)(id,SEL))method_getImplementation(getter))(cls,shared);if(!service||![service isKindOfClass:cls])return NO;
-    __weak UIViewController *weakController=controller;__weak UIWindow *weakWindow=controller.view.window;
-    BOOL (^shouldContinue)(void)=^BOOL{
-        UIViewController *liveController=weakController;UIWindow *window=weakWindow;
-        if(!NSThread.isMainThread||!liveController||!window||
-           ![timantirecall_settings() timantirecall_messageReplay]||![owner isEqual:timantirecall_currentAccount()]||
-           !timantirecall_replayWindowActive(window)||!liveController.isViewLoaded||liveController.view.window!=window||
-           liveController.presentedViewController||[TIMAntiRecallRecordBridge timantirecall_replayChatContextForController:liveController]!=chatContext)return NO;
-        UIViewController *top=liveController.navigationController.topViewController;
-        if(top&&top!=liveController&&(!top.isViewLoaded||![liveController.view isDescendantOfView:top.view]))return NO;
-        NSDictionary *currentIdentity=timantirecall_recordIdentity(record,owner);
-        return [currentIdentity isEqualToDictionary:identity]&&timantirecall_replayContact(record,liveController)!=nil;
-    };
-    BOOL started=timantirecall_richReplaySendWithPhotoDownload(service,contact,record,payload,^(NSDictionary *file,NSNumber *subtype){
-#ifdef TIMANTIRECALL_UI_TEST
-        NSLog(@"TIMANTI_PHOTO_CALLBACK fileReady=%d",file!=nil);
-#endif
-        if(!file)return;
-        BOOL contextValid=shouldContinue();
-#ifdef TIMANTIRECALL_UI_TEST
-        NSLog(@"TIMANTI_PHOTO_CALLBACK contextValid=%d",contextValid);
-#endif
-        if(!contextValid) {timantirecall_replayTrace(@"send",@{@"reason":@"photo-download-context-expired"});return;}
-        NSDictionary *currentPayload=timantirecall_replayContent(record);
-        id currentContact=timantirecall_replayContact(record,controller);
-        BOOL samePayload=[currentPayload isEqual:payload];
-        BOOL resolvedTransition=[payload[@"mode"] isEqual:@"photo-download"]&&[currentPayload[@"mode"] isEqual:@"photo"]&&
-            [currentPayload[@"subtype"] isEqual:subtype]&&[currentPayload[@"file"] isEqual:file];
-#ifdef TIMANTIRECALL_UI_TEST
-        NSLog(@"TIMANTI_PHOTO_CALLBACK payloadSame=%d resolvedTransition=%d contact=%d",samePayload,resolvedTransition,currentContact!=nil);
-#endif
-        if((!samePayload&&!resolvedTransition)||!currentContact) {
-            timantirecall_replayTrace(@"send",@{@"reason":@"photo-download-record-changed"});return;
-        }
-        BOOL submitted=timantirecall_richReplaySendDownloadedPhoto(service,currentContact,record,file,subtype);
-#ifdef TIMANTIRECALL_UI_TEST
-        NSLog(@"TIMANTI_PHOTO_CALLBACK submitted=%d",submitted);
-#endif
-        timantirecall_replayTrace(@"send",@{@"reason":submitted?@"photo-download-native-submit-called":@"photo-download-native-submit-rejected"});
-    },shouldContinue);
-    if(started)timantirecall_replayTrace(@"send",@{@"reason":@"photo-original-download-started"});
-    return started;
-}
 @implementation TIMAntiRecallReplayTap
 - (void)reset {
 #ifdef TIMANTIRECALL_UI_TEST
@@ -356,16 +308,10 @@ static BOOL timantirecall_replayStartPhotoDownload(id record,NSDictionary *paylo
     valid=valid&&scroll==self.timantirecall_firstScroll&&CGPointEqualToPoint((scroll?scroll.contentOffset:CGPointZero),self.timantirecall_firstOffset);
     NSDictionary *accepted=valid?payload:nil;
     id acceptedRecord=accepted?[TIMAntiRecallRecordBridge timantirecall_recordForViewModel:model]:nil;
-    NSDictionary *acceptedIdentity=accepted?self.timantirecall_firstIdentity:nil;
     UIViewController *acceptedController=accepted?self.timantirecall_firstController:nil;
-    id acceptedContext=accepted?self.timantirecall_firstChatContext:nil;
-    NSString *acceptedOwner=[self.timantirecall_owner copy];
     [self timantirecall_clear];
-    BOOL submitted=NO;
-    if([accepted[@"mode"] isEqual:@"photo-download"])
-        submitted=timantirecall_replayStartPhotoDownload(acceptedRecord,accepted,acceptedIdentity,acceptedController,acceptedContext,acceptedOwner);
-    else submitted=accepted?timantirecall_replaySend(acceptedRecord,acceptedController,accepted):NO;
-    timantirecall_replayTrace(@"send",@{@"reason":submitted?([accepted[@"mode"] isEqual:@"photo-download"]?@"photo-original-download-started":@"native-submit-called"):@"completed-context-or-service-rejected"});
+    BOOL submitted=accepted?timantirecall_replaySend(acceptedRecord,acceptedController,accepted):NO;
+    timantirecall_replayTrace(@"send",@{@"reason":submitted?@"native-submit-called":@"completed-context-or-service-rejected"});
     return submitted;
 }
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gesture shouldReceiveTouch:(UITouch *)touch {

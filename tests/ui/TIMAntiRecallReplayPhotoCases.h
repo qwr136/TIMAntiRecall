@@ -1,110 +1,47 @@
 #pragma once
 #import "TIMAntiRecallReplayPhotoFixture.h"
+#import "TIMAntiRecallReplayVideoFixture.h"
 static void timantirecall_testPhotoReplay(UIView *root) {
-    __block UIViewController *chat;__block UIScrollView *scroll;__block UITableViewCell *host;
-    __block TIMAntiRecallTestBaseView *row;__block OCMsgRecord *record;__block OCPicElement *pic;
-    __block NSString *path;__block NSData *original;CGPoint outside=CGPointMake(180,30);
+    __block UIViewController *chat;__block UITableViewCell *host;__block TIMAntiRecallTestBaseView *row;
+    __block OCMsgRecord *record;__block TIMAntiRecallReceivedPic *pic;__block UITextView *draft;
+    CGPoint outside=CGPointMake(180,30);__block BOOL oldReplay,oldDiagnostics;__block NSUInteger before;
     timantirecall_step(^{
+        oldReplay=[timantirecall_settings() timantirecall_messageReplay];oldDiagnostics=[timantirecall_settings() timantirecall_replayDiagnostics];
+        [timantirecall_settings() timantirecall_updateOptions:@{@"messageReplay":@YES,@"replayDiagnostics":@NO} error:NULL];
         [QQAccountsManager GetInstance].currentUid=@"self_uid";
-        [timantirecall_settings() timantirecall_updateOptions:@{@"messageReplay":@YES} error:NULL];
-        TIMAntiRecallReplayPhotoProbe.timantirecall_shared.timantirecall_calls=0;
-        chat=[TIMAntiRecallSwiftFixture timantirecall_replayControllerWithPeer:@"photo_peer" type:1];
-        chat.view.frame=root.bounds;[root addSubview:chat.view];
-        scroll=[[UIScrollView alloc] initWithFrame:chat.view.bounds];scroll.contentSize=CGSizeMake(root.bounds.size.width,root.bounds.size.height*2);[chat.view addSubview:scroll];
-        host=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];host.frame=CGRectMake(0,80,root.bounds.size.width,64);[scroll addSubview:host];[host layoutIfNeeded];
+        TIMAntiRecallReplayPhotoProbe.timantirecall_shared.timantirecall_conversionGuild=nil;
+        TIMAntiRecallVideoForwardProbe *probe=TIMAntiRecallVideoForwardProbe.timantirecall_shared;
+        probe.timantirecall_handlerMode=0;before=probe.timantirecall_calls;
+        chat=[TIMAntiRecallSwiftFixture timantirecall_replayControllerWithPeer:@"photo_peer" type:1];chat.view.frame=root.bounds;[root addSubview:chat.view];
+        host=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];host.frame=CGRectMake(0,80,root.bounds.size.width,64);[chat.view addSubview:host];[host layoutIfNeeded];
         row=[TIMAntiRecallSwiftFixture timantirecall_replayRowWithFrame:host.contentView.bounds];[host.contentView addSubview:row];
-        UIGraphicsImageRenderer *renderer=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(8,8)];
-        UIImage *image=[renderer imageWithActions:^(UIGraphicsImageRendererContext *context){(void)context;[UIColor.blueColor setFill];UIRectFill(CGRectMake(0,0,8,8));}];
-        original=UIImagePNGRepresentation(image);
-        path=[NSTemporaryDirectory() stringByAppendingPathComponent:@"timantirecall-original-photo.png"];
-        timantirecall_check([original writeToFile:path atomically:YES],@"local image fixture writes complete PNG");
-        record=timantirecall_record(1,1261,@"photo_peer",0);record.peerUin=12345;
-        pic=[OCPicElement new];pic.sourcePath=path;pic.picWidth=8;pic.picHeight=8;pic.fileSize=original.length;pic.picSubType=0;
+        draft=[[UITextView alloc] initWithFrame:CGRectMake(0,root.bounds.size.height-70,240,40)];draft.text=@"图片复读不改草稿";[chat.view addSubview:draft];
+        record=timantirecall_record(1,1261,@"photo_peer",0);record.peerUin=12345;record.msgId=INT64_C(4294968123);
+        pic=[TIMAntiRecallReceivedPic new];pic.picWidth=800;pic.picHeight=600;pic.fileSize=2048;pic.picSubType=0;
+        pic.fileUuid=@"photo-resource-uuid";pic.md5HexStr=@"photo-resource-md5";pic.sourcePath=nil;
         record.elements=@[timantirecall_richElement(pic,@"picElement",2)];
         [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];timantirecall_updateReplayRow(row,@"self_uid");
-        NSDictionary *snapshot=timantirecall_richReplaySnapshot(record);
-        timantirecall_check(snapshot&&timantirecall_richImmutable(snapshot)&&!timantirecall_richReplayElements(snapshot),@"photo is immutable plan for native upload, never a copied received pic element");
-        timantirecall_check(timantirecall_richDoubleTap(row,outside,80),@"downloaded local photo double tap invokes native image producer");
-        TIMAntiRecallReplayPhotoProbe *probe=TIMAntiRecallReplayPhotoProbe.timantirecall_shared;
-        timantirecall_check(probe.timantirecall_calls==1&&[probe.timantirecall_bytes isEqual:original]&&![probe.timantirecall_path isEqual:path]&&probe.timantirecall_additional==nil&&probe.timantirecall_completion!=nil,@"native photo route reads isolated full bytes once, no appended text");
-        timantirecall_check([probe.timantirecall_contact.peerUid isEqual:@"photo_peer"]&&probe.timantirecall_contact.chatType==1,@"photo contact roundtrip resolves the current C2C UID");
-        timantirecall_check([[NSData dataWithContentsOfFile:path] isEqual:original]&&[pic.sourcePath isEqual:path]&&record.elements.firstObject.elementId==456789,@"image replay never changes or deletes the received record or original file");
-        timantirecall_check(![NSFileManager.defaultManager fileExistsAtPath:probe.timantirecall_path]&&!timantirecall_testReplayComplete(row,outside),@"temporary photo is removed after synchronous native read and gesture cannot resubmit");
-        probe.timantirecall_completion(0,@"fixture success");probe.timantirecall_completion=nil;
-        timantirecall_check(probe.timantirecall_calls==1,@"asynchronous photo completion does not resubmit or delete source");
     });
     timantirecall_step(^{
-        TIMAntiRecallReplayPhotoProbe *probe=TIMAntiRecallReplayPhotoProbe.timantirecall_shared;NSUInteger before=probe.timantirecall_calls;
-        pic.isFlashPic=@YES;timantirecall_check(!timantirecall_testReplayCapture(row,outside,81),@"flash photo never replays");pic.isFlashPic=nil;
-        pic.invalidState=@1;timantirecall_check(!timantirecall_testReplayCapture(row,outside,82),@"invalid photo never replays");pic.invalidState=nil;
-        record.peerUin=333;timantirecall_check(!timantirecall_richDoubleTap(row,outside,83)&&probe.timantirecall_calls==before,@"photo contact conversion to another peer prevents submission");record.peerUin=12345;
-        timantirecall_check(timantirecall_testReplayCapture(row,outside,84),@"photo first tap has complete file");
-        [[@"changed image bytes" dataUsingEncoding:NSUTF8StringEncoding] writeToFile:path atomically:YES];
-        timantirecall_check(!timantirecall_testReplayCapture(row,outside,84.1)&&!timantirecall_testReplayComplete(row,outside)&&probe.timantirecall_calls==before,@"replaced photo file between taps is rejected");
-        [original writeToFile:path atomically:YES];pic.sourcePath=@"https://example.invalid/image.png";
-        timantirecall_check(!timantirecall_testReplayCapture(row,outside,85),@"remote photo path does not cause an implicit download");pic.sourcePath=path;
-        [NSFileManager.defaultManager removeItemAtPath:path error:NULL];
-        timantirecall_check(!timantirecall_testReplayCapture(row,outside,86),@"missing local original never degrades to thumbnail or text");
-        timantirecall_check(probe.timantirecall_calls==before,@"photo negative paths make no native calls");
-        [original writeToFile:path atomically:YES];record.chatType=2;record.peerUin=7001;record.peerUid=@"7001";
-        [TIMAntiRecallSwiftFixture timantirecall_setReplayPeer:@"7001" controller:chat type:2];
-        [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];timantirecall_updateReplayRow(row,@"self_uid");
-        timantirecall_check(timantirecall_richDoubleTap(row,outside,87)&&probe.timantirecall_calls==before+1&&probe.timantirecall_contact.chatType==2&&[probe.timantirecall_contact.peerUid isEqual:@"7001"],@"group photo producer uses exact groupCode roundtrip");
-        TIMAntiRecallReceivedPic *cached=[TIMAntiRecallReceivedPic new];cached.timantirecall_originalPath=path;
-        cached.picSubType=0;cached.picWidth=8;cached.picHeight=8;cached.fileSize=original.length;
-        record.elements=@[timantirecall_richElement(cached,@"picElement",2)];
-        [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];timantirecall_updateReplayRow(row,@"self_uid");
-        timantirecall_check(cached.sourcePath==nil&&timantirecall_richDoubleTap(row,outside,88)&&probe.timantirecall_calls==before+2,@"received photo with nil sourcePath uses native original cache resolver");
-        timantirecall_check(cached.timantirecall_cacheCalls>=3&&!cached.timantirecall_createRequested&&[probe.timantirecall_bytes isEqual:original]&&cached.sourcePath==nil,@"original cache resolves with createFolder NO and sends full isolated bytes without rewriting source");
-        cached.timantirecall_originalPath=@"/outside-sandbox/TIMANTIRECALL_SECRET_PATH.png";
-        timantirecall_check(!timantirecall_testReplayCapture(row,outside,89),@"native cache result outside sandbox stays rejected");
-        cached.timantirecall_originalPath=@"https://example.invalid/original.png";
-        timantirecall_check(!timantirecall_testReplayCapture(row,outside,89),@"native cache cannot cause remote URL download");
-        cached.timantirecall_originalPath=path;cached.isFlashPic=@YES;NSUInteger reads=cached.timantirecall_cacheCalls;
-        timantirecall_check(!timantirecall_testReplayCapture(row,outside,89)&&cached.timantirecall_cacheCalls==reads,@"flash flag is rejected before invoking native original resolver");cached.isFlashPic=nil;
-        timantirecall_check(timantirecall_testReplayCapture(row,outside,90),@"cached photo replacement negative control captures existing original");
-        cached.timantirecall_originalPath=[path stringByAppendingString:@".missing"];
-        timantirecall_check(!timantirecall_testReplayCapture(row,outside,90.1)&&!timantirecall_testReplayComplete(row,outside)&&probe.timantirecall_calls==before+2,@"changing native cache result between taps cannot submit old photo");
-        cached.timantirecall_originalPath=path;
-        timantirecall_check(timantirecall_testReplayCapture(row,outside,91),@"cache OFF control captures first valid tap");
-        reads=cached.timantirecall_cacheCalls;
-        [timantirecall_settings() timantirecall_updateOptions:@{@"messageReplay":@NO} error:NULL];
-        timantirecall_check(!timantirecall_testReplayCapture(row,outside,91.1)&&!timantirecall_testReplayComplete(row,outside)&&cached.timantirecall_cacheCalls==reads&&probe.timantirecall_calls==before+2,@"turning replay OFF between cached-photo taps causes no resolver or sender call");
-        timantirecall_check(!timantirecall_testReplayCapture(row,outside,92)&&cached.timantirecall_cacheCalls==reads,@"cached-photo resolver remains unused while replay is OFF");
-        [timantirecall_settings() timantirecall_updateOptions:@{@"messageReplay":@YES} error:NULL];
-        TIMAntiRecallReceivedPicWrongABI *wrongABI=[TIMAntiRecallReceivedPicWrongABI new];
-        record.elements=@[timantirecall_richElement(wrongABI,@"picElement",2)];
-        [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];timantirecall_updateReplayRow(row,@"self_uid");
-        timantirecall_check(!timantirecall_testReplayCapture(row,outside,93)&&wrongABI.timantirecall_wrongCalls==0&&probe.timantirecall_calls==before+2,@"cached-original BOOL signature mismatch is rejected before calling IMP");
-        record.elements=@[timantirecall_richElement(cached,@"picElement",2)];
-        [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];timantirecall_updateReplayRow(row,@"self_uid");
-        [NSFileManager.defaultManager removeItemAtPath:path error:NULL];
-        timantirecall_check([timantirecall_richReplaySnapshot(record)[@"mode"] isEqual:@"photo-download"],@"missing cache returns a native original download plan, not a thumbnail");
-        [QQRichMediaPhotoBrowserChatImageAgent timantirecall_configureOriginalDownloadPath:path bytes:original];
-        NSUInteger sentBeforeDownload=probe.timantirecall_calls;
-        timantirecall_check(timantirecall_richDoubleTap(row,outside,94.1)&&probe.timantirecall_calls==sentBeforeDownload&&
-            [QQRichMediaPhotoBrowserChatImageAgent timantirecall_downloadCalls]==1&&
-            [QQRichMediaPhotoBrowserChatImageAgent timantirecall_lastDownloadType]==2,
-            @"double tap starts TIM original-image download type 2 but waits before upload");
-        timantirecall_holdSteps=YES;
-        id downloadedPhotoOriginalModel=[TIMAntiRecallRecordBridge timantirecall_currentModelForView:row];
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.05*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
-            [row bindViewModel:[TIMAntiRecallSwiftFixture timantirecall_ntChat:record]];
-            timantirecall_updateReplayRow(row,@"self_uid");
-            timantirecall_check([TIMAntiRecallRecordBridge timantirecall_currentModelForView:row]!=downloadedPhotoOriginalModel,
-                @"photo download progress can rebind the same message row");
-        });
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.9*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
-            timantirecall_check([QQRichMediaPhotoBrowserChatImageAgent timantirecall_downloadFileExists],@"TIM original download fixture wrote the requested file");
-            timantirecall_check(probe.timantirecall_calls==sentBeforeDownload+1,@"native original download triggers exactly one upload");
-            timantirecall_check([probe.timantirecall_bytes isEqual:original]&&![probe.timantirecall_path isEqual:path],@"uploaded bytes come from the completed original, not the received path");
-            if(probe.timantirecall_completion){probe.timantirecall_completion(0,@"fixture");probe.timantirecall_completion=nil;}
-            timantirecall_check(probe.timantirecall_calls==sentBeforeDownload+1,@"download completion cannot submit a duplicate photo");
-            [timantirecall_coverage addObject:@"received-original-cache-replay"];
-            [timantirecall_coverage addObject:@"rich-message-replay-photo"];
-            timantirecall_clearReplayRow(row);[chat.view removeFromSuperview];
-            [timantirecall_settings() timantirecall_updateOptions:@{@"messageReplay":@NO} error:NULL];
-            timantirecall_holdSteps=NO;timantirecall_nextStep();
-        });
+        TIMAntiRecallVideoForwardProbe *probe=TIMAntiRecallVideoForwardProbe.timantirecall_shared;
+        NSDictionary *snapshot=timantirecall_richReplaySnapshot(record);
+        timantirecall_check([snapshot[@"mode"] isEqual:@"photo-forward"]&&timantirecall_richImmutable(snapshot)&&!timantirecall_richReplayElements(snapshot),@"photo snapshot contains only native message reference metadata, no bytes or local path");
+        timantirecall_check(timantirecall_richDoubleTap(row,outside,80)&&probe.timantirecall_calls==before+1,@"photo double tap submits one same-chat native forward without image download");
+        timantirecall_check([probe.timantirecall_ids isEqual:@[@(INT64_C(4294968123))]]&&probe.timantirecall_destinations.count==1&&probe.timantirecall_destinations.firstObject==probe.timantirecall_source&&[probe.timantirecall_source.peerUid isEqual:@"photo_peer"],@"photo forward uses the original 64-bit message ID and exact current conversation");
+        timantirecall_check(probe.timantirecall_attributes==nil&&probe.timantirecall_completion!=nil&&probe.timantirecall_onMain&&pic.timantirecall_cacheCalls==0&&[QQRichMediaPhotoBrowserChatImageAgent timantirecall_downloadCalls]==0,@"photo path never resolves cache, starts download, or stages local image bytes");
+        timantirecall_check(record.elements.firstObject.picElement==pic&&record.msgId==INT64_C(4294968123)&&[draft.text isEqual:@"图片复读不改草稿"]&&!timantirecall_testReplayComplete(row,outside),@"forward leaves original photo model and editor unchanged and cannot resubmit");
+        probe.timantirecall_completion(1,@"TIMANTIRECALL_SECRET_ERROR",@{});probe.timantirecall_completion=nil;
+        timantirecall_check(probe.timantirecall_calls==before+1,@"native photo-forward error callback never downloads or retries");
+        timantirecall_check(timantirecall_testReplayCapture(row,outside,81),@"photo resource mutation control captures first tap");
+        pic.fileUuid=@"changed-resource";timantirecall_testReplayCapture(row,outside,81.1);
+        timantirecall_check(!timantirecall_testReplayComplete(row,outside)&&probe.timantirecall_calls==before+1,@"changed photo resource between taps cancels native forward");pic.fileUuid=@"photo-resource-uuid";
+        pic.isFlashPic=@YES;timantirecall_check(!timantirecall_testReplayCapture(row,outside,82),@"flash photo remains excluded");pic.isFlashPic=nil;
+        pic.invalidState=@1;timantirecall_check(!timantirecall_testReplayCapture(row,outside,83),@"invalid photo remains excluded");pic.invalidState=nil;
+        int64_t messageID=record.msgId;record.msgId=0;timantirecall_check(!timantirecall_testReplayCapture(row,outside,84),@"photo without a stable original message ID is refused");record.msgId=messageID;
+        int64_t sequence=record.msgSeq;record.msgSeq=0;timantirecall_check(!timantirecall_testReplayCapture(row,outside,85),@"photo without a positive original message sequence is refused");record.msgSeq=sequence;
+        timantirecall_check(probe.timantirecall_calls==before+1&&[QQRichMediaPhotoBrowserChatImageAgent timantirecall_downloadCalls]==0,@"rejected photo states make no forward or download call");
+        [timantirecall_settings() timantirecall_updateOptions:@{@"messageReplay":@(oldReplay),@"replayDiagnostics":@(oldDiagnostics)} error:NULL];
+        probe.timantirecall_handlerMode=0;timantirecall_clearReplayRow(row);[chat.view removeFromSuperview];
+        [timantirecall_coverage addObjectsFromArray:@[@"rich-message-replay-photo",@"photo-native-reference-no-download"]];
     });
 }

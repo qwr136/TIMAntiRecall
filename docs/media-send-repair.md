@@ -38,3 +38,8 @@ The two-tap snapshot retains copied videoMd5/fileUuid and native size/duration p
 Same-source-and-destination acceptance, remote resource availability, transfer policy, forwarding presentation and actual video delivery remain real-device/server acceptance items. Code 0 is a native callback, not proof the recipient received it. This route is not applied to text, quotes, images or market stickers.
 
 Sticker limitation: photo-backed stickers use the fixed image contact path; the supplied device log does not establish the rejection cause for every market/animated format. Do not claim all sticker formats fixed or change their known sender based on row class alone.
+
+
+## 2026-11-26 photo no-download candidate (unverified)
+
+The current main worktree adds a same-chat native forward for one ordinary photo, using the original 64-bit message ID and the existing `MsgSenderHandler.forwardMsgWithMsgIds` selector. This deliberately bypasses the cached-file resolver, original-photo download agent, and local `sendPicMsg` upload path for the double-tap route. The interface signature was established for video; **photo semantics are not proven**. The native app may reject it, show a forwarded-message presentation rather than an ordinary image bubble, or perform its own resource fetch. Synthetic tests only establish the plugin's one-call request shape and absence of its download code path. Require target-device verification before claiming successful no-download photo replay.

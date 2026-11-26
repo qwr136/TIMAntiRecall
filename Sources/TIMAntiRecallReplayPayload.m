@@ -198,6 +198,7 @@ static BOOL timantirecall_richNonzero(id value) {
 }
 #include "TIMAntiRecallReplayReceived.inc"
 static id timantirecall_richPhotoContact(id record,id contact);
+#include "TIMAntiRecallReplayForward.inc"
 #include "TIMAntiRecallReplayVideo.inc"
 NSDictionary *timantirecall_richReplaySnapshot(id record) {
     @try {
@@ -250,16 +251,7 @@ NSDictionary *timantirecall_richReplaySnapshot(id record) {
                 if(timantirecall_richNonzero(invalid))TIMANTIRECALL_RICH_REJECT("photo-invalid-flag","invalidState",invalid,"nil-or-zero");
                 NSNumber *subtype=timantirecall_richRead(payload,"picSubType","i",&valid);if(!valid)return nil;
                 if(subtype.intValue<0)TIMANTIRECALL_RICH_REJECT("photo-subtype-rejected","picSubType",subtype,"nonnegative-int32");
-                NSString *path=timantirecall_richRead(payload,"sourcePath","@",&valid);if(!valid)return nil;
-                BOOL allowOriginalDownload=YES;
-                NSDictionary *file=timantirecall_receivedPhotoFile(payload,path,&allowOriginalDownload);
-                if(!file) {
-                    if(!allowOriginalDownload)return nil;
-                    timantirecall_replayTrace(@"rich",@{@"reason":@"photo-original-download-required",@"source":@"native-original-agent"});
-                    return @{@"mode":@"photo-download",@"subtype":subtype};
-                }
-                timantirecall_replayTrace(@"rich",@{@"reason":@"snapshot-ready",@"shape":@"photo"});
-                return @{@"mode":@"photo",@"file":file,@"subtype":subtype};
+                return timantirecall_photoForwardSnapshot(record,payload,subtype);
             }
             BOOL faceType=(slot==1&&([type intValue]==3||([type intValue]==6&&[payload isKindOfClass:objc_getClass("OCFaceElement")]&&object_getClass(payload)==objc_getClass("OCFaceElement"))));
             if((slot==0&&[type intValue]!=1)||(slot==1&&!faceType)||
@@ -440,6 +432,7 @@ BOOL timantirecall_richReplaySend(id service,id contact,id record,NSDictionary *
     if(!NSThread.isMainThread||!service||!contact||!snapshot)return NO;
     if(![snapshot isEqual:timantirecall_richReplaySnapshot(record)])return NO;
     if([snapshot[@"mode"] isEqual:@"video"])return timantirecall_videoSend(service,contact,record,snapshot);
+    if([snapshot[@"mode"] isEqual:@"photo-forward"])return timantirecall_photoForwardSend(service,contact,record,snapshot);
     if([snapshot[@"mode"] isEqual:@"photo"])return timantirecall_richSendPhotoFile(service,contact,record,snapshot[@"file"],snapshot[@"subtype"]);
     if(![snapshot[@"mode"] isEqual:@"elements"])return NO;
     void (^completion)(int32_t,NSString *)=^(int32_t code,NSString *description) {

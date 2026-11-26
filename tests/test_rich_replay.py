@@ -28,14 +28,24 @@ class RichReplayTests(unittest.TestCase):
         send=function_body(s,'timantirecall_richReplaySend')
         self.assertIn('timantirecall_richReplayElements(snapshot)',send)
         self.assertIn('contact,elements,nil,completion',send)
-    def test_photo_native_api_and_file_isolation(self):
-        s=strip_comments((ROOT/'Sources/TIMAntiRecallReplayPayload.m').read_text())
-        for token in ('sendPicMsg:sourcePath:additionalMsg:picSubType:callBack:','"@",":","@","@","@","i","@?"','O_NOFOLLOW','S_ISREG','24*1024*1024','convertToOCContact','"peerUin","q"','"chatType","q"','NSUUID.UUID.UUIDString','NSFilePosixPermissions:@0600','photoCompletion'):
-            self.assertIn(token,s)
-        self.assertNotIn('NSURLSession',s);self.assertNotIn('removeItemAtPath:file',s)
-        fixture=(ROOT/'tests/ui/TIMAntiRecallReplayPhotoCases.h').read_text()
-        for token in ('missing local original','flash photo','photo contact conversion','replaced photo file','groupCode roundtrip','original file'):
-            self.assertIn(token,fixture)
+    def test_photo_uses_native_reference_forward_not_local_image_io(self):
+        source=strip_comments((ROOT/'Sources/TIMAntiRecallReplayPayload.m').read_text())
+        body=function_body(source,'timantirecall_richReplaySnapshot')
+        photo=body.split('if(slot==4)',1)[1].split('BOOL faceType',1)[0]
+        self.assertIn('timantirecall_photoForwardSnapshot(record,payload,subtype)',photo)
+        for token in ('sourcePath','timantirecall_receivedPhotoFile','fetchOriginalImgPathWithCreateFolder','photo-download'):
+            self.assertNotIn(token,photo)
+        forward=strip_comments((ROOT/'Sources/TIMAntiRecallReplayForward.inc').read_text())
+        send=function_body(forward,'timantirecall_photoForwardSend')
+        self.assertIn('timantirecall_nativeReferenceForward',send)
+        self.assertIn('photo[@"msgId"]',send)
+        native=function_body(forward,'timantirecall_nativeReferenceForward')
+        for token in ('getMsgSenderHandlerWithcontact:','_TtC10MsgManager16MsgSenderHandler','forwardMsgWithMsgIds:srcContact:dstContacts:msgAttributeInfos:cb:','methodTypes(method,"v",7,args)','@[messageID],contact,@[contact],nil,completion'):
+            self.assertIn(token,native)
+        self.assertNotIn('writeToFile:',native);self.assertNotIn('NSURLSession',native)
+        rich_send=function_body(source,'timantirecall_richReplaySend')
+        self.assertIn('timantirecall_photoForwardSend(service,contact,record,snapshot)',rich_send)
+        self.assertIn('photo-native-reference-no-download',(ROOT/'tests/ui/TIMAntiRecallReplayPhotoCases.h').read_text())
     def test_rich_content_frozen_across_two_taps(self):
         s=strip_comments((ROOT/'Sources/TIMAntiRecallReplay.m').read_text())
         self.assertGreaterEqual(s.count('[payload isEqual:self.timantirecall_firstPayload]'),2)
