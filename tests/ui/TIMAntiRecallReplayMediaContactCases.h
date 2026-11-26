@@ -17,7 +17,8 @@ static void timantirecall_testPhotoContactContract(void) {
         timantirecall_check(contact.guildId!=nil&&contact.guildId.length==0&&roundtrip.guildId==nil&&!oldEqual,@"native contact reproduces bridged empty versus converter nil guild");
         sent=forward.timantirecall_calls;
         timantirecall_check(timantirecall_richReplaySend([QQMsgService getInstance],contact,record,snapshot)&&forward.timantirecall_calls==sent+1,@"photo native forward accepts exact ordinary C2C contact without local image bytes");
-        timantirecall_check([forward.timantirecall_ids isEqual:@[@(INT64_C(4294968123))]]&&forward.timantirecall_destinations.firstObject==forward.timantirecall_source&&[forward.timantirecall_source.peerUid isEqual:@"photo_peer"]&&!forward.timantirecall_source.guildId,@"photo forward retains 64-bit source message ID and exact same-chat route");
+        BOOL sourceGuildAbsent=!forward.timantirecall_source.guildId||([forward.timantirecall_source.guildId isKindOfClass:NSString.class]&&forward.timantirecall_source.guildId.length==0);
+        timantirecall_check([forward.timantirecall_ids isEqual:@[@(INT64_C(4294968123))]]&&forward.timantirecall_destinations.firstObject==forward.timantirecall_source&&[forward.timantirecall_source.peerUid isEqual:@"photo_peer"]&&sourceGuildAbsent,@"photo forward retains 64-bit source message ID and exact same-chat route");
         forward.timantirecall_completion=nil;
         for(NSNumber *kind in @[@1,@2]) {
             record.chatType=kind.intValue;record.peerUin=kind.intValue==1?12345:7001;record.peerUid=kind.intValue==1?@"photo_peer":@"7001";snapshot=timantirecall_richReplaySnapshot(record);
