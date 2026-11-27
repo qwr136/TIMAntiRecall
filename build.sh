@@ -22,7 +22,7 @@ python3 tests/run_tests.py -v
 mkdir -p dist
 rm -f dist/TIMAntiRecall.dylib dist/build-receipt.json reports/build-seal.json
 make clean THEOS_PACKAGE_SCHEME=
-make all THEOS_PACKAGE_SCHEME= TIMANTIRECALL_VERSION="$VERSION" ARCHS="arm64 arm64e"
+make all THEOS_PACKAGE_SCHEME= TIMANTIRECALL_VERSION="$VERSION" ARCHS="arm64 arm64e" DEBUG=0 FINALPACKAGE=1 OPTFLAG=-Oz SWIFT_OPTFLAG="-Osize -whole-module-optimization -num-threads 1" MESSAGES=yes
 python3 scripts/prepare_delivery.py --project . --version "$VERSION"
 python3 scripts/verify_dylib.py --project . --scheme trollfools --expected-version "$VERSION" --output reports/dylib-verification.json dist/TIMAntiRecall.dylib
 python3 scripts/build_evidence.py seal --project . --version "$VERSION"

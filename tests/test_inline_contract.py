@@ -69,3 +69,16 @@ class InlineContractTests(unittest.TestCase):
     def test_cold_hook_is_installed_before_session_push(self):
         source=(ROOT/'Hooks/TIMAntiRecallMain.m').read_text()
         self.assertLess(source.index('timantirecall_installColdRecallProtection()'),source.index('timantirecall_installSessionTracking'))
+    def test_release_build_explicitly_uses_clang_and_swift_optimization(self):
+        build=(ROOT/'build.sh').read_text()
+        self.assertIn('DEBUG=0 FINALPACKAGE=1 OPTFLAG=-Oz',build)
+        self.assertIn('SWIFT_OPTFLAG="-Osize -whole-module-optimization -num-threads 1"',build)
+        self.assertIn('MESSAGES=yes',build)
+    def test_ci_version_override_is_manual_main_only(self):
+        workflow=(ROOT/'.github/workflows/build.yml').read_text()
+        self.assertIn('version_override:',workflow)
+        self.assertIn("GITHUB_EVENT_NAME\" != \"workflow_dispatch\"",workflow)
+        self.assertIn('refs/heads/main',workflow)
+        evidence=(ROOT/'scripts/build_evidence.py').read_text()
+        self.assertIn('version differs from explicit CI override',evidence)
+        self.assertIn("('version_override', 'TIMANTIRECALL_VERSION_OVERRIDE')",evidence)

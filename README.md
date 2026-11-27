@@ -43,6 +43,6 @@
 
 ## 构建与证据
 
-公开仓库只包含原创插件、测试和锁定构建工具，不上传TIM或第三方二进制。Actions：源码/真实C解析器 → Foundation原生回归及三个独立进程seed/restore/negative → Swift/ObjC arm64+arm64e编译 → 精确抽取arm64交付 → 真实UIKit设置点击/消息匹配/后台恢复 → 真正终止并以不同PID重开模拟器App，首次收包前恢复红框 → 来源回执/Release。
+公开仓库只包含原创插件、测试和锁定构建工具，不上传TIM或第三方二进制。Actions：源码/真实C解析器 → Foundation原生回归及三个独立进程seed/restore/negative → Swift/ObjC arm64+arm64e编译 → 精确抽取arm64交付 → 真实UIKit设置点击/消息匹配/后台恢复 → 真正终止并以不同PID重开模拟器App，首次收包前恢复红框 → 来源回执/Release。发布编译固定使用 DEBUG=0、FINALPACKAGE=1、Clang -Oz、Swift -Osize/WMO，并在Actions日志中输出真实编译命令；默认构建版本按run number递增，只有main上的手动构建可显式覆盖版本号，覆盖值会进入回执。
 
 模拟器使用显式TIM模型夹具，不运行腾讯主程序。锁定SDK目录标签16.5、metadata16.4，部署16.5；签名页哈希核验不代表设备信任或注入成功。0.80 Release保留作回退。

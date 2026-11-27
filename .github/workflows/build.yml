@@ -7,6 +7,10 @@ on:
         description: 'Run only the XCTest touch probe; do not build or publish a delivery'
         type: boolean
         default: false
+      version_override:
+        description: 'Explicit standalone dylib version for an authorized manual rebuild'
+        type: string
+        default: ''
   push:
     branches:
       - main
@@ -118,9 +122,20 @@ jobs:
 
       - name: Calculate run version without changing tracked source
         id: bump
+        env:
+          VERSION_OVERRIDE: ${{ inputs.version_override }}
         run: |
-          VERSION=$(python3 scripts/build_contract.py --run-number "$GITHUB_RUN_NUMBER")
+          if [ -n "$VERSION_OVERRIDE" ]; then
+            if [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ] || [ "$GITHUB_REF" != "refs/heads/main" ]; then
+              echo 'ERROR: version_override is allowed only for manual main builds' >&2
+              exit 2
+            fi
+            VERSION=$(python3 scripts/build_contract.py --validate-version "$VERSION_OVERRIDE")
+          else
+            VERSION=$(python3 scripts/build_contract.py --run-number "$GITHUB_RUN_NUMBER")
+          fi
           echo "TIMANTIRECALL_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TIMANTIRECALL_VERSION_OVERRIDE=$VERSION_OVERRIDE" >> "$GITHUB_ENV"
           echo "package_version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Prepare release title from manifest

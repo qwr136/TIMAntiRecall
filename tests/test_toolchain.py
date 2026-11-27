@@ -488,6 +488,25 @@ class ReceiptTests(ProjectFixture):
         self.assertEqual(result['repository'],'fixture/locked')
         self.assertTrue(result['tracked_blobs'])
 
+    def test_manual_main_override_is_bound_and_receipted(self):
+        import build_evidence
+        for command in (['git','init','-b','main'], ['git','config','user.name','Fixture'],
+                        ['git','config','user.email','fixture@example.invalid'], ['git','add','.'],
+                        ['git','commit','-m','Fixture source']):
+            subprocess.run(command,cwd=self.project,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=self.project,text=True).strip()
+        observed={'GITHUB_ACTIONS':'true','GITHUB_SHA':commit,'GITHUB_RUN_NUMBER':'145',
+            'GITHUB_EVENT_NAME':'workflow_dispatch','TIMANTIRECALL_VERSION_OVERRIDE':'11.90',
+            'GITHUB_REF':'refs/heads/main','GITHUB_REPOSITORY':'fixture/locked',
+            'GITHUB_RUN_ID':'43','GITHUB_RUN_ATTEMPT':'1'}
+        with mock.patch.dict(os.environ,observed,clear=True):
+            result=build_evidence.source_snapshot(self.project,'11.90')
+            self.assertEqual(result['version_override'],'11.90')
+        observed['GITHUB_EVENT_NAME']='push'
+        with mock.patch.dict(os.environ,observed,clear=True):
+            with self.assertRaisesRegex(ValueError,'manual workflow_dispatch'):
+                build_evidence.source_snapshot(self.project,'11.90')
+
     def legacy_deb_receipt_fixture(self):
         # receipt 本身与 verify_platform 的字段选择都运行真实实现。
         # 只隔离尚未可在 Alpine 执行的整体 verify、git/dpkg 命令与真实 deb。

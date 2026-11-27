@@ -48,7 +48,17 @@ class DylibTests(unittest.TestCase):
         for number,version in ((1,'0.10'),(9,'0.90'),(10,'1.00'),(11,'1.10')):
             self.assertEqual(version_for_run(number),version)
             version_tuple(version)
+        version_tuple('11.90')
         for version in ('0.1','0.11','latest','1.001'):
             with self.assertRaises(ValueError): version_tuple(version)
+
+    def test_explicit_version_override_cli(self):
+        import subprocess
+        script=ROOT/'scripts/build_contract.py'
+        good=subprocess.run([sys.executable,str(script),'--validate-version','11.90'],capture_output=True,text=True)
+        self.assertEqual(good.returncode,0,good.stderr)
+        self.assertEqual(good.stdout.strip(),'11.90')
+        bad=subprocess.run([sys.executable,str(script),'--validate-version','11.91'],capture_output=True,text=True)
+        self.assertNotEqual(bad.returncode,0)
 
 if __name__=='__main__': unittest.main()

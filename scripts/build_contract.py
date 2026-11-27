@@ -113,10 +113,14 @@ def main():
     parser.add_argument('--project', default='.')
     parser.add_argument('--scheme', default='trollfools')
     parser.add_argument('--run-number')
+    parser.add_argument('--validate-version')
     args = parser.parse_args()
     require(args.scheme == 'trollfools', 'only trollfools is supported')
     if args.run_number:
         print(version_for_run(args.run_number))
+    elif args.validate_version:
+        version_tuple(args.validate_version)
+        print(args.validate_version)
     else:
         validate(args.project)
         print('PASS standalone dylib build contract')

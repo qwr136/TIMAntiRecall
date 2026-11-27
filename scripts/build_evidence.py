@@ -27,8 +27,16 @@ def source_snapshot(project, version):
             'source must be clean, including untracked build inputs')
     if os.environ.get('GITHUB_ACTIONS') == 'true':
         require(commit == os.environ.get('GITHUB_SHA'), 'source HEAD differs from GitHub SHA')
-        require(version == version_for_run(os.environ.get('GITHUB_RUN_NUMBER', '')),
-                'version differs from CI run number')
+        override = os.environ.get('TIMANTIRECALL_VERSION_OVERRIDE', '')
+        if override:
+            require(os.environ.get('GITHUB_EVENT_NAME') == 'workflow_dispatch',
+                    'version override is allowed only for manual workflow_dispatch')
+            require(os.environ.get('GITHUB_REF') == 'refs/heads/main',
+                    'version override is allowed only on main')
+            require(version == override, 'version differs from explicit CI override')
+        else:
+            require(version == version_for_run(os.environ.get('GITHUB_RUN_NUMBER', '')),
+                    'version differs from CI run number')
         for key in ('GITHUB_REPOSITORY', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_REF'):
             require(bool(os.environ.get(key)), 'missing CI identity: ' + key)
     # ls-tree uses NUL delimiters: whitespace in filenames cannot hide a blob.
@@ -60,6 +68,7 @@ def source_snapshot(project, version):
     identity = {key: os.environ.get(env, '') for key, env in (
         ('repository', 'GITHUB_REPOSITORY'), ('run_id', 'GITHUB_RUN_ID'),
         ('run_attempt', 'GITHUB_RUN_ATTEMPT'), ('run_number', 'GITHUB_RUN_NUMBER'),
+        ('version_override', 'TIMANTIRECALL_VERSION_OVERRIDE'),
         ('source_ref', 'GITHUB_REF'), ('workflow_ref', 'GITHUB_WORKFLOW_REF'))}
     return dict(identity, source_sha=commit, source_tree=git(root, 'rev-parse', 'HEAD^{tree}'),
                 tracked_blobs=blobs, compile_inputs=inputs, version=version,
